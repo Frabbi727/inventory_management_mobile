@@ -7,10 +7,17 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:inventory_management_sales/app.dart';
 import 'package:inventory_management_sales/core/network/api_client.dart';
+import 'package:inventory_management_sales/core/routes/app_routes.dart';
 import 'package:inventory_management_sales/core/storage/token_storage.dart';
 import 'package:inventory_management_sales/core/storage/user_storage.dart';
+import 'package:inventory_management_sales/features/auth/presentation/controllers/home_controller.dart';
 import 'package:inventory_management_sales/features/auth/data/models/user_model.dart';
 import 'package:inventory_management_sales/features/auth/data/repositories/auth_repository.dart';
+import 'package:inventory_management_sales/features/cart_orders/data/repositories/order_repository.dart';
+import 'package:inventory_management_sales/features/cart_orders/presentation/controllers/cart_controller.dart';
+import 'package:inventory_management_sales/features/customers/data/models/customer_model.dart';
+import 'package:inventory_management_sales/features/customers/data/repositories/customer_repository.dart';
+import 'package:inventory_management_sales/features/products/data/models/product_model.dart';
 import 'package:inventory_management_sales/features/products/data/repositories/product_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -34,6 +41,24 @@ void main() {
     Future<http.Response> Function(http.Request request) handler,
   ) {
     return ProductRepository(
+      apiClient: ApiClient(httpClient: MockClient(handler)),
+      tokenStorage: TokenStorage(),
+    );
+  }
+
+  CustomerRepository createCustomerRepository(
+    Future<http.Response> Function(http.Request request) handler,
+  ) {
+    return CustomerRepository(
+      apiClient: ApiClient(httpClient: MockClient(handler)),
+      tokenStorage: TokenStorage(),
+    );
+  }
+
+  OrderRepository createOrderRepository(
+    Future<http.Response> Function(http.Request request) handler,
+  ) {
+    return OrderRepository(
       apiClient: ApiClient(httpClient: MockClient(handler)),
       tokenStorage: TokenStorage(),
     );
@@ -88,6 +113,88 @@ void main() {
       'unit': {'id': 1, 'name': 'Piece', 'short_name': 'pc'},
     },
   ];
+
+  const sampleCustomers = [
+    {
+      'id': 1,
+      'name': 'Rahman Store',
+      'phone': '+8801710001001',
+      'address': '12 Lake Circus, Dhaka',
+      'area': 'Dhanmondi',
+      'created_by': {'id': 2, 'name': 'Sales Demo'},
+    },
+    {
+      'id': 2,
+      'name': 'Mina Traders',
+      'phone': '+8801710001002',
+      'address': 'Mirpur DOHS, Dhaka',
+      'area': 'Mirpur',
+      'created_by': {'id': 2, 'name': 'Sales Demo'},
+    },
+  ];
+
+  Map<String, dynamic> customerListPayload({
+    required List<Map<String, dynamic>> customers,
+    int currentPage = 1,
+    int lastPage = 1,
+    String? nextUrl,
+  }) {
+    return {
+      'data': customers,
+      'links': {
+        'first': 'https://ordermanage.b2bhaat.com/api/customers?page=1',
+        'last': 'https://ordermanage.b2bhaat.com/api/customers?page=$lastPage',
+        'prev': currentPage > 1
+            ? 'https://ordermanage.b2bhaat.com/api/customers?page=${currentPage - 1}'
+            : null,
+        'next': nextUrl,
+      },
+      'meta': {
+        'current_page': currentPage,
+        'from': 1,
+        'last_page': lastPage,
+        'links': const [],
+        'path': 'https://ordermanage.b2bhaat.com/api/customers',
+        'per_page': 15,
+        'to': customers.length,
+        'total': customers.length,
+      },
+    };
+  }
+
+  Map<String, dynamic> orderCreatePayload() {
+    return {
+      'message': 'Order created successfully.',
+      'data': {
+        'id': 99,
+        'order_no': 'ORD-ABC12345',
+        'order_date': '2026-04-09',
+        'subtotal': 104,
+        'discount_type': 'amount',
+        'discount_value': 4,
+        'discount_amount': 4,
+        'grand_total': 100,
+        'status': 'confirmed',
+        'note': 'Deliver quickly',
+        'customer': {
+          'id': 1,
+          'name': 'Rahman Store',
+          'phone': '+8801710001001',
+        },
+        'salesman': {'id': 2, 'name': 'Sales Demo'},
+        'items': [
+          {
+            'id': 1,
+            'product_id': 2,
+            'product_name': 'Fresh Milk 500ml',
+            'quantity': 2,
+            'unit_price': 52,
+            'line_total': 104,
+          },
+        ],
+      },
+    };
+  }
 
   testWidgets('app boots into splash screen first', (
     WidgetTester tester,
@@ -153,6 +260,16 @@ void main() {
       }),
       permanent: true,
     );
+    Get.put<CustomerRepository>(
+      createCustomerRepository((request) async {
+        return http.Response(
+          jsonEncode(customerListPayload(customers: sampleCustomers)),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+      permanent: true,
+    );
 
     await tester.pumpWidget(const SalesApp());
     await tester.pump(const Duration(milliseconds: 700));
@@ -184,6 +301,16 @@ void main() {
       createProductRepository((request) async {
         return http.Response(
           jsonEncode(productListPayload(products: sampleProducts)),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+      permanent: true,
+    );
+    Get.put<CustomerRepository>(
+      createCustomerRepository((request) async {
+        return http.Response(
+          jsonEncode(customerListPayload(customers: sampleCustomers)),
           200,
           headers: {'content-type': 'application/json'},
         );
@@ -252,6 +379,16 @@ void main() {
       }),
       permanent: true,
     );
+    Get.put<CustomerRepository>(
+      createCustomerRepository((request) async {
+        return http.Response(
+          jsonEncode(customerListPayload(customers: sampleCustomers)),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+      permanent: true,
+    );
 
     final tokenStorage = TokenStorage();
     final userStorage = UserStorage();
@@ -299,6 +436,16 @@ void main() {
       createProductRepository((request) async {
         return http.Response(
           jsonEncode(productListPayload(products: sampleProducts)),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+      permanent: true,
+    );
+    Get.put<CustomerRepository>(
+      createCustomerRepository((request) async {
+        return http.Response(
+          jsonEncode(customerListPayload(customers: sampleCustomers)),
           200,
           headers: {'content-type': 'application/json'},
         );
@@ -363,6 +510,16 @@ void main() {
       }),
       permanent: true,
     );
+    Get.put<CustomerRepository>(
+      createCustomerRepository((request) async {
+        return http.Response(
+          jsonEncode(customerListPayload(customers: sampleCustomers)),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+      permanent: true,
+    );
 
     await tester.pumpWidget(const SalesApp());
     await tester.pump(const Duration(milliseconds: 700));
@@ -372,7 +529,7 @@ void main() {
 
     await tester.tap(find.text('New Order'));
     await tester.pumpAndSettle();
-    expect(find.text('Continue to Customer'), findsOneWidget);
+    expect(find.text('Step 1: Customer'), findsOneWidget);
 
     await tester.tap(find.text('Orders'));
     await tester.pumpAndSettle();
@@ -426,6 +583,16 @@ void main() {
       }),
       permanent: true,
     );
+    Get.put<CustomerRepository>(
+      createCustomerRepository((request) async {
+        return http.Response(
+          jsonEncode(customerListPayload(customers: sampleCustomers)),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+      permanent: true,
+    );
 
     final tokenStorage = TokenStorage();
     final userStorage = UserStorage();
@@ -444,4 +611,280 @@ void main() {
     expect(await tokenStorage.getToken(), isNull);
     expect(await userStorage.getUser(), isNull);
   });
+
+  testWidgets('customer selection flows back into new order screen', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'auth_token': 'customer-shell-token',
+    });
+
+    Get.put<AuthRepository>(
+      createRepository((request) async {
+        if (request.url.path.endsWith('/me')) {
+          return http.Response(
+            jsonEncode({
+              'data': {
+                'id': 2,
+                'name': 'Sales Demo',
+                'email': 'salesman@example.com',
+                'phone': '+8801700000002',
+                'role': {'id': 2, 'name': 'Salesman', 'slug': 'salesman'},
+              },
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+
+        return http.Response(
+          jsonEncode({'message': 'Logout successful.'}),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+      permanent: true,
+    );
+    Get.put<ProductRepository>(
+      createProductRepository((request) async {
+        return http.Response(
+          jsonEncode(productListPayload(products: sampleProducts)),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+      permanent: true,
+    );
+    Get.put<CustomerRepository>(
+      createCustomerRepository((request) async {
+        return http.Response(
+          jsonEncode(customerListPayload(customers: sampleCustomers)),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+      permanent: true,
+    );
+
+    await tester.pumpWidget(const SalesApp());
+    await tester.pump(const Duration(milliseconds: 700));
+    await tester.pumpAndSettle();
+
+    Get.find<HomeController>().changeTab(1);
+    await tester.pumpAndSettle();
+    final customerSelectionFuture = Get.toNamed<dynamic>(
+      AppRoutes.customerSearch,
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(SearchBar), 'rah');
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Rahman Store'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Select').first);
+    await tester.pumpAndSettle();
+
+    final selectedCustomer = await customerSelectionFuture;
+    Get.find<CartController>().setSelectedCustomer(
+      selectedCustomer as CustomerModel,
+    );
+    final cartController = Get.find<CartController>();
+    expect(cartController.selectedCustomer.value?.name, equals('Rahman Store'));
+    expect(
+      cartController.selectedCustomer.value?.phone,
+      equals('+8801710001001'),
+    );
+  });
+
+  testWidgets('products can be added and submitted from new order flow', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'auth_token': 'order-shell-token',
+    });
+
+    Get.put<AuthRepository>(
+      createRepository((request) async {
+        if (request.url.path.endsWith('/me')) {
+          return http.Response(
+            jsonEncode({
+              'data': {
+                'id': 2,
+                'name': 'Sales Demo',
+                'email': 'salesman@example.com',
+                'phone': '+8801700000002',
+                'role': {'id': 2, 'name': 'Salesman', 'slug': 'salesman'},
+              },
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+
+        return http.Response(
+          jsonEncode({'message': 'Logout successful.'}),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+      permanent: true,
+    );
+    Get.put<ProductRepository>(
+      createProductRepository((request) async {
+        return http.Response(
+          jsonEncode(productListPayload(products: sampleProducts)),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+      permanent: true,
+    );
+    Get.put<CustomerRepository>(
+      createCustomerRepository((request) async {
+        return http.Response(
+          jsonEncode(customerListPayload(customers: sampleCustomers)),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+      permanent: true,
+    );
+    Get.put<OrderRepository>(
+      createOrderRepository((request) async {
+        expect(request.url.path.endsWith('/orders'), isTrue);
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        expect(body['customer_id'], equals(1));
+        expect((body['items'] as List<dynamic>).first['product_id'], equals(2));
+        expect((body['items'] as List<dynamic>).first['quantity'], equals(2));
+
+        return http.Response(
+          jsonEncode(orderCreatePayload()),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+      permanent: true,
+    );
+
+    await tester.pumpWidget(const SalesApp());
+    await tester.pump(const Duration(milliseconds: 700));
+    await tester.pumpAndSettle();
+
+    final cartController = Get.find<CartController>();
+    final firstProduct = ProductModel.fromJson(sampleProducts.first);
+    cartController.addProduct(firstProduct);
+    cartController.addProduct(firstProduct);
+    cartController.setSelectedCustomer(
+      const CustomerModel(id: 1, name: 'Rahman Store', phone: '+8801710001001'),
+    );
+    cartController.setDiscountType('amount');
+    cartController.onDiscountValueChanged('4');
+    cartController.noteController.text = 'Deliver quickly';
+
+    await cartController.submitOrder();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Order Created'), findsOneWidget);
+    expect(find.text('ORD-ABC12345'), findsOneWidget);
+    expect(find.text('View Orders'), findsOneWidget);
+  });
+
+  testWidgets(
+    'product add from products tab syncs with new order quantity controls',
+    (WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'auth_token': 'cart-sync-token',
+      });
+
+      Get.put<AuthRepository>(
+        createRepository((request) async {
+          if (request.url.path.endsWith('/me')) {
+            return http.Response(
+              jsonEncode({
+                'data': {
+                  'id': 2,
+                  'name': 'Sales Demo',
+                  'email': 'salesman@example.com',
+                  'phone': '+8801700000002',
+                  'role': {'id': 2, 'name': 'Salesman', 'slug': 'salesman'},
+                },
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+
+          return http.Response(
+            jsonEncode({'message': 'Logout successful.'}),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        permanent: true,
+      );
+      Get.put<ProductRepository>(
+        createProductRepository((request) async {
+          return http.Response(
+            jsonEncode(productListPayload(products: sampleProducts)),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        permanent: true,
+      );
+      Get.put<CustomerRepository>(
+        createCustomerRepository((request) async {
+          return http.Response(
+            jsonEncode(customerListPayload(customers: sampleCustomers)),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        permanent: true,
+      );
+
+      await tester.pumpWidget(const SalesApp());
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Fresh Milk 500ml'), findsOneWidget);
+
+      final cartController = Get.find<CartController>();
+      cartController.setSelectedCustomer(
+        const CustomerModel(id: 1, name: 'Rahman Store'),
+      );
+
+      await tester.ensureVisible(find.text('Add').first);
+      await tester.tap(find.text('Add').first);
+      await tester.pump();
+
+      expect(cartController.items.single.productId, equals(2));
+      expect(cartController.items.single.quantity, equals(1));
+
+      await tester.tap(find.text('New Order'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Step 2: Products'), findsOneWidget);
+      expect(find.text('Fresh Milk 500ml'), findsOneWidget);
+
+      await tester.tap(
+        find.descendant(
+          of: find.byKey(const ValueKey('cart-item-2')),
+          matching: find.byTooltip('Increase quantity'),
+        ),
+      );
+      await tester.pump();
+      expect(cartController.items.single.quantity, equals(2));
+
+      await tester.tap(
+        find.descendant(
+          of: find.byKey(const ValueKey('cart-item-2')),
+          matching: find.byTooltip('Decrease quantity'),
+        ),
+      );
+      await tester.pump();
+      expect(cartController.items.single.quantity, equals(1));
+    },
+  );
 }

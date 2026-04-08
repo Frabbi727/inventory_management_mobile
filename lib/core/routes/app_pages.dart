@@ -6,6 +6,11 @@ import '../../features/auth/presentation/bindings/splash_binding.dart';
 import '../../features/auth/presentation/pages/home_screen.dart';
 import '../../features/auth/presentation/pages/login_screen.dart';
 import '../../features/auth/presentation/pages/splash_screen.dart';
+import '../../features/customers/presentation/bindings/add_customer_binding.dart';
+import '../../features/customers/presentation/bindings/customer_binding.dart';
+import '../../features/customers/presentation/pages/add_customer_page.dart';
+import '../../features/customers/presentation/pages/customer_search_page.dart';
+import '../../features/cart_orders/presentation/pages/order_success_page.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -26,6 +31,20 @@ class AppPages {
       name: AppRoutes.home,
       page: HomeScreen.new,
       binding: HomeBinding(),
+    ),
+    GetPage<CustomerSearchPage>(
+      name: AppRoutes.customerSearch,
+      page: CustomerSearchPage.new,
+      binding: CustomerBinding(),
+    ),
+    GetPage<AddCustomerPage>(
+      name: AppRoutes.addCustomer,
+      page: AddCustomerPage.new,
+      binding: AddCustomerBinding(),
+    ),
+    GetPage<OrderSuccessPage>(
+      name: AppRoutes.orderSuccess,
+      page: OrderSuccessPage.new,
     ),
   ];
 }

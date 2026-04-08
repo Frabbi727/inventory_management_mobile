@@ -1,0 +1,38 @@
+import 'package:json_annotation/json_annotation.dart';
+
+import 'order_item_request_model.dart';
+
+part 'create_order_request_model.g.dart';
+
+@JsonSerializable(explicitToJson: true)
+class CreateOrderRequestModel {
+  const CreateOrderRequestModel({
+    this.customerId,
+    this.orderDate,
+    this.note,
+    this.discountType,
+    this.discountValue,
+    this.items,
+  });
+
+  @JsonKey(name: 'customer_id')
+  final int? customerId;
+
+  @JsonKey(name: 'order_date')
+  final String? orderDate;
+
+  final String? note;
+
+  @JsonKey(name: 'discount_type')
+  final String? discountType;
+
+  @JsonKey(name: 'discount_value')
+  final num? discountValue;
+
+  final List<OrderItemRequestModel>? items;
+
+  factory CreateOrderRequestModel.fromJson(Map<String, dynamic> json) =>
+      _$CreateOrderRequestModelFromJson(json);
+
+  Map<String, dynamic> toJson() => _$CreateOrderRequestModelToJson(this);
+}

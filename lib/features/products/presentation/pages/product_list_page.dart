@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../bindings/product_binding.dart';
+import '../../../auth/presentation/controllers/home_controller.dart';
+import '../../../cart_orders/presentation/controllers/cart_controller.dart';
+import '../../data/models/product_model.dart';
 import '../controllers/product_list_controller.dart';
 
 class ProductListPage extends GetView<ProductListController> {
@@ -9,11 +11,8 @@ class ProductListPage extends GetView<ProductListController> {
 
   @override
   Widget build(BuildContext context) {
-    if (!Get.isRegistered<ProductListController>()) {
-      ProductBinding().dependencies();
-    }
-
     final theme = Theme.of(context);
+    final cartController = Get.find<CartController>();
 
     return SafeArea(
       child: Padding(
@@ -26,11 +25,6 @@ class ProductListPage extends GetView<ProductListController> {
               style: theme.textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Search and add products quickly while keeping stock visible.',
-              style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 16),
             SearchBar(
@@ -129,7 +123,13 @@ class ProductListPage extends GetView<ProductListController> {
                                     ),
                                   ),
                                   FilledButton.tonalIcon(
-                                    onPressed: () {},
+                                    onPressed: (product.currentStock ?? 0) <= 0
+                                        ? null
+                                        : () => _addToOrder(
+                                            context,
+                                            cartController,
+                                            product,
+                                          ),
                                     icon: const Icon(Icons.add_shopping_cart),
                                     label: const Text('Add'),
                                   ),
@@ -163,6 +163,45 @@ class ProductListPage extends GetView<ProductListController> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _addToOrder(
+    BuildContext context,
+    CartController cartController,
+    ProductModel product,
+  ) {
+    final added = cartController.addProduct(product);
+    final messenger = ScaffoldMessenger.of(context);
+
+    if (!added) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            (product.currentStock ?? 0) <= 0
+                ? '${product.name ?? 'Product'} is out of stock.'
+                : 'Available stock limit reached for ${product.name ?? 'this product'}.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('${product.name ?? 'Product'} added to the order'),
+        action: Get.isRegistered<HomeController>()
+            ? SnackBarAction(
+                label: cartController.canOpenProductsStepFromProductsTab()
+                    ? 'Open Order'
+                    : 'View',
+                onPressed: () {
+                  cartController.openProductsStepFromProductsTab();
+                  Get.find<HomeController>().changeTab(1);
+                },
+              )
+            : null,
       ),
     );
   }
