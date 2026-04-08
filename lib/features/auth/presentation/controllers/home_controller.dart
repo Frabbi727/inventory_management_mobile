@@ -21,6 +21,7 @@ class HomeController extends GetxController {
 
   final user = Rxn<UserModel>();
   final isLoggingOut = false.obs;
+  final selectedIndex = 0.obs;
 
   @override
   void onInit() {
@@ -30,6 +31,10 @@ class HomeController extends GetxController {
 
   Future<void> _loadUser() async {
     user.value = await _userStorage.getUser();
+  }
+
+  void changeTab(int index) {
+    selectedIndex.value = index;
   }
 
   Future<void> logout() async {
