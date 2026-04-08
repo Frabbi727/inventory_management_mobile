@@ -1,0 +1,607 @@
+Great — here is your **updated SRS in `.md` format**, including **json_serializable model design** based on all your APIs 👇
+
+---
+
+# 📄 Software Requirements Specification (SRS)
+
+## Mobile Salesman App
+
+### Inventory + Sales + Order Management System
+
+---
+
+# 1. Introduction
+
+## 1.1 Purpose
+
+This document defines the software requirements for the Flutter mobile salesman application. The app follows the same backend business logic as the Laravel web system.
+
+---
+
+## 1.2 Technology Stack
+
+* Mobile: Flutter
+* Backend: Laravel
+* Auth: Bearer Token (`X-Authorization`)
+* Data Format: JSON
+
+---
+
+## 1.3 Core Principle
+
+👉 **Mobile previews, backend decides**
+
+* Mobile shows preview
+* Backend calculates final values
+
+---
+
+# 2. API Overview
+
+## 🔐 Auth APIs
+
+* `POST /api/login`
+* `POST /api/logout`
+* `GET /api/me`
+
+## 📦 Product APIs
+
+* `GET /api/products`
+* `GET /api/products/{id}`
+
+## 👤 Customer APIs
+
+* `GET /api/customers`
+* `GET /api/customers/{id}`
+* `POST /api/customers`
+
+## 🧾 Order APIs
+
+* `GET /api/orders`
+* `GET /api/orders/{id}`
+* `POST /api/orders`
+
+---
+
+# 3. Common API Rules
+
+## Headers
+
+```http
+Accept: application/json
+Content-Type: application/json
+X-Authorization: Bearer {token}
+```
+
+---
+
+# 4. Model Design (json_serializable)
+
+## 4.1 Dependencies
+
+```yaml
+dependencies:
+  json_annotation: ^4.8.1
+
+dev_dependencies:
+  build_runner: ^2.4.6
+  json_serializable: ^6.7.1
+```
+
+---
+
+## 4.2 Generate Command
+
+```bash
+flutter pub run build_runner build --delete-conflicting-outputs
+```
+
+---
+
+# 5. Shared Models
+
+## 5.1 Pagination Models
+
+### PaginationLinksModel
+
+```dart
+@JsonSerializable()
+class PaginationLinksModel {
+  final String? first;
+  final String? last;
+  final String? prev;
+  final String? next;
+}
+```
+
+---
+
+### PaginationMetaModel
+
+```dart
+@JsonSerializable()
+class PaginationMetaModel {
+  @JsonKey(name: 'current_page')
+  final int currentPage;
+
+  final int? from;
+
+  @JsonKey(name: 'last_page')
+  final int lastPage;
+
+  final List<PaginationMetaLinkModel> links;
+
+  final String path;
+
+  @JsonKey(name: 'per_page')
+  final int perPage;
+
+  final int? to;
+  final int total;
+}
+```
+
+---
+
+### PaginationMetaLinkModel
+
+```dart
+@JsonSerializable()
+class PaginationMetaLinkModel {
+  final String? url;
+  final String label;
+  final int? page;
+  final bool active;
+}
+```
+
+---
+
+# 6. Auth Models
+
+## RoleModel
+
+```dart
+@JsonSerializable()
+class RoleModel {
+  final int id;
+  final String name;
+  final String slug;
+}
+```
+
+---
+
+## UserModel
+
+```dart
+@JsonSerializable()
+class UserModel {
+  final int id;
+  final String name;
+  final String email;
+  final String phone;
+  final String status;
+  final RoleModel role;
+
+  @JsonKey(name: 'email_verified_at')
+  final String? emailVerifiedAt;
+
+  @JsonKey(name: 'created_at')
+  final String createdAt;
+
+  @JsonKey(name: 'updated_at')
+  final String updatedAt;
+}
+```
+
+---
+
+## LoginResponseModel
+
+```dart
+@JsonSerializable()
+class LoginResponseModel {
+  final String message;
+  final LoginData data;
+}
+```
+
+---
+
+## LoginData
+
+```dart
+@JsonSerializable()
+class LoginData {
+  final String token;
+
+  @JsonKey(name: 'token_type')
+  final String tokenType;
+
+  final UserModel user;
+}
+```
+
+---
+
+## LogoutResponseModel
+
+```dart
+@JsonSerializable()
+class LogoutResponseModel {
+  final String message;
+}
+```
+
+---
+
+## ProfileResponseModel
+
+```dart
+@JsonSerializable()
+class ProfileResponseModel {
+  final UserModel data;
+}
+```
+
+---
+
+# 7. Product Models
+
+## ProductCategoryModel
+
+```dart
+@JsonSerializable()
+class ProductCategoryModel {
+  final int id;
+  final String name;
+}
+```
+
+---
+
+## ProductUnitModel
+
+```dart
+@JsonSerializable()
+class ProductUnitModel {
+  final int id;
+  final String name;
+
+  @JsonKey(name: 'short_name')
+  final String shortName;
+}
+```
+
+---
+
+## ProductModel
+
+```dart
+@JsonSerializable()
+class ProductModel {
+  final int id;
+  final String name;
+  final String sku;
+
+  @JsonKey(name: 'purchase_price')
+  final num? purchasePrice;
+
+  @JsonKey(name: 'selling_price')
+  final num sellingPrice;
+
+  @JsonKey(name: 'minimum_stock_alert')
+  final int minimumStockAlert;
+
+  final String status;
+
+  @JsonKey(name: 'current_stock')
+  final int currentStock;
+
+  final ProductCategoryModel category;
+  final ProductUnitModel unit;
+
+  @JsonKey(name: 'created_at')
+  final String createdAt;
+
+  @JsonKey(name: 'updated_at')
+  final String updatedAt;
+}
+```
+
+---
+
+## ProductListResponseModel
+
+```dart
+@JsonSerializable()
+class ProductListResponseModel {
+  final List<ProductModel> data;
+  final PaginationLinksModel links;
+  final PaginationMetaModel meta;
+}
+```
+
+---
+
+## ProductDetailsResponseModel
+
+```dart
+@JsonSerializable()
+class ProductDetailsResponseModel {
+  final ProductModel data;
+}
+```
+
+---
+
+# 8. Customer Models
+
+## CustomerCreatedByModel
+
+```dart
+@JsonSerializable()
+class CustomerCreatedByModel {
+  final int id;
+  final String name;
+}
+```
+
+---
+
+## CustomerModel
+
+```dart
+@JsonSerializable()
+class CustomerModel {
+  final int id;
+  final String name;
+  final String phone;
+  final String address;
+  final String? area;
+
+  @JsonKey(name: 'created_by')
+  final CustomerCreatedByModel createdBy;
+
+  @JsonKey(name: 'created_at')
+  final String createdAt;
+
+  @JsonKey(name: 'updated_at')
+  final String updatedAt;
+}
+```
+
+---
+
+## CustomerListResponseModel
+
+```dart
+@JsonSerializable()
+class CustomerListResponseModel {
+  final List<CustomerModel> data;
+  final PaginationLinksModel links;
+  final PaginationMetaModel meta;
+}
+```
+
+---
+
+## CreateCustomerRequestModel
+
+```dart
+@JsonSerializable()
+class CreateCustomerRequestModel {
+  final String name;
+  final String phone;
+  final String address;
+  final String? area;
+}
+```
+
+---
+
+## CreateCustomerResponseModel
+
+```dart
+@JsonSerializable()
+class CreateCustomerResponseModel {
+  final String message;
+  final CustomerModel data;
+}
+```
+
+---
+
+# 9. Order Models
+
+## OrderCustomerModel
+
+```dart
+@JsonSerializable()
+class OrderCustomerModel {
+  final int id;
+  final String name;
+  final String phone;
+}
+```
+
+---
+
+## OrderSalesmanModel
+
+```dart
+@JsonSerializable()
+class OrderSalesmanModel {
+  final int id;
+  final String name;
+}
+```
+
+---
+
+## OrderItemModel
+
+```dart
+@JsonSerializable()
+class OrderItemModel {
+  final int id;
+
+  @JsonKey(name: 'product_id')
+  final int productId;
+
+  @JsonKey(name: 'product_name')
+  final String productName;
+
+  final int quantity;
+
+  @JsonKey(name: 'unit_price')
+  final num unitPrice;
+
+  @JsonKey(name: 'line_total')
+  final num lineTotal;
+}
+```
+
+---
+
+## OrderModel
+
+```dart
+@JsonSerializable()
+class OrderModel {
+  final int id;
+
+  @JsonKey(name: 'order_no')
+  final String orderNo;
+
+  @JsonKey(name: 'order_date')
+  final String orderDate;
+
+  final num subtotal;
+
+  @JsonKey(name: 'discount_type')
+  final String? discountType;
+
+  @JsonKey(name: 'discount_value')
+  final num? discountValue;
+
+  @JsonKey(name: 'discount_amount')
+  final num discountAmount;
+
+  @JsonKey(name: 'grand_total')
+  final num grandTotal;
+
+  final String status;
+  final String? note;
+
+  final OrderCustomerModel customer;
+  final OrderSalesmanModel salesman;
+  final List<OrderItemModel> items;
+
+  @JsonKey(name: 'created_at')
+  final String createdAt;
+
+  @JsonKey(name: 'updated_at')
+  final String updatedAt;
+}
+```
+
+---
+
+## OrderListResponseModel
+
+```dart
+@JsonSerializable()
+class OrderListResponseModel {
+  final List<OrderModel> data;
+  final PaginationLinksModel links;
+  final PaginationMetaModel meta;
+}
+```
+
+---
+
+## CreateOrderRequestModel
+
+```dart
+@JsonSerializable()
+class CreateOrderRequestModel {
+  @JsonKey(name: 'customer_id')
+  final int customerId;
+
+  @JsonKey(name: 'order_date')
+  final String orderDate;
+
+  final String? note;
+
+  @JsonKey(name: 'discount_type')
+  final String? discountType;
+
+  @JsonKey(name: 'discount_value')
+  final num? discountValue;
+
+  final List<OrderItemRequestModel> items;
+}
+```
+
+---
+
+## OrderItemRequestModel
+
+```dart
+@JsonSerializable()
+class OrderItemRequestModel {
+  @JsonKey(name: 'product_id')
+  final int productId;
+
+  final int quantity;
+}
+```
+
+---
+
+# 10. Important Rules
+
+* ❌ Do NOT send:
+
+  * subtotal
+  * grand_total
+  * unit_price
+
+* ✅ Backend calculates everything
+
+---
+
+# 11. Architecture Suggestion
+
+```text
+features/
+ ┣ auth/
+ ┣ products/
+ ┣ customers/
+ ┣ orders/
+core/
+ ┣ network/
+ ┣ storage/
+```
+
+---
+
+# 12. Final Note
+
+This system follows:
+
+👉 **Backend-driven business logic**
+👉 **Reusable models**
+👉 **Clean architecture**
+👉 **json_serializable for performance**
+
+---
+
+If you want next step:
+
+👉 I can generate **all model Dart files ready to paste**
+👉 or build **Dio API client + interceptor + GetX setup**
+
+Just tell me 🚀
