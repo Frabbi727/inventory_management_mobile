@@ -61,7 +61,9 @@ class CustomerSearchPage extends GetView<CustomerSearchController> {
                   if (controller.customers.isEmpty) {
                     return _MessageState(
                       icon: Icons.person_search_outlined,
-                      message: 'No customer matched your search.',
+                      message: controller.searchQuery.value.isEmpty
+                          ? 'No customers available.'
+                          : 'No customer matched your search.',
                       actionLabel: 'Add Customer',
                       onAction: controller.openAddCustomer,
                     );

@@ -33,6 +33,13 @@ class CartPage extends GetView<CartController> {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Add products, review the cart, choose a customer, then submit.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
                   const SizedBox(height: 16),
                   _StepHeader(
                     currentStep: controller.currentStep.value,
@@ -199,7 +206,7 @@ class _ProductsStep extends StatelessWidget {
     return Column(
       children: [
         _StepCard(
-          title: 'Step 1: Add Products',
+          title: 'Products',
           child: Row(
             children: [
               Expanded(
@@ -344,10 +351,24 @@ class _ReviewStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (controller.items.isEmpty) {
+      return _StepCard(
+        title: 'Review',
+        child: _MessageState(
+          icon: Icons.shopping_bag_outlined,
+          message: 'Your cart is empty. Add products first.',
+          actionLabel: 'Back to Products',
+          onAction: () async {
+            controller.goToStep(CartController.productsStep);
+          },
+        ),
+      );
+    }
+
     return ListView(
       children: [
         _StepCard(
-          title: 'Step 2: Review',
+          title: 'Review',
           child: Column(
             children: [
               for (final item in controller.items)
@@ -471,14 +492,14 @@ class _CustomerStep extends StatelessWidget {
     return ListView(
       children: [
         _StepCard(
-          title: 'Step 3: Customer',
+          title: 'Customer',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (customer == null)
                 const _HintBox(
                   icon: Icons.person_search_outlined,
-                  text: 'Choose the customer for this order.',
+                  text: 'Select the customer for this order.',
                 )
               else
                 _CustomerPreview(customer: customer!),
@@ -519,7 +540,7 @@ class _ConfirmStep extends StatelessWidget {
     return ListView(
       children: [
         _StepCard(
-          title: 'Step 4: Confirm',
+          title: 'Confirm',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -606,7 +627,9 @@ class _StepActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isLastStep = controller.currentStep.value == 3;
+    final isLastStep =
+        controller.currentStep.value == CartController.confirmStep;
+    final canProceed = controller.canContinueCurrentStep;
 
     return SafeArea(
       top: false,
@@ -614,17 +637,18 @@ class _StepActions extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
         child: Row(
           children: [
-            if (controller.currentStep.value > 0)
+            if (controller.currentStep.value > CartController.productsStep)
               Expanded(
                 child: OutlinedButton(
                   onPressed: controller.previousStep,
                   child: const Text('Back'),
                 ),
               ),
-            if (controller.currentStep.value > 0) const SizedBox(width: 12),
+            if (controller.currentStep.value > CartController.productsStep)
+              const SizedBox(width: 12),
             Expanded(
               child: FilledButton(
-                onPressed: controller.isSubmitting.value
+                onPressed: controller.isSubmitting.value || !canProceed
                     ? null
                     : isLastStep
                     ? controller.submitOrder

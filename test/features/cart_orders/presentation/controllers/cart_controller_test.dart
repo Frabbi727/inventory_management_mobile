@@ -93,6 +93,20 @@ void main() {
 
     controller.decrementQuantity(product.id);
     expect(controller.items, isEmpty);
+    expect(controller.currentStep.value, CartController.productsStep);
+  });
+
+  test('opening order from products tab lands on review when items exist', () {
+    final controller = CartController(
+      orderRepository: createRepository((request) async {
+        return http.Response('{}', 200);
+      }),
+    );
+
+    controller.addProduct(product);
+    controller.openProductsStepFromProductsTab();
+
+    expect(controller.currentStep.value, CartController.reviewStep);
   });
 
   test(

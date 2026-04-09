@@ -94,14 +94,21 @@ class OrderProductPickerController extends GetxController {
     _searchDebounce?.cancel();
 
     if (trimmed.isEmpty) {
+      final hadSearch = searchQuery.value.isNotEmpty;
       searchQuery.value = '';
       infoMessage.value = null;
-      fetchProducts(reset: true);
+      if (hadSearch || products.isEmpty) {
+        fetchProducts(reset: true);
+      }
       return;
     }
 
     if (trimmed.length < 3) {
       infoMessage.value = 'Type at least 3 characters to search.';
+      if (searchQuery.value.isNotEmpty) {
+        searchQuery.value = '';
+        fetchProducts(reset: true);
+      }
       return;
     }
 

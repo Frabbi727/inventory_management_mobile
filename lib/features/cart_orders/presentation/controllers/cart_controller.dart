@@ -12,6 +12,11 @@ import '../../data/models/order_item_request_model.dart';
 import '../../data/repositories/order_repository.dart';
 
 class CartController extends GetxController {
+  static const int productsStep = 0;
+  static const int reviewStep = 1;
+  static const int customerStep = 2;
+  static const int confirmStep = 3;
+
   CartController({required OrderRepository orderRepository})
     : _orderRepository = orderRepository;
 
@@ -128,6 +133,9 @@ class CartController extends GetxController {
 
     items.removeAt(index);
     errorMessage.value = null;
+    if (items.isEmpty && currentStep.value > productsStep) {
+      currentStep.value = productsStep;
+    }
   }
 
   CartItemModel? itemByProductId(int? productId) {
@@ -145,16 +153,28 @@ class CartController extends GetxController {
 
   bool get hasItems => items.isNotEmpty;
 
+  bool get canContinueCurrentStep {
+    switch (currentStep.value) {
+      case productsStep:
+      case reviewStep:
+        return hasItems;
+      case customerStep:
+        return hasCustomerSelected;
+      default:
+        return canSubmit;
+    }
+  }
+
   bool canGoToStep(int step) {
-    if (step < 0 || step > 3) {
+    if (step < productsStep || step > confirmStep) {
       return false;
     }
 
-    if (step > 0 && !hasItems) {
+    if (step > productsStep && !hasItems) {
       return false;
     }
 
-    if (step > 2 && !hasCustomerSelected) {
+    if (step > customerStep && !hasCustomerSelected) {
       return false;
     }
 
@@ -168,13 +188,14 @@ class CartController extends GetxController {
       return;
     }
 
-    currentStep.value = 0;
+    errorMessage.value = null;
+    currentStep.value = reviewStep;
   }
 
   void clearCart() {
     items.clear();
     selectedCustomer.value = null;
-    currentStep.value = 0;
+    currentStep.value = productsStep;
     discountType.value = null;
     discountValue.value = null;
     noteController.clear();
@@ -184,28 +205,29 @@ class CartController extends GetxController {
 
   void setSelectedCustomer(CustomerModel? customer) {
     selectedCustomer.value = customer;
+    errorMessage.value = null;
   }
 
   void nextStep() {
-    if (currentStep.value == 0 && !hasItems) {
+    if (currentStep.value == productsStep && !hasItems) {
       errorMessage.value = 'Add at least one product to continue.';
       return;
     }
 
-    if (currentStep.value == 2 && !hasCustomerSelected) {
+    if (currentStep.value == customerStep && !hasCustomerSelected) {
       errorMessage.value = 'Select a customer to continue.';
       return;
     }
 
     errorMessage.value = null;
-    if (currentStep.value < 3) {
+    if (currentStep.value < confirmStep) {
       currentStep.value += 1;
     }
   }
 
   void previousStep() {
     errorMessage.value = null;
-    if (currentStep.value > 0) {
+    if (currentStep.value > productsStep) {
       currentStep.value -= 1;
     }
   }
@@ -327,11 +349,11 @@ class CartController extends GetxController {
 
   String submitButtonLabel() {
     switch (currentStep.value) {
-      case 0:
+      case productsStep:
         return 'Review Order';
-      case 1:
+      case reviewStep:
         return 'Customer';
-      case 2:
+      case customerStep:
         return 'Confirm';
       default:
         return 'Submit Order';

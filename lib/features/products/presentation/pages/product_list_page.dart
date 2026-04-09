@@ -194,7 +194,7 @@ class ProductListPage extends GetView<ProductListController> {
         action: Get.isRegistered<HomeController>()
             ? SnackBarAction(
                 label: cartController.canOpenProductsStepFromProductsTab()
-                    ? 'Open Order'
+                    ? 'Review Order'
                     : 'View',
                 onPressed: () {
                   cartController.openProductsStepFromProductsTab();

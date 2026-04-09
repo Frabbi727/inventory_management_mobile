@@ -54,11 +54,11 @@ void main() {
 
     controller.onSearchChanged('ra');
     await Future<void>.delayed(const Duration(milliseconds: 500));
-    expect(repository.calls, [(1, null), (1, null)]);
+    expect(repository.calls, [(1, null)]);
 
     controller.onSearchChanged('rah');
     await Future<void>.delayed(const Duration(milliseconds: 500));
-    expect(repository.calls, [(1, null), (1, null), (1, 'rah')]);
+    expect(repository.calls, [(1, null), (1, 'rah')]);
     expect(controller.customers.first.name, 'Search rah');
     controller.onClose();
   });

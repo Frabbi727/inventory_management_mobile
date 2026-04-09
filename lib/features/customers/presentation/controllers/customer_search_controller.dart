@@ -92,16 +92,21 @@ class CustomerSearchController extends GetxController {
     _searchDebounce?.cancel();
 
     if (trimmed.isEmpty) {
+      final hadSearch = searchQuery.value.isNotEmpty;
       searchQuery.value = '';
       infoMessage.value = null;
-      fetchCustomers(reset: true);
+      if (hadSearch || customers.isEmpty) {
+        fetchCustomers(reset: true);
+      }
       return;
     }
 
     if (trimmed.length < 3) {
-      searchQuery.value = '';
       infoMessage.value = 'Type 3 or more characters to narrow the list.';
-      fetchCustomers(reset: true);
+      if (searchQuery.value.isNotEmpty) {
+        searchQuery.value = '';
+        fetchCustomers(reset: true);
+      }
       return;
     }
 
@@ -125,9 +130,7 @@ class CustomerSearchController extends GetxController {
   }
 
   Future<void> retry() async {
-    if (searchQuery.value.length >= 3) {
-      await fetchCustomers(reset: true);
-    }
+    await fetchCustomers(reset: true);
   }
 
   void _onScroll() {

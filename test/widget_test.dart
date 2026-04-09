@@ -654,7 +654,7 @@ void main() {
 
     await tester.tap(find.text('New Order'));
     await tester.pumpAndSettle();
-    expect(find.text('Step 1: Add Products'), findsOneWidget);
+    expect(find.text('Products'), findsWidgets);
 
     await tester.tap(find.text('Orders'));
     await tester.pumpAndSettle();
@@ -1007,16 +1007,13 @@ void main() {
       expect(cartController.items.single.productId, equals(2));
       expect(cartController.items.single.quantity, equals(1));
 
-      await tester.tap(find.text('New Order'));
+      final homeController = Get.find<HomeController>();
+      cartController.openProductsStepFromProductsTab();
+      homeController.changeTab(1);
       await tester.pumpAndSettle();
 
-      expect(find.text('Step 1: Add Products'), findsOneWidget);
+      expect(find.text('Review'), findsWidgets);
       expect(find.text('Fresh Milk 500ml'), findsOneWidget);
-
-      cartController.nextStep();
-      await tester.pumpAndSettle();
-
-      expect(find.text('Step 2: Review'), findsOneWidget);
 
       await tester.tap(
         find.descendant(
