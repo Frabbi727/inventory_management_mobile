@@ -7,28 +7,131 @@ import '../../../../shared/widgets/app_page_header.dart';
 import '../../../cart_orders/data/models/order_model.dart';
 import '../controllers/invoice_controller.dart';
 
-class InvoicePage extends GetView<InvoiceController> {
+class InvoicePage extends StatefulWidget {
   const InvoicePage({super.key});
 
   @override
+  State<InvoicePage> createState() => _InvoicePageState();
+}
+
+class _InvoicePageState extends State<InvoicePage> {
+  late final InvoiceController controller;
+  late final TextEditingController _searchController;
+
+  static const List<String> _statusOptions = [
+    'pending',
+    'confirmed',
+    'delivered',
+    'cancelled',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<InvoiceController>();
+    _searchController = TextEditingController(
+      text: controller.searchQuery.value,
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (_searchController.text != controller.searchQuery.value) {
+      _searchController.value = TextEditingValue(
+        text: controller.searchQuery.value,
+        selection: TextSelection.collapsed(
+          offset: controller.searchQuery.value.length,
+        ),
+      );
+    }
+
+    final theme = Theme.of(context);
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const AppPageHeader(
-              title: 'Orders',
-              subtitle:
-                  'View recent orders and open any order for full details.',
+            Obx(
+              () => AppPageHeader(
+                title: 'Orders',
+                subtitle: controller.hasAnyQueryApplied
+                    ? 'Refresh keeps your current filters and search applied.'
+                    : 'Track recent orders and open any order for full details.',
+                trailing: FilledButton.tonalIcon(
+                  onPressed: _openFilterSheet,
+                  icon: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Icon(Icons.tune),
+                      if (controller.activeFilterCount > 0)
+                        Positioned(
+                          right: -5,
+                          top: -5,
+                          child: Container(
+                            width: 18,
+                            height: 18,
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              '${controller.activeFilterCount}',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.onPrimary,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  label: const Text('Filters'),
+                ),
+              ),
             ),
             const SizedBox(height: 16),
+            _OrdersToolbar(
+              controller: controller,
+              searchController: _searchController,
+              onClearSearch: () {
+                _searchController.clear();
+                controller.clearSearch();
+              },
+            ),
+            const SizedBox(height: 12),
+            Obx(
+              () => AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                child: controller.activeFilterCount == 0
+                    ? const SizedBox.shrink()
+                    : Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _ActiveFiltersRow(
+                          controller: controller,
+                          onClearAll: () async {
+                            _searchController.clear();
+                            await controller.clearAllCriteria();
+                          },
+                        ),
+                      ),
+              ),
+            ),
             Expanded(
               child: Obx(() {
+                final visibleOrders = controller.visibleOrders;
+
                 if (controller.isInitialLoading.value &&
                     controller.orders.isEmpty) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const _OrderLoadingState();
                 }
 
                 if (controller.errorMessage.value != null &&
@@ -41,42 +144,124 @@ class InvoicePage extends GetView<InvoiceController> {
                   );
                 }
 
-                if (controller.orders.isEmpty) {
-                  return AppMessageState(
-                    icon: Icons.receipt_long_outlined,
-                    message:
-                        controller.infoMessage.value ??
-                        'No orders have been created yet.',
-                    actionLabel: 'Refresh',
-                    onAction: controller.retry,
-                  );
-                }
+                return Column(
+                  children: [
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 180),
+                      child:
+                          controller.errorMessage.value != null &&
+                              controller.orders.isNotEmpty
+                          ? Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: _InlineErrorBanner(
+                                message: controller.errorMessage.value!,
+                                onRetry: controller.retry,
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 180),
+                      child: controller.showInlineLoader
+                          ? const Padding(
+                              padding: EdgeInsets.only(bottom: 8),
+                              child: LinearProgressIndicator(minHeight: 3),
+                            )
+                          : const SizedBox(height: 0),
+                    ),
+                    Expanded(
+                      child: RefreshIndicator(
+                        onRefresh: controller.retry,
+                        edgeOffset: 12,
+                        displacement: 28,
+                        child: visibleOrders.isEmpty
+                            ? ListView(
+                                physics: const AlwaysScrollableScrollPhysics(
+                                  parent: BouncingScrollPhysics(),
+                                ),
+                                children: [
+                                  SizedBox(
+                                    height:
+                                        MediaQuery.of(context).size.height *
+                                        0.5,
+                                    child: AppMessageState(
+                                      icon:
+                                          controller
+                                              .searchQuery
+                                              .value
+                                              .isNotEmpty
+                                          ? Icons.search_off_outlined
+                                          : Icons.receipt_long_outlined,
+                                      message:
+                                          controller.infoMessage.value ??
+                                          (controller
+                                                  .searchQuery
+                                                  .value
+                                                  .isNotEmpty
+                                              ? 'No loaded orders matched your search.'
+                                              : 'No orders have been created yet.'),
+                                      actionLabel:
+                                          controller
+                                                  .searchQuery
+                                                  .value
+                                                  .isNotEmpty ||
+                                              controller.hasActiveFilters
+                                          ? 'Clear filters'
+                                          : 'Refresh',
+                                      onAction:
+                                          controller
+                                                  .searchQuery
+                                                  .value
+                                                  .isNotEmpty ||
+                                              controller.hasActiveFilters
+                                          ? () async {
+                                              _searchController.clear();
+                                              await controller
+                                                  .clearAllCriteria();
+                                            }
+                                          : controller.retry,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : ListView.separated(
+                                controller: controller.scrollController,
+                                physics: const AlwaysScrollableScrollPhysics(
+                                  parent: BouncingScrollPhysics(),
+                                ),
+                                padding: const EdgeInsets.only(
+                                  top: 8,
+                                  bottom: 96,
+                                ),
+                                itemCount:
+                                    visibleOrders.length +
+                                    (controller.isLoadingMore.value ? 1 : 0),
+                                separatorBuilder: (_, _) =>
+                                    const SizedBox(height: 12),
+                                itemBuilder: (context, index) {
+                                  if (index >= visibleOrders.length) {
+                                    return const Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: 16,
+                                      ),
+                                      child: Center(
+                                        child: CircularProgressIndicator(),
+                                      ),
+                                    );
+                                  }
 
-                return RefreshIndicator(
-                  onRefresh: controller.retry,
-                  child: ListView.separated(
-                    controller: controller.scrollController,
-                    itemCount:
-                        controller.orders.length +
-                        (controller.isLoadingMore.value ? 1 : 0),
-                    separatorBuilder: (_, _) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      if (index >= controller.orders.length) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8),
-                          child: Center(child: CircularProgressIndicator()),
-                        );
-                      }
-
-                      final order = controller.orders[index];
-                      return _OrderCard(
-                        order: order,
-                        formatCurrency: controller.formatCurrency,
-                        formatDate: controller.formatDate,
-                        onTap: () => _openOrderDetails(order),
-                      );
-                    },
-                  ),
+                                  final order = visibleOrders[index];
+                                  return _OrderCard(
+                                    order: order,
+                                    formatCurrency: controller.formatCurrency,
+                                    formatDate: controller.formatDate,
+                                    onTap: () => _openOrderDetails(order),
+                                  );
+                                },
+                              ),
+                      ),
+                    ),
+                  ],
                 );
               }),
             ),
@@ -86,12 +271,486 @@ class InvoicePage extends GetView<InvoiceController> {
     );
   }
 
+  Future<void> _openFilterSheet() async {
+    var draftStatus = controller.selectedStatus.value;
+    var draftRange = controller.selectedDateRange;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) {
+        final theme = Theme.of(context);
+        final colorScheme = theme.colorScheme;
+        final sheetBackground = Color.alphaBlend(
+          colorScheme.surfaceContainerHighest.withValues(alpha: 0.38),
+          colorScheme.surface,
+        );
+        final surfaceCardColor = colorScheme.surface.withValues(alpha: 0.96);
+        final sectionLabelColor = colorScheme.onSurface.withValues(alpha: 0.95);
+        final sectionBorderColor = colorScheme.outlineVariant.withValues(
+          alpha: 0.55,
+        );
+        final chipFillColor = Color.alphaBlend(
+          colorScheme.surfaceContainerHighest.withValues(alpha: 0.58),
+          colorScheme.surface,
+        );
+        final chipBorderColor = colorScheme.outline.withValues(alpha: 0.36);
+        final selectedChipFill = colorScheme.primary;
+        final selectedChipTextColor = colorScheme.onPrimary;
+        final unselectedChipTextColor = colorScheme.onSurface.withValues(
+          alpha: 0.9,
+        );
+        final dateFieldFill = Color.alphaBlend(
+          colorScheme.surfaceContainerHighest.withValues(alpha: 0.72),
+          colorScheme.surface,
+        );
+        final dateFieldBorder = colorScheme.outline.withValues(alpha: 0.44);
+        final resetForeground = colorScheme.onSurface.withValues(alpha: 0.88);
+        final resetBackground = colorScheme.surface;
+        final resetBorder = colorScheme.outline.withValues(alpha: 0.42);
+
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return SafeArea(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: sheetBackground,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(28),
+                  ),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    6,
+                    20,
+                    20 + MediaQuery.of(context).viewInsets.bottom,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Filters',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: colorScheme.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: surfaceCardColor,
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(color: sectionBorderColor),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Status',
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: sectionLabelColor,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 10,
+                              children: [
+                                _FilterChoiceChip(
+                                  label: 'All',
+                                  selected: draftStatus == null,
+                                  onSelected: () {
+                                    setModalState(() => draftStatus = null);
+                                  },
+                                  fillColor: chipFillColor,
+                                  borderColor: chipBorderColor,
+                                  selectedFillColor: selectedChipFill,
+                                  selectedTextColor: selectedChipTextColor,
+                                  unselectedTextColor: unselectedChipTextColor,
+                                ),
+                                for (final status in _statusOptions)
+                                  _FilterChoiceChip(
+                                    label: _titleCase(status),
+                                    selected: draftStatus == status,
+                                    onSelected: () {
+                                      setModalState(() => draftStatus = status);
+                                    },
+                                    fillColor: chipFillColor,
+                                    borderColor: chipBorderColor,
+                                    selectedFillColor: selectedChipFill,
+                                    selectedTextColor: selectedChipTextColor,
+                                    unselectedTextColor:
+                                        unselectedChipTextColor,
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: surfaceCardColor,
+                          borderRadius: BorderRadius.circular(22),
+                          border: Border.all(color: sectionBorderColor),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Date range',
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                color: sectionLabelColor,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                backgroundColor: dateFieldFill,
+                                foregroundColor: colorScheme.onSurface,
+                                side: BorderSide(color: dateFieldBorder),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                textStyle: theme.textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: colorScheme.onSurface,
+                                ),
+                              ),
+                              onPressed: () async {
+                                final pickedRange = await showDateRangePicker(
+                                  context: context,
+                                  firstDate: DateTime(2020),
+                                  lastDate: DateTime.now().add(
+                                    const Duration(days: 365),
+                                  ),
+                                  initialDateRange: draftRange,
+                                );
+                                if (pickedRange != null) {
+                                  setModalState(() => draftRange = pickedRange);
+                                }
+                              },
+                              icon: Icon(
+                                Icons.date_range_outlined,
+                                color: colorScheme.primary,
+                              ),
+                              label: Text(
+                                draftRange == null
+                                    ? 'Select dates'
+                                    : '${controller.formatDate(draftRange!.start.toIso8601String())} - ${controller.formatDate(draftRange!.end.toIso8601String())}',
+                              ),
+                            ),
+                            if (draftRange != null) ...[
+                              const SizedBox(height: 8),
+                              TextButton(
+                                style: TextButton.styleFrom(
+                                  foregroundColor: colorScheme.primary,
+                                  textStyle: theme.textTheme.bodyMedium
+                                      ?.copyWith(fontWeight: FontWeight.w700),
+                                ),
+                                onPressed: () {
+                                  setModalState(() => draftRange = null);
+                                },
+                                child: const Text('Clear dates'),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                backgroundColor: resetBackground,
+                                foregroundColor: resetForeground,
+                                side: BorderSide(
+                                  color: resetBorder,
+                                  width: 1.2,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                textStyle: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: resetForeground,
+                                ),
+                              ),
+                              onPressed: () async {
+                                Navigator.of(context).pop();
+                                await controller.clearFilters();
+                              },
+                              child: const Text('Reset'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: FilledButton(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: colorScheme.primary,
+                                foregroundColor: colorScheme.onPrimary,
+                                disabledBackgroundColor: colorScheme.primary
+                                    .withValues(alpha: 0.45),
+                                disabledForegroundColor: colorScheme.onPrimary
+                                    .withValues(alpha: 0.82),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                                textStyle: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: colorScheme.onPrimary,
+                                ),
+                              ),
+                              onPressed: () async {
+                                Navigator.of(context).pop();
+                                await controller.applyFilters(
+                                  status: draftStatus,
+                                  dateRange: draftRange,
+                                );
+                              },
+                              child: const Text('Apply'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _openOrderDetails(OrderModel order) {
     if (order.id == null) {
       return;
     }
 
     Get.toNamed(AppRoutes.orderDetails, arguments: order);
+  }
+
+  String _titleCase(String value) {
+    if (value.isEmpty) {
+      return value;
+    }
+
+    return value[0].toUpperCase() + value.substring(1);
+  }
+}
+
+class _OrdersToolbar extends StatelessWidget {
+  const _OrdersToolbar({
+    required this.controller,
+    required this.searchController,
+    required this.onClearSearch,
+  });
+
+  final InvoiceController controller;
+  final TextEditingController searchController;
+  final VoidCallback onClearSearch;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          children: [
+            TextField(
+              controller: searchController,
+              onChanged: controller.onSearchChanged,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: 'Search order no, customer, phone, or status',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: Obx(
+                  () => controller.isSearching.value
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        )
+                      : searchController.text.isEmpty
+                      ? const SizedBox.shrink()
+                      : IconButton(
+                          onPressed: onClearSearch,
+                          icon: const Icon(Icons.close),
+                        ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Obx(
+              () => Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 9,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Text(
+                      '${controller.visibleOrders.length} visible',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      controller.hasAnyQueryApplied
+                          ? 'Refreshing keeps your current view intact.'
+                          : 'Pull down to refresh the latest orders.',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActiveFiltersRow extends StatelessWidget {
+  const _ActiveFiltersRow({required this.controller, required this.onClearAll});
+
+  final InvoiceController controller;
+  final Future<void> Function() onClearAll;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        if (controller.searchQuery.value.isNotEmpty)
+          _FilterChip(label: 'Search: ${controller.searchQuery.value}'),
+        if (controller.selectedStatus.value != null)
+          _FilterChip(
+            label: 'Status: ${_titleCase(controller.selectedStatus.value!)}',
+          ),
+        if (controller.startDate.value != null &&
+            controller.endDate.value != null)
+          _FilterChip(
+            label:
+                '${controller.formatDate(controller.startDate.value)} - ${controller.formatDate(controller.endDate.value)}',
+          ),
+        ActionChip(
+          label: const Text('Clear all'),
+          avatar: const Icon(Icons.restart_alt, size: 18),
+          onPressed: () {
+            onClearAll();
+          },
+        ),
+      ],
+    );
+  }
+
+  String _titleCase(String value) {
+    if (value.isEmpty) {
+      return value;
+    }
+
+    return value[0].toUpperCase() + value.substring(1);
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.labelLarge?.copyWith(
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterChoiceChip extends StatelessWidget {
+  const _FilterChoiceChip({
+    required this.label,
+    required this.selected,
+    required this.onSelected,
+    required this.fillColor,
+    required this.borderColor,
+    required this.selectedFillColor,
+    required this.selectedTextColor,
+    required this.unselectedTextColor,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onSelected;
+  final Color fillColor;
+  final Color borderColor;
+  final Color selectedFillColor;
+  final Color selectedTextColor;
+  final Color unselectedTextColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      showCheckmark: false,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      backgroundColor: fillColor,
+      selectedColor: selectedFillColor,
+      side: BorderSide(
+        color: selected ? selectedFillColor : borderColor,
+        width: selected ? 1.35 : 1.1,
+      ),
+      labelStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
+        fontWeight: FontWeight.w800,
+        color: selected ? selectedTextColor : unselectedTextColor,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      onSelected: (_) => onSelected(),
+    );
   }
 }
 
@@ -111,74 +770,100 @@ class _OrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final statusStyle = _statusStyle(context, order.status);
 
     return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(24),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Row(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.receipt_long_outlined,
-                  color: theme.colorScheme.onPrimaryContainer,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      order.orderNo ?? 'Order',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      order.customer?.name ?? '-',
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _OrderPill(text: _titleCase(order.status)),
-                        _OrderPill(text: formatDate(order.orderDate)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    formatCurrency(order.grandTotal),
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(
+                      Icons.receipt_long_outlined,
+                      color: theme.colorScheme.onPrimaryContainer,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'View',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w700,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          order.orderNo ?? 'Order',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.1,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          order.customer?.name ?? 'Unknown customer',
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        if ((order.customer?.phone ?? '').isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            order.customer!.phone!,
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ],
+                      ],
                     ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        formatCurrency(order.grandTotal),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        formatDate(order.orderDate),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  _StatusBadge(
+                    label: _titleCase(order.status ?? 'unknown'),
+                    backgroundColor: statusStyle.backgroundColor,
+                    foregroundColor: statusStyle.foregroundColor,
+                  ),
+                  const SizedBox(width: 8),
+                  _MetaBadge(
+                    icon: Icons.inventory_2_outlined,
+                    label: '${order.items?.length ?? 0} items',
+                  ),
+                  const Spacer(),
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 16,
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ],
               ),
@@ -189,29 +874,236 @@ class _OrderCard extends StatelessWidget {
     );
   }
 
-  String _titleCase(String? value) {
-    if (value == null || value.isEmpty) {
-      return '-';
+  _OrderStatusStyle _statusStyle(BuildContext context, String? status) {
+    final colorScheme = Theme.of(context).colorScheme;
+    switch ((status ?? '').toLowerCase()) {
+      case 'confirmed':
+        return _OrderStatusStyle(
+          backgroundColor: const Color(0xFFDFF7EA),
+          foregroundColor: const Color(0xFF166534),
+        );
+      case 'pending':
+        return _OrderStatusStyle(
+          backgroundColor: const Color(0xFFFFF4D6),
+          foregroundColor: const Color(0xFF92400E),
+        );
+      case 'cancelled':
+        return _OrderStatusStyle(
+          backgroundColor: const Color(0xFFFFE1E1),
+          foregroundColor: const Color(0xFFB42318),
+        );
+      default:
+        return _OrderStatusStyle(
+          backgroundColor: colorScheme.surfaceContainerHighest,
+          foregroundColor: colorScheme.onSurfaceVariant,
+        );
+    }
+  }
+
+  String _titleCase(String value) {
+    if (value.isEmpty) {
+      return value;
     }
 
     return value[0].toUpperCase() + value.substring(1);
   }
 }
 
-class _OrderPill extends StatelessWidget {
-  const _OrderPill({required this.text});
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({
+    required this.label,
+    required this.backgroundColor,
+    required this.foregroundColor,
+  });
 
-  final String text;
+  final String label;
+  final Color backgroundColor;
+  final Color foregroundColor;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(text),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+          color: foregroundColor,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
     );
   }
+}
+
+class _MetaBadge extends StatelessWidget {
+  const _MetaBadge({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OrderLoadingState extends StatelessWidget {
+  const _OrderLoadingState();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      itemCount: 5,
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
+      itemBuilder: (_, _) => const _OrderSkeletonCard(),
+    );
+  }
+}
+
+class _InlineErrorBanner extends StatelessWidget {
+  const _InlineErrorBanner({required this.message, required this.onRetry});
+
+  final String message;
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF1F1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFECACA)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, color: Color(0xFFB42318)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: const Color(0xFF7A271A),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          TextButton(
+            onPressed: () {
+              onRetry();
+            },
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OrderSkeletonCard extends StatelessWidget {
+  const _OrderSkeletonCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final baseColor = Theme.of(
+      context,
+    ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.55);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                _SkeletonBox(size: const Size(48, 48), color: baseColor),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _SkeletonBox(size: const Size(120, 14), color: baseColor),
+                      const SizedBox(height: 8),
+                      _SkeletonBox(size: const Size(170, 14), color: baseColor),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                _SkeletonBox(size: const Size(72, 18), color: baseColor),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                _SkeletonBox(size: const Size(86, 30), color: baseColor),
+                const SizedBox(width: 8),
+                _SkeletonBox(size: const Size(82, 30), color: baseColor),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SkeletonBox extends StatelessWidget {
+  const _SkeletonBox({required this.size, required this.color});
+
+  final Size size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size.width,
+      height: size.height,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(14),
+      ),
+    );
+  }
+}
+
+class _OrderStatusStyle {
+  const _OrderStatusStyle({
+    required this.backgroundColor,
+    required this.foregroundColor,
+  });
+
+  final Color backgroundColor;
+  final Color foregroundColor;
 }

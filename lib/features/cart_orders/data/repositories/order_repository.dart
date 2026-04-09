@@ -31,6 +31,7 @@ class OrderRepository {
 
   Future<OrderListResponseModel> fetchOrders({
     int page = 1,
+    String? query,
     String? status,
     int? customerId,
     String? startDate,
@@ -40,6 +41,9 @@ class OrderRepository {
 
     final queryParameters = <String, String>{'page': page.toString()};
 
+    if (query != null && query.isNotEmpty) {
+      queryParameters['q'] = query;
+    }
     if (status != null && status.isNotEmpty) {
       queryParameters['status'] = status;
     }

@@ -43,6 +43,11 @@ class HomeController extends GetxController {
   }
 
   void changeTab(int index) {
+    final previousIndex = selectedIndex.value;
+    if (previousIndex == index) {
+      return;
+    }
+
     selectedIndex.value = index;
     _loadTabData(index);
   }
@@ -53,7 +58,12 @@ class HomeController extends GetxController {
         break;
       case 1:
         if (Get.isRegistered<InvoiceController>()) {
-          Get.find<InvoiceController>().ensureLoaded();
+          final invoiceController = Get.find<InvoiceController>();
+          if (!invoiceController.hasLoadedOnce) {
+            invoiceController.ensureLoaded();
+          } else {
+            invoiceController.onTabActivated();
+          }
         }
         break;
       case 2:
