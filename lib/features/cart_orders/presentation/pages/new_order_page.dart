@@ -38,8 +38,6 @@ class _NewOrderPageState extends State<NewOrderPage> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(title: const Text('New Order')),
@@ -53,7 +51,6 @@ class _NewOrderPageState extends State<NewOrderPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-
                     StepperWidget(
                       steps: _steps,
                       currentStep: controller.currentStep.value,
@@ -136,7 +133,7 @@ class _NewOrderPageState extends State<NewOrderPage> {
   }
 }
 
-class _CustomerStep extends StatelessWidget {
+class _CustomerStep extends StatefulWidget {
   const _CustomerStep({
     required this.cartController,
     required this.customerController,
@@ -146,123 +143,306 @@ class _CustomerStep extends StatelessWidget {
   final CustomerSearchController customerController;
 
   @override
+  State<_CustomerStep> createState() => _CustomerStepState();
+}
+
+class _CustomerStepState extends State<_CustomerStep> {
+  late final TextEditingController _searchController;
+  late final ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController(
+      text: widget.customerController.searchQuery.value,
+    );
+    _scrollController = ScrollController()..addListener(_handleScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_handleScroll)
+      ..dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients) {
+      return;
+    }
+
+    widget.customerController.loadMoreIfNeeded(_scrollController.position);
+  }
+
+  Future<void> _openAddCustomer() async {
+    final result = await Get.toNamed(AppRoutes.addCustomer);
+    if (result is CustomerModel) {
+      widget.cartController.setSelectedCustomer(result);
+      _searchController.clear();
+      widget.customerController.clearSearch();
+      await widget.customerController.retry();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Obx(
-      () => Column(
-        children: [
-          if (cartController.selectedCustomer.value != null) ...[
-            CustomerTile(
-              customerName: cartController.selectedCustomer.value!.name ?? '-',
-              phone: cartController.selectedCustomer.value!.phone ?? '-',
-              address: cartController.selectedCustomer.value!.address ?? '-',
-              area: cartController.selectedCustomer.value!.area,
-              trailing: FilledButton.tonal(
-                onPressed: () => cartController.setSelectedCustomer(null),
-                child: const Text('Clear'),
+    return Obx(() {
+      final cartController = widget.cartController;
+      final customerController = widget.customerController;
+      final selectedCustomer = cartController.selectedCustomer.value;
+      final customers = customerController.customers;
+
+      if (_searchController.text != customerController.searchQuery.value) {
+        _searchController.value = TextEditingValue(
+          text: customerController.searchQuery.value,
+          selection: TextSelection.collapsed(
+            offset: customerController.searchQuery.value.length,
+          ),
+        );
+      }
+
+      final showInitialLoader =
+          customerController.isInitialLoading.value && customers.isEmpty;
+      final showErrorState = customerController.hasErrorState;
+      final showEmptyState = customerController.hasEmptyState;
+
+      return RefreshIndicator(
+        onRefresh: customerController.retry,
+        child: CustomScrollView(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _SearchActionPanel(
+                    searchController: _searchController,
+                    isSearching: customerController.isSearching.value,
+                    onChanged: customerController.onSearchChanged,
+                    onClear: () {
+                      _searchController.clear();
+                      customerController.clearSearch();
+                    },
+                    onAddCustomer: _openAddCustomer,
+                  ),
+                  if (selectedCustomer != null) ...[
+                    const SizedBox(height: 16),
+                    _SelectedCustomerBanner(
+                      customer: selectedCustomer,
+                      onClear: () => cartController.setSelectedCustomer(null),
+                    ),
+                  ],
+                  if (customerController.errorMessage.value != null &&
+                      customers.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    InlineWarningBanner(
+                      message: customerController.errorMessage.value!,
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          customerController.hasActiveSearch
+                              ? 'Search results'
+                              : 'Available customers',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      if (customers.isNotEmpty)
+                        Text(
+                          '${customers.length} found',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                ],
               ),
             ),
-            const SizedBox(height: 12),
+            if (showInitialLoader)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (showErrorState)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: AppMessageState(
+                  icon: Icons.cloud_off_outlined,
+                  message: customerController.errorMessage.value!,
+                  actionLabel: 'Retry',
+                  onAction: customerController.retry,
+                ),
+              )
+            else if (showEmptyState)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: AppMessageState(
+                  icon: Icons.person_search_outlined,
+                  message:
+                      customerController.infoMessage.value ??
+                      'No customers matched your search.',
+                  actionLabel: customerController.hasActiveSearch
+                      ? 'Clear Search'
+                      : 'Refresh',
+                  onAction: customerController.hasActiveSearch
+                      ? () async {
+                          _searchController.clear();
+                          customerController.clearSearch();
+                        }
+                      : () async {
+                          await customerController.retry();
+                        },
+                ),
+              )
+            else
+              SliverList.separated(
+                itemCount: customers.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final customer = customers[index];
+                  final isSelected =
+                      cartController.selectedCustomer.value?.id == customer.id;
+
+                  return CustomerTile(
+                    customerName: customer.name ?? 'Unnamed customer',
+                    phone: customer.phone ?? '-',
+                    address: customer.address ?? '-',
+                    area: customer.area,
+                    onTap: () => cartController.setSelectedCustomer(customer),
+                    trailing: FilledButton(
+                      onPressed: () =>
+                          cartController.setSelectedCustomer(customer),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(92, 42),
+                        backgroundColor: isSelected
+                            ? theme.colorScheme.primaryContainer
+                            : theme.colorScheme.primary,
+                        foregroundColor: isSelected
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onPrimary,
+                      ),
+                      child: Text(isSelected ? 'Selected' : 'Select'),
+                    ),
+                  );
+                },
+              ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: customerController.isLoadingMore.value
+                    ? const Center(child: CircularProgressIndicator())
+                    : const SizedBox.shrink(),
+              ),
+            ),
           ],
-          SearchBar(
-            controller: customerController.searchController,
-            hintText: 'Search by name or phone',
-            leading: Icon(Icons.search, color: theme.colorScheme.primary),
-            backgroundColor: WidgetStatePropertyAll(
-              Colors.white.withValues(alpha: 0.96),
-            ),
-            elevation: const WidgetStatePropertyAll(0),
-            shape: WidgetStatePropertyAll(
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-            ),
-            onChanged: customerController.onSearchChanged,
-            padding: const WidgetStatePropertyAll(
-              EdgeInsets.symmetric(horizontal: 16),
+        ),
+      );
+    });
+  }
+}
+
+class _SearchActionPanel extends StatelessWidget {
+  const _SearchActionPanel({
+    required this.searchController,
+    required this.isSearching,
+    required this.onChanged,
+    required this.onClear,
+    required this.onAddCustomer,
+  });
+
+  final TextEditingController searchController;
+  final bool isSearching;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+  final VoidCallback onAddCustomer;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: searchController,
+            onChanged: onChanged,
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              hintText: 'Search customer name or phone',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: isSearching
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : searchController.text.isNotEmpty
+                  ? IconButton(
+                      onPressed: onClear,
+                      icon: const Icon(Icons.close),
+                    )
+                  : null,
+              filled: true,
+              fillColor: theme.colorScheme.surfaceContainerLowest,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: BorderSide(
+                  color: theme.colorScheme.primary,
+                  width: 1.4,
+                ),
+              ),
             ),
           ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: OutlinedButton.icon(
-              onPressed: () async {
-                final result = await Get.toNamed(AppRoutes.addCustomer);
-                if (result is CustomerModel) {
-                  cartController.setSelectedCustomer(result);
-                  await customerController.retry();
-                }
-              },
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: onAddCustomer,
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+              ),
               icon: const Icon(Icons.person_add_alt_1),
               label: const Text('Add Customer'),
-            ),
-          ),
-          Expanded(
-            child: Builder(
-              builder: (context) {
-                if (customerController.isInitialLoading.value &&
-                    customerController.customers.isEmpty) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (customerController.errorMessage.value != null &&
-                    customerController.customers.isEmpty) {
-                  return AppMessageState(
-                    icon: Icons.cloud_off_outlined,
-                    message: customerController.errorMessage.value!,
-                    actionLabel: 'Retry',
-                    onAction: customerController.retry,
-                  );
-                }
-
-                if (customerController.customers.isEmpty) {
-                  return AppMessageState(
-                    icon: Icons.person_search_outlined,
-                    message:
-                        customerController.infoMessage.value ??
-                        'No customers are available right now.',
-                    actionLabel: 'Refresh',
-                    onAction: customerController.retry,
-                  );
-                }
-
-                return RefreshIndicator(
-                  onRefresh: customerController.retry,
-                  child: ListView.separated(
-                    controller: customerController.scrollController,
-                    itemCount:
-                        customerController.customers.length +
-                        (customerController.isLoadingMore.value ? 1 : 0),
-                    separatorBuilder: (_, _) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      if (index >= customerController.customers.length) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8),
-                          child: Center(child: CircularProgressIndicator()),
-                        );
-                      }
-
-                      final customer = customerController.customers[index];
-                      final isSelected =
-                          cartController.selectedCustomer.value?.id ==
-                          customer.id;
-
-                      return CustomerTile(
-                        customerName: customer.name ?? 'Unnamed customer',
-                        phone: customer.phone ?? '-',
-                        address: customer.address ?? '-',
-                        area: customer.area,
-                        onTap: () =>
-                            cartController.setSelectedCustomer(customer),
-                        trailing: FilledButton.tonal(
-                          onPressed: () =>
-                              cartController.setSelectedCustomer(customer),
-                          child: Text(isSelected ? 'Selected' : 'Select'),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
             ),
           ),
         ],
@@ -271,7 +451,80 @@ class _CustomerStep extends StatelessWidget {
   }
 }
 
-class _ProductsStep extends StatelessWidget {
+class _SelectedCustomerBanner extends StatelessWidget {
+  const _SelectedCustomerBanner({
+    required this.customer,
+    required this.onClear,
+  });
+
+  final CustomerModel customer;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.38),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              Icons.check_rounded,
+              color: theme.colorScheme.onPrimary,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Selected customer',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  customer.name ?? '-',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  customer.phone ?? customer.address ?? '-',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          TextButton(onPressed: onClear, child: const Text('Change')),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProductsStep extends StatefulWidget {
   const _ProductsStep({
     required this.cartController,
     required this.productController,
@@ -281,75 +534,180 @@ class _ProductsStep extends StatelessWidget {
   final ProductListController productController;
 
   @override
+  State<_ProductsStep> createState() => _ProductsStepState();
+}
+
+class _ProductsStepState extends State<_ProductsStep> {
+  late final TextEditingController _searchController;
+  late final ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController = TextEditingController(
+      text: widget.productController.searchQuery.value,
+    );
+    _scrollController = ScrollController()..addListener(_handleScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_handleScroll)
+      ..dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients) {
+      return;
+    }
+
+    widget.productController.loadMoreIfNeeded(_scrollController.position);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Column(
-      children: [
-        SearchBar(
-          controller: productController.searchController,
-          hintText: 'Search by product name or SKU',
-          leading: Icon(Icons.search, color: theme.colorScheme.primary),
-          backgroundColor: WidgetStatePropertyAll(
-            Colors.white.withValues(alpha: 0.96),
+    return Obx(() {
+      final productController = widget.productController;
+      final cartController = widget.cartController;
+      final _ = cartController.items.length;
+
+      if (_searchController.text != productController.searchQuery.value) {
+        _searchController.value = TextEditingValue(
+          text: productController.searchQuery.value,
+          selection: TextSelection.collapsed(
+            offset: productController.searchQuery.value.length,
           ),
-          elevation: const WidgetStatePropertyAll(0),
-          shape: WidgetStatePropertyAll(
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-          ),
-          onChanged: productController.onSearchChanged,
-          padding: const WidgetStatePropertyAll(
-            EdgeInsets.symmetric(horizontal: 16),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Expanded(
-          child: Obx(() {
-            final _ = cartController.items.length;
+        );
+      }
 
-            if (productController.isInitialLoading.value &&
-                productController.products.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
-            }
+      final products = productController.products;
+      final showInitialLoader =
+          productController.isInitialLoading.value && products.isEmpty;
+      final showErrorState = productController.hasErrorState;
+      final showEmptyState = productController.hasEmptyState;
 
-            if (productController.errorMessage.value != null &&
-                productController.products.isEmpty) {
-              return AppMessageState(
-                icon: Icons.cloud_off_outlined,
-                message: productController.errorMessage.value!,
-                actionLabel: 'Retry',
-                onAction: productController.retry,
-              );
-            }
-
-            if (productController.products.isEmpty) {
-              return AppMessageState(
-                icon: Icons.inventory_2_outlined,
-                message:
-                    productController.infoMessage.value ??
-                    'No products are available right now.',
-                actionLabel: 'Refresh',
-                onAction: productController.retry,
-              );
-            }
-
-            return RefreshIndicator(
-              onRefresh: productController.retry,
-              child: ListView.separated(
-                controller: productController.scrollController,
-                itemCount:
-                    productController.products.length +
-                    (productController.isLoadingMore.value ? 1 : 0),
+      return RefreshIndicator(
+        onRefresh: productController.retry,
+        child: CustomScrollView(
+          controller: _scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: theme.colorScheme.outlineVariant,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 16,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        OrderSearchField(
+                          controller: _searchController,
+                          hintText: 'Search by product name or SKU',
+                          isLoading: productController.isSearching.value,
+                          onChanged: productController.onSearchChanged,
+                          onClear: () {
+                            _searchController.clear();
+                            productController.clearSearch();
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (productController.errorMessage.value != null &&
+                      products.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    InlineWarningBanner(
+                      message: productController.errorMessage.value!,
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          productController.hasActiveSearch
+                              ? 'Search results'
+                              : 'Available products',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      if (products.isNotEmpty)
+                        Text(
+                          '${products.length} found',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              ),
+            ),
+            if (showInitialLoader)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (showErrorState)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: AppMessageState(
+                  icon: Icons.cloud_off_outlined,
+                  message: productController.errorMessage.value!,
+                  actionLabel: 'Retry',
+                  onAction: productController.retry,
+                ),
+              )
+            else if (showEmptyState)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: AppMessageState(
+                  icon: Icons.inventory_2_outlined,
+                  message:
+                      productController.infoMessage.value ??
+                      'No products matched your search.',
+                  actionLabel: productController.hasActiveSearch
+                      ? 'Clear Search'
+                      : 'Refresh',
+                  onAction: productController.hasActiveSearch
+                      ? () async {
+                          _searchController.clear();
+                          productController.clearSearch();
+                        }
+                      : () async {
+                          await productController.retry();
+                        },
+                ),
+              )
+            else
+              SliverList.separated(
+                itemCount: products.length,
                 separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
-                  if (index >= productController.products.length) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 8),
-                      child: Center(child: CircularProgressIndicator()),
-                    );
-                  }
-
-                  final product = productController.products[index];
+                  final product = products[index];
                   final cartItem = cartController.itemByProductId(product.id);
 
                   return ProductCard(
@@ -366,11 +724,18 @@ class _ProductsStep extends StatelessWidget {
                   );
                 },
               ),
-            );
-          }),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: productController.isLoadingMore.value
+                    ? const Center(child: CircularProgressIndicator())
+                    : const SizedBox.shrink(),
+              ),
+            ),
+          ],
         ),
-      ],
-    );
+      );
+    });
   }
 }
 
@@ -381,6 +746,8 @@ class _CartStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Obx(() {
       if (controller.items.isEmpty) {
         return AppMessageState(
@@ -394,18 +761,23 @@ class _CartStep extends StatelessWidget {
       }
 
       final customer = controller.selectedCustomer.value;
+      final discountType = controller.discountType.value;
+      final showDiscountField = discountType != null;
 
       return ListView(
+        padding: const EdgeInsets.only(bottom: 120),
         children: [
           if (customer != null) ...[
-            CustomerTile(
-              customerName: customer.name ?? '-',
-              phone: customer.phone ?? '-',
-              address: customer.address ?? '-',
-              area: customer.area,
-            ),
-            const SizedBox(height: 12),
+            _CartCustomerSummaryCard(customer: customer),
+            const SizedBox(height: 20),
           ],
+          Text(
+            'Items',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 12),
           for (final item in controller.items) ...[
             CartItemWidget(
               title: item.product.name ?? 'Unnamed product',
@@ -413,6 +785,7 @@ class _CartStep extends StatelessWidget {
               quantity: item.quantity,
               unitPrice: controller.formatCurrency(item.unitPrice),
               lineTotal: controller.formatCurrency(item.lineTotal),
+              availableStock: item.product.currentStock,
               canIncrement: controller.canIncrementQuantity(item.productId),
               onIncrement: () => controller.incrementQuantity(item.productId),
               onDecrement: () => controller.decrementQuantity(item.productId),
@@ -420,66 +793,362 @@ class _CartStep extends StatelessWidget {
             ),
             const SizedBox(height: 12),
           ],
-          TextField(
-            controller: controller.discountValueController,
-            enabled: controller.isDiscountEnabled,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [
-              FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}$')),
-            ],
-            onChanged: controller.onDiscountValueChanged,
-            onEditingComplete: () {
-              controller.normalizeDiscountInputText();
-              FocusScope.of(context).unfocus();
-            },
-            decoration: InputDecoration(
-              labelText: controller.discountType.value == 'percentage'
-                  ? 'Discount percent'
-                  : 'Discount amount',
-              hintText: controller.discountType.value == null
-                  ? 'Select discount type first'
-                  : '0.00',
-              helperText: controller.discountType.value == 'percentage'
-                  ? 'Allowed range: 0.00% to 100.00%'
-                  : 'Enter a fixed discount amount',
+          const SizedBox(height: 16),
+          _CartSectionCard(
+            title: 'Discount',
+            subtitle:
+                'Select the discount type first, then enter a value if needed.',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _DiscountChip(
+                      label: 'None',
+                      selected: discountType == null,
+                      onTap: () => controller.setDiscountType(null),
+                    ),
+                    _DiscountChip(
+                      label: 'Amount',
+                      selected: discountType == 'amount',
+                      onTap: () => controller.setDiscountType('amount'),
+                    ),
+                    _DiscountChip(
+                      label: 'Percent',
+                      selected: discountType == 'percentage',
+                      onTap: () => controller.setDiscountType('percentage'),
+                    ),
+                  ],
+                ),
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  switchInCurve: Curves.easeOut,
+                  switchOutCurve: Curves.easeOut,
+                  child: showDiscountField
+                      ? Padding(
+                          key: ValueKey(discountType),
+                          padding: const EdgeInsets.only(top: 14),
+                          child: TextField(
+                            controller: controller.discountValueController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                RegExp(r'^\d*\.?\d{0,2}$'),
+                              ),
+                            ],
+                            onChanged: controller.onDiscountValueChanged,
+                            onEditingComplete: () {
+                              controller.normalizeDiscountInputText();
+                              FocusScope.of(context).unfocus();
+                            },
+                            decoration: InputDecoration(
+                              labelText: discountType == 'percentage'
+                                  ? 'Discount percent'
+                                  : 'Discount amount',
+                              hintText: discountType == 'percentage'
+                                  ? 'Enter percentage discount'
+                                  : 'Enter fixed discount amount',
+                              helperText: discountType == 'percentage'
+                                  ? 'Allowed range: 0.00% to 100.00%'
+                                  : null,
+                            ),
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              ChoiceChip(
-                label: const Text('None'),
-                selected: controller.discountType.value == null,
-                onSelected: (_) => controller.setDiscountType(null),
+          const SizedBox(height: 16),
+          _CartSectionCard(
+            title: 'Order note',
+            subtitle: 'Optional delivery instructions or internal order note.',
+            child: TextField(
+              controller: controller.noteController,
+              minLines: 2,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                hintText: 'Add an optional note',
               ),
-              ChoiceChip(
-                label: const Text('Amount'),
-                selected: controller.discountType.value == 'amount',
-                onSelected: (_) => controller.setDiscountType('amount'),
-              ),
-              ChoiceChip(
-                label: const Text('Percent'),
-                selected: controller.discountType.value == 'percentage',
-                onSelected: (_) => controller.setDiscountType('percentage'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: controller.noteController,
-            minLines: 2,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'Note',
-              hintText: 'Optional delivery or order note',
             ),
           ),
-          const SizedBox(height: 120),
+          const SizedBox(height: 16),
+          _CartSectionCard(
+            title: 'Order totals',
+            child: Column(
+              children: [
+                _TotalRow(
+                  label: 'Subtotal',
+                  value: controller.formatCurrency(controller.subtotal),
+                ),
+                const SizedBox(height: 12),
+                _TotalRow(
+                  label: 'Discount',
+                  value: controller.formatCurrency(
+                    controller.estimatedDiscountAmount,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _TotalRow(
+                  label: 'Total',
+                  value: controller.formatCurrency(controller.grandTotal),
+                  strong: true,
+                ),
+              ],
+            ),
+          ),
         ],
       );
     });
+  }
+}
+
+class _CartCustomerSummaryCard extends StatefulWidget {
+  const _CartCustomerSummaryCard({required this.customer});
+
+  final CustomerModel customer;
+
+  @override
+  State<_CartCustomerSummaryCard> createState() =>
+      _CartCustomerSummaryCardState();
+}
+
+class _CartCustomerSummaryCardState extends State<_CartCustomerSummaryCard> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final customer = widget.customer;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: () => setState(() => _isExpanded = !_isExpanded),
+            borderRadius: BorderRadius.circular(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(
+                    Icons.storefront_outlined,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Customer',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        customer.name ?? '-',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  _isExpanded
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ],
+            ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            child: _isExpanded
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _CartDetailRow(
+                          icon: Icons.phone_outlined,
+                          text: customer.phone ?? '-',
+                        ),
+                        if ((customer.area ?? '').isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          _CartDetailRow(
+                            icon: Icons.location_on_outlined,
+                            text: customer.area!,
+                          ),
+                        ],
+                        if ((customer.address ?? '').isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          _CartDetailRow(
+                            icon: Icons.map_outlined,
+                            text: customer.address!,
+                            maxLines: 2,
+                          ),
+                        ],
+                      ],
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CartSectionCard extends StatelessWidget {
+  const _CartSectionCard({
+    required this.title,
+    this.subtitle,
+    required this.child,
+  });
+
+  final String title;
+  final String? subtitle;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              subtitle!,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _DiscountChip extends StatelessWidget {
+  const _DiscountChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onTap(),
+      showCheckmark: false,
+      selectedColor: theme.colorScheme.primaryContainer,
+      backgroundColor: theme.colorScheme.surfaceContainerLowest,
+      side: BorderSide(
+        color: selected
+            ? theme.colorScheme.primary
+            : theme.colorScheme.outlineVariant,
+      ),
+      labelStyle: theme.textTheme.labelLarge?.copyWith(
+        fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+        color: selected
+            ? theme.colorScheme.primary
+            : theme.colorScheme.onSurfaceVariant,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+    );
+  }
+}
+
+class _CartDetailRow extends StatelessWidget {
+  const _CartDetailRow({
+    required this.icon,
+    required this.text,
+    this.maxLines = 1,
+  });
+
+  final IconData icon;
+  final String text;
+  final int maxLines;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            maxLines: maxLines,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              height: 1.35,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 

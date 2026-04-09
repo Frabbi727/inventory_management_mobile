@@ -45,21 +45,40 @@ class FakeCustomerRepository extends CustomerRepository {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('customer search waits until 3 characters before API call', () async {
-    final repository = FakeCustomerRepository();
-    final controller = CustomerSearchController(customerRepository: repository);
+  test(
+    'customer search debounces and resets paging for query changes',
+    () async {
+      final repository = FakeCustomerRepository();
+      final controller = CustomerSearchController(
+        customerRepository: repository,
+      );
 
-    controller.onInit();
-    expect(repository.calls, [(1, null)]);
+      controller.onInit();
+      expect(repository.calls, [(1, null)]);
 
-    controller.onSearchChanged('ra');
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    expect(repository.calls, [(1, null)]);
+      controller.onSearchChanged('ra');
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      expect(repository.calls, [(1, null), (1, 'ra')]);
+      expect(controller.customers.first.name, 'Search ra');
 
-    controller.onSearchChanged('rah');
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    expect(repository.calls, [(1, null), (1, 'rah')]);
-    expect(controller.customers.first.name, 'Search rah');
-    controller.onClose();
-  });
+      await controller.fetchCustomers(reset: false);
+      expect(repository.calls, [(1, null), (1, 'ra'), (2, 'ra')]);
+
+      controller.onSearchChanged('rah');
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      expect(repository.calls, [(1, null), (1, 'ra'), (2, 'ra'), (1, 'rah')]);
+      expect(controller.customers.first.name, 'Search rah');
+
+      controller.clearSearch();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(repository.calls, [
+        (1, null),
+        (1, 'ra'),
+        (2, 'ra'),
+        (1, 'rah'),
+        (1, null),
+      ]);
+      controller.onClose();
+    },
+  );
 }

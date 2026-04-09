@@ -62,22 +62,34 @@ void main() {
     controller.onClose();
   });
 
-  test('search waits until 3 characters before calling API', () async {
-    final repository = FakeProductRepository();
-    final controller = ProductListController(productRepository: repository);
+  test(
+    'product search debounces and resets paging for query changes',
+    () async {
+      final repository = FakeProductRepository();
+      final controller = ProductListController(productRepository: repository);
 
-    controller.onInit();
-    await controller.ensureLoaded();
-    await Future<void>.delayed(const Duration(milliseconds: 10));
+      controller.onInit();
+      await controller.ensureLoaded();
+      await Future<void>.delayed(const Duration(milliseconds: 10));
 
-    controller.onSearchChanged('mi');
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    expect(repository.calls.length, 1);
+      controller.onSearchChanged('mi');
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      expect(repository.calls.length, 2);
+      expect(repository.calls.last, (1, 'mi'));
 
-    controller.onSearchChanged('milk');
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    expect(repository.calls.length, 2);
-    expect(repository.calls.last, (1, 'milk'));
-    controller.onClose();
-  });
+      await controller.fetchProducts(reset: false);
+      expect(repository.calls.last, (2, 'mi'));
+
+      controller.onSearchChanged('milk');
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      expect(repository.calls.length, 4);
+      expect(repository.calls.last, (1, 'milk'));
+
+      controller.clearSearch();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(repository.calls.length, 5);
+      expect(repository.calls.last, (1, null));
+      controller.onClose();
+    },
+  );
 }

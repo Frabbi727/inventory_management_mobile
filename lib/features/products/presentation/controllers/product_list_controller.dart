@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/errors/api_exception.dart';
@@ -13,12 +13,10 @@ class ProductListController extends GetxController {
 
   final ProductRepository _productRepository;
 
-  final searchController = TextEditingController();
-  final scrollController = ScrollController();
-
   final products = <ProductModel>[].obs;
   final isInitialLoading = false.obs;
   final isLoadingMore = false.obs;
+  final isSearching = false.obs;
   final errorMessage = RxnString();
   final infoMessage = RxnString();
   final searchQuery = ''.obs;
@@ -26,13 +24,17 @@ class ProductListController extends GetxController {
   int _currentPage = 1;
   bool _hasNextPage = false;
   bool _hasLoadedOnce = false;
+  int _requestGeneration = 0;
   Timer? _searchDebounce;
 
-  @override
-  void onInit() {
-    super.onInit();
-    scrollController.addListener(_onScroll);
-  }
+  bool get hasActiveSearch => searchQuery.value.isNotEmpty;
+  bool get hasErrorState =>
+      errorMessage.value != null && products.isEmpty && !isInitialLoading.value;
+  bool get hasEmptyState =>
+      products.isEmpty &&
+      errorMessage.value == null &&
+      !isInitialLoading.value &&
+      !isSearching.value;
 
   Future<void> ensureLoaded({bool forceRefresh = false}) async {
     if (forceRefresh || !_hasLoadedOnce) {
@@ -44,11 +46,15 @@ class ProductListController extends GetxController {
     required bool reset,
     bool forceRefresh = false,
   }) async {
+    final requestedQuery = searchQuery.value.trim();
+
     if (reset) {
       isInitialLoading.value = true;
+      isSearching.value = requestedQuery.isNotEmpty;
       errorMessage.value = null;
       _currentPage = 1;
       _hasNextPage = false;
+      _requestGeneration++;
     } else {
       if (isLoadingMore.value || !_hasNextPage || isInitialLoading.value) {
         return;
@@ -56,46 +62,64 @@ class ProductListController extends GetxController {
       isLoadingMore.value = true;
     }
 
+    final requestGeneration = _requestGeneration;
+    final pageToLoad = _currentPage;
+
     try {
       final response = await _productRepository.fetchProducts(
-        page: _currentPage,
-        query: searchQuery.value.isEmpty ? null : searchQuery.value,
+        page: pageToLoad,
+        query: requestedQuery.isEmpty ? null : requestedQuery,
         forceRefresh: forceRefresh,
       );
 
+      if (requestGeneration != _requestGeneration) {
+        return;
+      }
+
       final fetchedProducts = response.data ?? const <ProductModel>[];
       if (reset) {
-        products.assignAll(fetchedProducts);
+        products.assignAll(_deduplicateProducts(fetchedProducts));
       } else {
-        products.addAll(fetchedProducts);
+        products.assignAll(
+          _deduplicateProducts([...products, ...fetchedProducts]),
+        );
       }
       _hasLoadedOnce = true;
 
-      final currentPage = response.meta?.currentPage ?? _currentPage;
+      final currentPage = response.meta?.currentPage ?? pageToLoad;
       final lastPage = response.meta?.lastPage ?? currentPage;
       _hasNextPage = (response.links?.next != null) || (currentPage < lastPage);
       _currentPage = currentPage + 1;
 
       if (products.isEmpty) {
-        infoMessage.value = searchQuery.value.isEmpty
+        infoMessage.value = requestedQuery.isEmpty
             ? 'No active products found.'
-            : 'No products found for "${searchQuery.value}".';
+            : 'No products found for "$requestedQuery".';
       } else {
         infoMessage.value = null;
       }
     } on ApiException catch (error) {
+      if (requestGeneration != _requestGeneration) {
+        return;
+      }
       errorMessage.value = error.message;
       if (reset) {
         products.clear();
       }
     } catch (_) {
+      if (requestGeneration != _requestGeneration) {
+        return;
+      }
       errorMessage.value = 'Unable to load products right now.';
       if (reset) {
         products.clear();
       }
     } finally {
-      isInitialLoading.value = false;
-      isLoadingMore.value = false;
+      if (requestGeneration == _requestGeneration) {
+        isInitialLoading.value = false;
+        isLoadingMore.value = false;
+        isSearching.value = false;
+      }
     }
   }
 
@@ -109,38 +133,70 @@ class ProductListController extends GetxController {
       searchQuery.value = '';
       infoMessage.value = null;
       if (hadSearch || products.isEmpty) {
-        fetchProducts(reset: true);
+        unawaited(fetchProducts(reset: true));
       }
       return;
     }
 
-    if (trimmed.length < 3) {
-      infoMessage.value = 'Type at least 3 characters to search.';
-      if (searchQuery.value.isNotEmpty) {
-        searchQuery.value = '';
-        fetchProducts(reset: true);
-      }
-      return;
-    }
+    isSearching.value = true;
 
     _searchDebounce = Timer(const Duration(milliseconds: 400), () {
+      if (trimmed == searchQuery.value) {
+        isSearching.value = false;
+        return;
+      }
       searchQuery.value = trimmed;
       infoMessage.value = null;
-      fetchProducts(reset: true);
+      unawaited(fetchProducts(reset: true));
     });
+  }
+
+  void clearSearch() {
+    if (searchQuery.value.isEmpty) {
+      return;
+    }
+
+    _searchDebounce?.cancel();
+    searchQuery.value = '';
+    infoMessage.value = null;
+    isSearching.value = false;
+    unawaited(fetchProducts(reset: true));
   }
 
   Future<void> retry() => ensureLoaded(forceRefresh: true);
 
-  void _onScroll() {
-    if (!scrollController.hasClients) {
+  Future<void> loadMoreIfNeeded(ScrollMetrics metrics) async {
+    if (isInitialLoading.value || isLoadingMore.value || !_hasNextPage) {
       return;
     }
 
-    final threshold = scrollController.position.maxScrollExtent - 200;
-    if (scrollController.position.pixels >= threshold) {
-      fetchProducts(reset: false);
+    final remainingScroll = metrics.maxScrollExtent - metrics.pixels;
+    if (remainingScroll <= 240) {
+      await fetchProducts(reset: false);
     }
+  }
+
+  List<ProductModel> _deduplicateProducts(List<ProductModel> items) {
+    final uniqueById = <int?, ProductModel>{};
+    final withoutId = <ProductModel>[];
+
+    for (final product in items) {
+      if (product.id == null) {
+        if (!withoutId.any(
+          (item) =>
+              item.name == product.name &&
+              item.sku == product.sku &&
+              item.sellingPrice == product.sellingPrice,
+        )) {
+          withoutId.add(product);
+        }
+        continue;
+      }
+
+      uniqueById[product.id] = product;
+    }
+
+    return [...uniqueById.values, ...withoutId];
   }
 
   String formatPrice(num? value) {
@@ -154,8 +210,6 @@ class ProductListController extends GetxController {
   @override
   void onClose() {
     _searchDebounce?.cancel();
-    searchController.dispose();
-    scrollController.dispose();
     super.onClose();
   }
 }

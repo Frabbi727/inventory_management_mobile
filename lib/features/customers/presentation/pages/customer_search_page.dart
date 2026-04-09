@@ -3,12 +3,57 @@ import 'package:get/get.dart';
 
 import '../controllers/customer_search_controller.dart';
 
-class CustomerSearchPage extends GetView<CustomerSearchController> {
+class CustomerSearchPage extends StatefulWidget {
   const CustomerSearchPage({super.key});
+
+  @override
+  State<CustomerSearchPage> createState() => _CustomerSearchPageState();
+}
+
+class _CustomerSearchPageState extends State<CustomerSearchPage> {
+  late final CustomerSearchController controller;
+  late final TextEditingController _searchController;
+  late final ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<CustomerSearchController>();
+    _searchController = TextEditingController(
+      text: controller.searchQuery.value,
+    );
+    _scrollController = ScrollController()..addListener(_handleScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_handleScroll)
+      ..dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _handleScroll() {
+    if (!_scrollController.hasClients) {
+      return;
+    }
+
+    controller.loadMoreIfNeeded(_scrollController.position);
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    if (_searchController.text != controller.searchQuery.value) {
+      _searchController.value = TextEditingValue(
+        text: controller.searchQuery.value,
+        selection: TextSelection.collapsed(
+          offset: controller.searchQuery.value.length,
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Select Customer')),
@@ -25,13 +70,32 @@ class CustomerSearchPage extends GetView<CustomerSearchController> {
                 ),
               ),
               const SizedBox(height: 12),
-              SearchBar(
-                controller: controller.searchController,
-                hintText: 'Search by name or phone',
-                leading: const Icon(Icons.search),
+              TextField(
+                controller: _searchController,
                 onChanged: controller.onSearchChanged,
-                padding: const WidgetStatePropertyAll(
-                  EdgeInsets.symmetric(horizontal: 16),
+                decoration: InputDecoration(
+                  hintText: 'Search by name or phone',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: Obx(
+                    () => controller.isSearching.value
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : _searchController.text.isEmpty
+                        ? const SizedBox.shrink()
+                        : IconButton(
+                            onPressed: () {
+                              _searchController.clear();
+                              controller.clearSearch();
+                            },
+                            icon: const Icon(Icons.close),
+                          ),
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
@@ -77,7 +141,7 @@ class CustomerSearchPage extends GetView<CustomerSearchController> {
                   }
 
                   return ListView(
-                    controller: controller.scrollController,
+                    controller: _scrollController,
                     children: [
                       if (controller.searchQuery.value.isEmpty)
                         Padding(
