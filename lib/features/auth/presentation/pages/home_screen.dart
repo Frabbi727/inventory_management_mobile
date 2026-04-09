@@ -74,14 +74,16 @@ class HomeScreen extends GetView<HomeController> {
             ),
           ],
         ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () {
-            Get.find<CartController>().startNewOrder();
-            Get.toNamed(AppRoutes.newOrder);
-          },
-          icon: const Icon(Icons.add_shopping_cart),
-          label: const Text('New Order'),
-        ),
+        floatingActionButton: controller.selectedIndex.value == 3
+            ? null
+            : FloatingActionButton.extended(
+                onPressed: () {
+                  Get.find<CartController>().startNewOrder();
+                  Get.toNamed(AppRoutes.newOrder);
+                },
+                icon: const Icon(Icons.add_shopping_cart),
+                label: const Text('New Order'),
+              ),
       ),
     );
   }

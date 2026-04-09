@@ -21,6 +21,7 @@ class ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return SafeArea(
       child: Padding(
@@ -31,48 +32,88 @@ class ProfilePage extends StatelessWidget {
             Text(
               'Profile',
               style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Account details and session actions for the logged-in salesman.',
-              style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 16),
             Card(
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(18),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const CircleAvatar(
-                      radius: 28,
-                      child: Icon(Icons.person_outline),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 64,
+                          height: 64,
+                          decoration: BoxDecoration(
+                            color: colorScheme.primaryContainer,
+                            borderRadius: BorderRadius.circular(22),
+                          ),
+                          alignment: Alignment.center,
+                          child: Icon(
+                            Icons.person_outline_rounded,
+                            size: 30,
+                            color: colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                name,
+                                style: theme.textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.surfaceContainerHighest
+                                      .withValues(alpha: 0.8),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  role,
+                                  style: theme.textTheme.labelLarge?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    _ProfileInfoTile(
+                      icon: Icons.mail_outline_rounded,
+                      label: 'Email',
+                      value: email,
                     ),
                     const SizedBox(height: 12),
-                    Text(
-                      name,
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                    _ProfileInfoTile(
+                      icon: Icons.call_outlined,
+                      label: 'Phone',
+                      value: phone,
                     ),
-                    const SizedBox(height: 16),
-                    _ProfileRow(label: 'Email', value: email),
                     const SizedBox(height: 12),
-                    _ProfileRow(label: 'Phone', value: phone),
-                    const SizedBox(height: 12),
-                    _ProfileRow(label: 'Role', value: role),
+                    _ProfileInfoTile(
+                      icon: Icons.badge_outlined,
+                      label: 'Role',
+                      value: role,
+                    ),
                   ],
                 ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.history),
-                title: const Text('Order History'),
-                subtitle: const Text('Available from the main Orders tab'),
-                onTap: () {},
               ),
             ),
             const Spacer(),
@@ -80,15 +121,18 @@ class ProfilePage extends StatelessWidget {
               top: false,
               child: SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: isLoggingOut ? null : onLogout,
-                  child: isLoggingOut
+                child: FilledButton.icon(
+                  onPressed: isLoggingOut
+                      ? null
+                      : () => _confirmLogout(context),
+                  icon: isLoggingOut
                       ? const SizedBox(
-                          height: 20,
-                          width: 20,
+                          height: 18,
+                          width: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Logout'),
+                      : const Icon(Icons.logout_rounded),
+                  label: const Text('Logout'),
                 ),
               ),
             ),
@@ -97,30 +141,112 @@ class ProfilePage extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _confirmLogout(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        final theme = Theme.of(context);
+        final colorScheme = theme.colorScheme;
+
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          title: Text(
+            'Logout',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          content: Text(
+            'Are you sure you want to logout?',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Logout'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      onLogout();
+    }
+  }
 }
 
-class _ProfileRow extends StatelessWidget {
-  const _ProfileRow({required this.label, required this.value});
+class _ProfileInfoTile extends StatelessWidget {
+  const _ProfileInfoTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
 
+  final IconData icon;
   final String label;
   final String value;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 72,
-          child: Text(
-            label,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.68),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: colorScheme.surface,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.center,
+            child: Icon(icon, size: 18, color: colorScheme.onSurfaceVariant),
           ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(child: Text(value)),
-      ],
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  value,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
