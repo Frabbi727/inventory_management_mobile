@@ -7,16 +7,8 @@ import '../../../../shared/widgets/app_page_header.dart';
 import '../../../cart_orders/data/models/order_model.dart';
 import '../controllers/invoice_controller.dart';
 
-class InvoicePage extends StatefulWidget {
+class InvoicePage extends GetView<InvoiceController> {
   const InvoicePage({super.key});
-
-  @override
-  State<InvoicePage> createState() => _InvoicePageState();
-}
-
-class _InvoicePageState extends State<InvoicePage> {
-  late final InvoiceController controller;
-  late final TextEditingController _searchController;
 
   static const List<String> _statusOptions = [
     'pending',
@@ -26,31 +18,7 @@ class _InvoicePageState extends State<InvoicePage> {
   ];
 
   @override
-  void initState() {
-    super.initState();
-    controller = Get.find<InvoiceController>();
-    _searchController = TextEditingController(
-      text: controller.searchQuery.value,
-    );
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (_searchController.text != controller.searchQuery.value) {
-      _searchController.value = TextEditingValue(
-        text: controller.searchQuery.value,
-        selection: TextSelection.collapsed(
-          offset: controller.searchQuery.value.length,
-        ),
-      );
-    }
-
     final theme = Theme.of(context);
 
     return SafeArea(
@@ -66,7 +34,7 @@ class _InvoicePageState extends State<InvoicePage> {
                     ? 'Refresh keeps your current filters and search applied.'
                     : 'Track recent orders and open any order for full details.',
                 trailing: FilledButton.tonalIcon(
-                  onPressed: _openFilterSheet,
+                  onPressed: () => _openFilterSheet(context),
                   icon: Stack(
                     clipBehavior: Clip.none,
                     children: [
@@ -99,14 +67,7 @@ class _InvoicePageState extends State<InvoicePage> {
               ),
             ),
             const SizedBox(height: 16),
-            _OrdersToolbar(
-              controller: controller,
-              searchController: _searchController,
-              onClearSearch: () {
-                _searchController.clear();
-                controller.clearSearch();
-              },
-            ),
+            _OrdersToolbar(controller: controller),
             const SizedBox(height: 12),
             Obx(
               () => AnimatedSwitcher(
@@ -118,7 +79,6 @@ class _InvoicePageState extends State<InvoicePage> {
                         child: _ActiveFiltersRow(
                           controller: controller,
                           onClearAll: () async {
-                            _searchController.clear();
                             await controller.clearAllCriteria();
                           },
                         ),
@@ -215,7 +175,6 @@ class _InvoicePageState extends State<InvoicePage> {
                                                   .isNotEmpty ||
                                               controller.hasActiveFilters
                                           ? () async {
-                                              _searchController.clear();
                                               await controller
                                                   .clearAllCriteria();
                                             }
@@ -271,7 +230,7 @@ class _InvoicePageState extends State<InvoicePage> {
     );
   }
 
-  Future<void> _openFilterSheet() async {
+  Future<void> _openFilterSheet(BuildContext context) async {
     var draftStatus = controller.selectedStatus.value;
     var draftRange = controller.selectedDateRange;
 
@@ -556,15 +515,9 @@ class _InvoicePageState extends State<InvoicePage> {
 }
 
 class _OrdersToolbar extends StatelessWidget {
-  const _OrdersToolbar({
-    required this.controller,
-    required this.searchController,
-    required this.onClearSearch,
-  });
+  const _OrdersToolbar({required this.controller});
 
   final InvoiceController controller;
-  final TextEditingController searchController;
-  final VoidCallback onClearSearch;
 
   @override
   Widget build(BuildContext context) {
@@ -576,7 +529,7 @@ class _OrdersToolbar extends StatelessWidget {
         child: Column(
           children: [
             TextField(
-              controller: searchController,
+              controller: controller.searchTextController,
               onChanged: controller.onSearchChanged,
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(
@@ -592,10 +545,10 @@ class _OrdersToolbar extends StatelessWidget {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           ),
                         )
-                      : searchController.text.isEmpty
+                      : controller.searchTextController.text.isEmpty
                       ? const SizedBox.shrink()
                       : IconButton(
-                          onPressed: onClearSearch,
+                          onPressed: controller.clearSearch,
                           icon: const Icon(Icons.close),
                         ),
                 ),

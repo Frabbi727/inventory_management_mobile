@@ -2,61 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/constants/controller_tags.dart';
+import '../../../../shared/widgets/app_message_state.dart';
+import '../../data/models/customer_model.dart';
 import '../controllers/customer_search_controller.dart';
 
-class CustomerSearchPage extends StatefulWidget {
+class CustomerSearchPage extends StatelessWidget {
   const CustomerSearchPage({super.key});
 
-  @override
-  State<CustomerSearchPage> createState() => _CustomerSearchPageState();
-}
-
-class _CustomerSearchPageState extends State<CustomerSearchPage> {
-  late final CustomerSearchController controller;
-  late final TextEditingController _searchController;
-  late final ScrollController _scrollController;
-
-  @override
-  void initState() {
-    super.initState();
-    controller = Get.find<CustomerSearchController>(
-      tag: ControllerTags.customerSearchRoute,
-    );
-    _searchController = TextEditingController(
-      text: controller.searchQuery.value,
-    );
-    _scrollController = ScrollController()..addListener(_handleScroll);
-  }
-
-  @override
-  void dispose() {
-    _scrollController
-      ..removeListener(_handleScroll)
-      ..dispose();
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  void _handleScroll() {
-    if (!_scrollController.hasClients) {
-      return;
-    }
-
-    controller.loadMoreIfNeeded(_scrollController.position);
-  }
+  CustomerSearchController get controller => Get.find<CustomerSearchController>(
+    tag: ControllerTags.customerSearchRoute,
+  );
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    if (_searchController.text != controller.searchQuery.value) {
-      _searchController.value = TextEditingValue(
-        text: controller.searchQuery.value,
-        selection: TextSelection.collapsed(
-          offset: controller.searchQuery.value.length,
-        ),
-      );
-    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Select Customer')),
@@ -66,16 +25,10 @@ class _CustomerSearchPageState extends State<CustomerSearchPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Search an existing customer or add a new one.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 12),
               TextField(
-                controller: _searchController,
+                controller: controller.searchTextController,
                 onChanged: controller.onSearchChanged,
+                textInputAction: TextInputAction.search,
                 decoration: InputDecoration(
                   hintText: 'Search by name or phone',
                   prefixIcon: const Icon(Icons.search),
@@ -89,13 +42,10 @@ class _CustomerSearchPageState extends State<CustomerSearchPage> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             ),
                           )
-                        : _searchController.text.isEmpty
+                        : controller.searchTextController.text.isEmpty
                         ? const SizedBox.shrink()
                         : IconButton(
-                            onPressed: () {
-                              _searchController.clear();
-                              controller.clearSearch();
-                            },
+                            onPressed: controller.clearSearch,
                             icon: const Icon(Icons.close),
                           ),
                   ),
@@ -124,7 +74,7 @@ class _CustomerSearchPageState extends State<CustomerSearchPage> {
 
                   if (controller.errorMessage.value != null &&
                       controller.customers.isEmpty) {
-                    return _MessageState(
+                    return AppMessageState(
                       icon: Icons.cloud_off_outlined,
                       message: controller.errorMessage.value!,
                       actionLabel: 'Retry',
@@ -133,7 +83,7 @@ class _CustomerSearchPageState extends State<CustomerSearchPage> {
                   }
 
                   if (controller.customers.isEmpty) {
-                    return _MessageState(
+                    return AppMessageState(
                       icon: Icons.person_search_outlined,
                       message: controller.searchQuery.value.isEmpty
                           ? 'No customers available.'
@@ -144,7 +94,7 @@ class _CustomerSearchPageState extends State<CustomerSearchPage> {
                   }
 
                   return ListView(
-                    controller: _scrollController,
+                    controller: controller.scrollController,
                     children: [
                       if (controller.searchQuery.value.isEmpty)
                         Padding(
@@ -160,10 +110,7 @@ class _CustomerSearchPageState extends State<CustomerSearchPage> {
                         Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: _CustomerCard(
-                            name: customer.name ?? 'Unnamed customer',
-                            phone: customer.phone ?? '-',
-                            address: customer.address ?? '-',
-                            area: customer.area,
+                            customer: customer,
                             onSelect: () => controller.selectCustomer(customer),
                           ),
                         ),
@@ -196,22 +143,15 @@ class _CustomerSearchPageState extends State<CustomerSearchPage> {
 }
 
 class _CustomerCard extends StatelessWidget {
-  const _CustomerCard({
-    required this.name,
-    required this.phone,
-    required this.address,
-    required this.area,
-    required this.onSelect,
-  });
+  const _CustomerCard({required this.customer, required this.onSelect});
 
-  final String name;
-  final String phone;
-  final String address;
-  final String? area;
+  final CustomerModel customer;
   final VoidCallback onSelect;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -227,19 +167,19 @@ class _CustomerCard extends StatelessWidget {
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primaryContainer,
+                    color: theme.colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     Icons.storefront_outlined,
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    color: theme.colorScheme.onPrimaryContainer,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    name,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    customer.name ?? 'Unnamed customer',
+                    style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -255,51 +195,22 @@ class _CustomerCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _InfoPill(icon: Icons.phone_outlined, text: phone),
-                if ((area ?? '').isNotEmpty)
-                  _InfoPill(icon: Icons.place_outlined, text: area!),
+                _InfoPill(
+                  icon: Icons.phone_outlined,
+                  text: customer.phone ?? '-',
+                ),
+                if ((customer.area ?? '').isNotEmpty)
+                  _InfoPill(icon: Icons.place_outlined, text: customer.area!),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             Text(
-              address,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              customer.address ?? '-',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                height: 1.4,
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MessageState extends StatelessWidget {
-  const _MessageState({
-    required this.icon,
-    required this.message,
-    required this.actionLabel,
-    required this.onAction,
-  });
-
-  final IconData icon;
-  final String message;
-  final String actionLabel;
-  final VoidCallback onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 48),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            OutlinedButton(onPressed: onAction, child: Text(actionLabel)),
           ],
         ),
       ),
@@ -315,15 +226,26 @@ class _InfoPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        children: [Icon(icon, size: 16), const SizedBox(width: 6), Text(text)],
+        children: [
+          Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }

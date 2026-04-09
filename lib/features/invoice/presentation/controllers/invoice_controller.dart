@@ -14,6 +14,7 @@ class InvoiceController extends GetxController {
   final OrderRepository _orderRepository;
 
   final scrollController = ScrollController();
+  final searchTextController = TextEditingController();
   final orders = <OrderModel>[].obs;
   final isInitialLoading = false.obs;
   final isRefreshing = false.obs;
@@ -208,6 +209,9 @@ class InvoiceController extends GetxController {
     _searchDebounce?.cancel();
 
     if (trimmed.isEmpty) {
+      if (searchTextController.text.isNotEmpty) {
+        searchTextController.clear();
+      }
       isSearching.value = false;
       if (_lastIssuedQuery.isNotEmpty) {
         _lastIssuedQuery = '';
@@ -237,6 +241,9 @@ class InvoiceController extends GetxController {
 
     _searchDebounce?.cancel();
     searchQuery.value = '';
+    if (searchTextController.text.isNotEmpty) {
+      searchTextController.clear();
+    }
     isSearching.value = false;
     if (_lastIssuedQuery.isNotEmpty) {
       _lastIssuedQuery = '';
@@ -399,6 +406,7 @@ class InvoiceController extends GetxController {
   @override
   void onClose() {
     _searchDebounce?.cancel();
+    searchTextController.dispose();
     scrollController.dispose();
     super.onClose();
   }

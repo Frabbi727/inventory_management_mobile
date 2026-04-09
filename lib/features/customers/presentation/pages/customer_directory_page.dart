@@ -2,71 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/constants/controller_tags.dart';
-import '../../../../core/routes/app_routes.dart';
 import '../../../../shared/widgets/app_message_state.dart';
 import '../../../../shared/widgets/app_page_header.dart';
 import '../../data/models/customer_model.dart';
 import '../controllers/customer_search_controller.dart';
 
-class CustomerDirectoryPage extends StatefulWidget {
+class CustomerDirectoryPage extends StatelessWidget {
   const CustomerDirectoryPage({super.key});
 
-  @override
-  State<CustomerDirectoryPage> createState() => _CustomerDirectoryPageState();
-}
-
-class _CustomerDirectoryPageState extends State<CustomerDirectoryPage> {
-  late final CustomerSearchController controller;
-  late final TextEditingController _searchController;
-  late final ScrollController _scrollController;
-
-  @override
-  void initState() {
-    super.initState();
-    controller = Get.find<CustomerSearchController>(
-      tag: ControllerTags.homeCustomerSearch,
-    );
-    _searchController = TextEditingController(
-      text: controller.searchQuery.value,
-    );
-    _scrollController = ScrollController()..addListener(_handleScroll);
-  }
-
-  @override
-  void dispose() {
-    _scrollController
-      ..removeListener(_handleScroll)
-      ..dispose();
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  void _handleScroll() {
-    if (!_scrollController.hasClients) {
-      return;
-    }
-
-    controller.loadMoreIfNeeded(_scrollController.position);
-  }
-
-  Future<void> _openAddCustomer() async {
-    final result = await Get.toNamed(AppRoutes.addCustomer);
-    if (result is CustomerModel) {
-      await controller.retry();
-    }
-  }
+  CustomerSearchController get controller => Get.find<CustomerSearchController>(
+    tag: ControllerTags.homeCustomerSearch,
+  );
 
   @override
   Widget build(BuildContext context) {
-    if (_searchController.text != controller.searchQuery.value) {
-      _searchController.value = TextEditingValue(
-        text: controller.searchQuery.value,
-        selection: TextSelection.collapsed(
-          offset: controller.searchQuery.value.length,
-        ),
-      );
-    }
-
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
@@ -99,11 +48,7 @@ class _CustomerDirectoryPageState extends State<CustomerDirectoryPage> {
               ),
             ),
             const SizedBox(height: 16),
-            _CustomerToolbar(
-              searchController: _searchController,
-              controller: controller,
-              onAddCustomer: _openAddCustomer,
-            ),
+            _CustomerToolbar(controller: controller),
             const SizedBox(height: 12),
             Expanded(
               child: Obx(() {
@@ -173,17 +118,14 @@ class _CustomerDirectoryPageState extends State<CustomerDirectoryPage> {
                                           ? 'Clear search'
                                           : 'Refresh',
                                       onAction: controller.hasActiveSearch
-                                          ? () async {
-                                              _searchController.clear();
-                                              controller.clearSearch();
-                                            }
+                                          ? () async => controller.clearSearch()
                                           : controller.retry,
                                     ),
                                   ),
                                 ],
                               )
                             : ListView.separated(
-                                controller: _scrollController,
+                                controller: controller.scrollController,
                                 physics: const AlwaysScrollableScrollPhysics(
                                   parent: BouncingScrollPhysics(),
                                 ),
@@ -226,15 +168,9 @@ class _CustomerDirectoryPageState extends State<CustomerDirectoryPage> {
 }
 
 class _CustomerToolbar extends StatelessWidget {
-  const _CustomerToolbar({
-    required this.searchController,
-    required this.controller,
-    required this.onAddCustomer,
-  });
+  const _CustomerToolbar({required this.controller});
 
-  final TextEditingController searchController;
   final CustomerSearchController controller;
-  final Future<void> Function() onAddCustomer;
 
   @override
   Widget build(BuildContext context) {
@@ -247,7 +183,7 @@ class _CustomerToolbar extends StatelessWidget {
         child: Column(
           children: [
             TextField(
-              controller: searchController,
+              controller: controller.searchTextController,
               onChanged: controller.onSearchChanged,
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(
@@ -263,13 +199,10 @@ class _CustomerToolbar extends StatelessWidget {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           ),
                         )
-                      : searchController.text.isEmpty
+                      : controller.searchTextController.text.isEmpty
                       ? const SizedBox.shrink()
                       : IconButton(
-                          onPressed: () {
-                            searchController.clear();
-                            controller.clearSearch();
-                          },
+                          onPressed: controller.clearSearch,
                           icon: const Icon(Icons.close),
                         ),
                 ),
@@ -308,7 +241,7 @@ class _CustomerToolbar extends StatelessWidget {
                       color: colorScheme.onPrimaryContainer,
                     ),
                   ),
-                  onPressed: onAddCustomer,
+                  onPressed: controller.openAddCustomerAndRefreshList,
                   icon: const Icon(Icons.person_add_alt_1),
                   label: const Text('Add'),
                 ),

@@ -13,6 +13,8 @@ class CustomerSearchController extends GetxController {
     : _customerRepository = customerRepository;
 
   final CustomerRepository _customerRepository;
+  final scrollController = ScrollController();
+  final searchTextController = TextEditingController();
 
   final customers = <CustomerModel>[].obs;
   final selectedCustomer = Rxn<CustomerModel>();
@@ -35,6 +37,7 @@ class CustomerSearchController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    scrollController.addListener(_onScroll);
     ensureLoaded();
   }
 
@@ -161,6 +164,9 @@ class CustomerSearchController extends GetxController {
       final hadSearch =
           searchQuery.value.isNotEmpty || _lastExecutedQuery.isNotEmpty;
       searchQuery.value = '';
+      if (searchTextController.text.isNotEmpty) {
+        searchTextController.clear();
+      }
       infoMessage.value = null;
       isSearching.value = false;
       _lastExecutedQuery = '';
@@ -202,6 +208,9 @@ class CustomerSearchController extends GetxController {
 
     _searchDebounce?.cancel();
     searchQuery.value = '';
+    if (searchTextController.text.isNotEmpty) {
+      searchTextController.clear();
+    }
     infoMessage.value = null;
     isSearching.value = false;
     _lastExecutedQuery = '';
@@ -217,6 +226,13 @@ class CustomerSearchController extends GetxController {
     final result = await Get.toNamed(AppRoutes.addCustomer);
     if (result is CustomerModel) {
       selectCustomer(result);
+    }
+  }
+
+  Future<void> openAddCustomerAndRefreshList() async {
+    final result = await Get.toNamed(AppRoutes.addCustomer);
+    if (result is CustomerModel) {
+      await retry();
     }
   }
 
@@ -236,6 +252,14 @@ class CustomerSearchController extends GetxController {
     if (remainingScroll <= 240) {
       await fetchCustomers(reset: false);
     }
+  }
+
+  void _onScroll() {
+    if (!scrollController.hasClients) {
+      return;
+    }
+
+    loadMoreIfNeeded(scrollController.position);
   }
 
   List<CustomerModel> _deduplicateCustomers(List<CustomerModel> items) {
@@ -264,6 +288,8 @@ class CustomerSearchController extends GetxController {
   @override
   void onClose() {
     _searchDebounce?.cancel();
+    searchTextController.dispose();
+    scrollController.dispose();
     super.onClose();
   }
 }
