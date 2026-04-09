@@ -393,21 +393,16 @@ class ProductCard extends StatelessWidget {
             if (hasQuantity) ...[
               const SizedBox(height: 12),
               Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  if (onViewDetails != null)
+                  if (onViewDetails != null) ...[
                     TextButton.icon(
                       onPressed: onViewDetails,
                       icon: const Icon(Icons.visibility_outlined),
                       label: const Text('Details'),
                     ),
-                  if (onViewDetails != null) const SizedBox(width: 8),
-                  Text(
-                    'Quantity in cart',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const Spacer(),
+                    const SizedBox(width: 8),
+                  ],
                   QuantityStepper(
                     quantity: selectedQuantity,
                     onIncrement: onIncrement,
