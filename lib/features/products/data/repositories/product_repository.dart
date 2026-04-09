@@ -1,3 +1,5 @@
+import 'package:inventory_management_sales/features/products/data/models/category_response_model.dart';
+
 import '../../../../core/errors/api_exception.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
@@ -117,5 +119,23 @@ class ProductRepository {
     } finally {
       _inflightDetailRequests.remove(id);
     }
+  }
+
+  Future<CategoryResponseModel> fetchCategories() async {
+    final token = await _tokenStorage.getToken();
+
+    if (token == null || token.isEmpty) {
+      throw ApiException(
+        message: 'Authentication token not found.',
+        statusCode: 401,
+      );
+    }
+
+    final response = await _apiClient.get(
+      ApiEndpoints.categories,
+      token: token,
+    );
+
+    return CategoryResponseModel.fromJson(response);
   }
 }
