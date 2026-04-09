@@ -189,17 +189,32 @@ class CartController extends GetxController {
   bool get canContinueCurrentStep {
     switch (currentStep.value) {
       case customerStep:
-        return true;
+        return hasCustomerSelected;
       case productsStep:
+        return hasItems;
       case cartStep:
-        return true;
+        return hasItems;
       default:
-        return !isSubmitting.value;
+        return canSubmit;
     }
   }
 
   bool canGoToStep(int step) {
     return step >= customerStep && step <= confirmStep;
+  }
+
+  bool canOpenStep(int step) {
+    if (!canGoToStep(step)) {
+      return false;
+    }
+
+    for (var index = customerStep; index < step; index++) {
+      if (validationMessageForStep(index) != null) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   void clearCart() {
@@ -225,7 +240,13 @@ class CartController extends GetxController {
   }
 
   void nextStep() {
-    errorMessage.value = validationMessageForStep(currentStep.value);
+    final validationMessage = validationMessageForStep(currentStep.value);
+    if (validationMessage != null) {
+      errorMessage.value = validationMessage;
+      return;
+    }
+
+    errorMessage.value = null;
     if (currentStep.value < confirmStep) {
       currentStep.value += 1;
     }
@@ -243,7 +264,21 @@ class CartController extends GetxController {
       return;
     }
 
-    errorMessage.value = validationMessageForStep(step);
+    final currentStepValidation = validationMessageForStep(currentStep.value);
+    if (step > currentStep.value && currentStepValidation != null) {
+      errorMessage.value = currentStepValidation;
+      return;
+    }
+
+    if (step > currentStep.value && !canOpenStep(step)) {
+      final blockingMessage = validationMessageForStep(step - 1);
+      if (blockingMessage != null) {
+        errorMessage.value = blockingMessage;
+      }
+      return;
+    }
+
+    errorMessage.value = null;
     currentStep.value = step;
   }
 
@@ -287,9 +322,8 @@ class CartController extends GetxController {
 
   int get totalUnits => items.fold(0, (sum, item) => sum + item.quantity);
 
-  num get subtotal => _normalizeMoney(
-    items.fold<num>(0, (sum, item) => sum + item.lineTotal),
-  );
+  num get subtotal =>
+      _normalizeMoney(items.fold<num>(0, (sum, item) => sum + item.lineTotal));
 
   num get estimatedDiscountAmount {
     final rawValue = appliedDiscountValue;
@@ -315,12 +349,16 @@ class CartController extends GetxController {
       items.isNotEmpty;
 
   String? validationMessageForStep(int step) {
-    if (step >= productsStep && !hasCustomerSelected) {
-      return 'Select a customer before finalizing this order.';
+    if (step == customerStep && !hasCustomerSelected) {
+      return 'Please select a customer.';
     }
 
-    if (step >= cartStep && !hasItems) {
-      return 'Add at least one product before reviewing the cart.';
+    if (step == productsStep && !hasItems) {
+      return 'Please add at least one product.';
+    }
+
+    if (step == cartStep && !hasItems) {
+      return 'Your cart is empty. Add products to continue.';
     }
 
     return null;

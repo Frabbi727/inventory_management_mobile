@@ -116,14 +116,16 @@ class _NewOrderPageState extends State<NewOrderPage> {
               ? null
               : controller.previousStep,
           isLoading: controller.isSubmitting.value,
-          onPrimaryPressed: () async {
-            if (controller.currentStep.value == CartController.confirmStep) {
-              await controller.submitOrder();
-              return;
-            }
-
-            controller.nextStep();
-          },
+          onPrimaryPressed:
+              controller.currentStep.value == CartController.confirmStep
+              ? (controller.canSubmit
+                    ? () async {
+                        await controller.submitOrder();
+                      }
+                    : null)
+              : (controller.canContinueCurrentStep
+                    ? controller.nextStep
+                    : null),
         ),
       ),
     );
