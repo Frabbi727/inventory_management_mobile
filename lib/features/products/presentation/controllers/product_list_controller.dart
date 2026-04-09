@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/errors/api_exception.dart';
+import '../../data/models/category_response_model.dart';
 import '../../data/models/product_model.dart';
 import '../../data/repositories/product_repository.dart';
 
@@ -14,9 +15,12 @@ class ProductListController extends GetxController {
   final ProductRepository _productRepository;
 
   final products = <ProductModel>[].obs;
+  final categories = <CategoryModel>[].obs;
+  final selectedCategoryId = Rxn<int>();
   final isInitialLoading = false.obs;
   final isLoadingMore = false.obs;
   final isSearching = false.obs;
+  final isCategoriesLoading = false.obs;
   final errorMessage = RxnString();
   final infoMessage = RxnString();
   final searchQuery = ''.obs;
@@ -29,6 +33,8 @@ class ProductListController extends GetxController {
   Timer? _searchDebounce;
 
   bool get hasActiveSearch => searchQuery.value.isNotEmpty;
+  bool get hasActiveCategory => selectedCategoryId.value != null;
+  bool get hasActiveFilter => hasActiveSearch || hasActiveCategory;
   bool get hasErrorState =>
       errorMessage.value != null && products.isEmpty && !isInitialLoading.value;
   bool get hasEmptyState =>
@@ -36,6 +42,51 @@ class ProductListController extends GetxController {
       errorMessage.value == null &&
       !isInitialLoading.value &&
       !isSearching.value;
+
+  @override
+  void onInit() {
+    super.onInit();
+    loadCategories();
+  }
+
+  Future<void> loadCategories() async {
+    if (categories.isNotEmpty || isCategoriesLoading.value) return;
+    isCategoriesLoading.value = true;
+    try {
+      final response = await _productRepository.fetchCategories();
+      categories.assignAll(response.data ?? const <CategoryModel>[]);
+    } catch (_) {
+      // Categories are optional; failure is non-fatal.
+    } finally {
+      isCategoriesLoading.value = false;
+    }
+  }
+
+  void onCategoryChanged(int? id) {
+    if (selectedCategoryId.value == id) return;
+    selectedCategoryId.value = id;
+    unawaited(fetchProducts(reset: true));
+  }
+
+  void clearCategory() {
+    if (selectedCategoryId.value == null) return;
+    selectedCategoryId.value = null;
+    unawaited(fetchProducts(reset: true));
+  }
+
+  void clearFilters() {
+    _searchDebounce?.cancel();
+    final hadSearch = searchQuery.value.isNotEmpty || _lastExecutedQuery.isNotEmpty;
+    final hadCategory = selectedCategoryId.value != null;
+    searchQuery.value = '';
+    infoMessage.value = null;
+    isSearching.value = false;
+    _lastExecutedQuery = '';
+    selectedCategoryId.value = null;
+    if (hadSearch || hadCategory || products.isEmpty) {
+      unawaited(fetchProducts(reset: true));
+    }
+  }
 
   Future<void> ensureLoaded({bool forceRefresh = false}) async {
     if (forceRefresh || !_hasLoadedOnce) {
@@ -48,6 +99,7 @@ class ProductListController extends GetxController {
     bool forceRefresh = false,
   }) async {
     final requestedQuery = searchQuery.value.trim();
+    final requestedCategory = selectedCategoryId.value;
     final hasExistingItems = products.isNotEmpty;
 
     if (reset) {
@@ -71,6 +123,7 @@ class ProductListController extends GetxController {
       final response = await _productRepository.fetchProducts(
         page: pageToLoad,
         query: requestedQuery.isEmpty ? null : requestedQuery,
+        categoryId: requestedCategory,
         forceRefresh: forceRefresh,
       );
 
@@ -94,9 +147,7 @@ class ProductListController extends GetxController {
       _currentPage = currentPage + 1;
 
       if (products.isEmpty) {
-        infoMessage.value = requestedQuery.isEmpty
-            ? 'No active products found.'
-            : 'No products found for "$requestedQuery".';
+        infoMessage.value = _buildEmptyMessage(requestedQuery, requestedCategory);
       } else {
         infoMessage.value = null;
       }
@@ -123,6 +174,23 @@ class ProductListController extends GetxController {
         isSearching.value = false;
       }
     }
+  }
+
+  String _buildEmptyMessage(String query, int? categoryId) {
+    final categoryName = categoryId != null
+        ? categories.firstWhereOrNull((c) => c.id == categoryId)?.name
+        : null;
+
+    if (query.isNotEmpty && categoryName != null) {
+      return 'No products found for "$query" in $categoryName.';
+    }
+    if (query.isNotEmpty) {
+      return 'No products found for "$query".';
+    }
+    if (categoryName != null) {
+      return 'No products found in $categoryName.';
+    }
+    return 'No active products found.';
   }
 
   void onSearchChanged(String value) {

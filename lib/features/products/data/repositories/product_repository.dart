@@ -25,6 +25,7 @@ class ProductRepository {
   Future<ProductListResponseModel> fetchProducts({
     int page = 1,
     String? query,
+    int? categoryId,
     bool forceRefresh = false,
   }) async {
     final token = await _tokenStorage.getToken();
@@ -35,7 +36,7 @@ class ProductRepository {
       );
     }
 
-    final cacheKey = '$page|${query?.trim() ?? ''}';
+    final cacheKey = '$page|${query?.trim() ?? ''}|${categoryId ?? ''}';
     if (!forceRefresh) {
       final cachedResponse = _responseCache[cacheKey];
       if (cachedResponse != null) {
@@ -55,6 +56,10 @@ class ProductRepository {
 
     if (query != null && query.isNotEmpty) {
       queryParameters['q'] = query;
+    }
+
+    if (categoryId != null) {
+      queryParameters['category_id'] = categoryId.toString();
     }
 
     final request = _apiClient

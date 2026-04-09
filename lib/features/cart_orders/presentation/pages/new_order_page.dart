@@ -593,6 +593,8 @@ class _ProductsStepState extends State<_ProductsStep> {
       }
 
       final products = productController.products;
+      final categories = productController.categories;
+      final selectedCategoryId = productController.selectedCategoryId.value;
       final showInitialLoader =
           productController.isInitialLoading.value && products.isEmpty;
       final showErrorState = productController.hasErrorState;
@@ -608,8 +610,9 @@ class _ProductsStepState extends State<_ProductsStep> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ── Search + Category Panel ──────────────────────────
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surface,
                       borderRadius: BorderRadius.circular(24),
@@ -627,6 +630,7 @@ class _ProductsStepState extends State<_ProductsStep> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Search field
                         OrderSearchField(
                           controller: _searchController,
                           hintText: 'Search by product name or SKU',
@@ -637,6 +641,42 @@ class _ProductsStepState extends State<_ProductsStep> {
                             productController.clearSearch();
                           },
                         ),
+                        // Category chips (only visible when categories loaded)
+                        if (categories.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            height: 36,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              padding: EdgeInsets.zero,
+                              itemCount: categories.length + 1,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 8),
+                              itemBuilder: (context, index) {
+                                if (index == 0) {
+                                  return _CategoryChip(
+                                    label: 'All',
+                                    isSelected: selectedCategoryId == null,
+                                    onTap: () =>
+                                        productController.onCategoryChanged(
+                                          null,
+                                        ),
+                                  );
+                                }
+                                final category = categories[index - 1];
+                                return _CategoryChip(
+                                  label: category.name ?? 'Category',
+                                  isSelected:
+                                      selectedCategoryId == category.id,
+                                  onTap: () =>
+                                      productController.onCategoryChanged(
+                                        category.id,
+                                      ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -647,26 +687,86 @@ class _ProductsStepState extends State<_ProductsStep> {
                       message: productController.errorMessage.value!,
                     ),
                   ],
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
+                  // ── Results header ───────────────────────────────────
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Expanded(
                         child: Text(
                           productController.hasActiveSearch
                               ? 'Search results'
+                              : productController.hasActiveCategory
+                              ? 'Filtered products'
                               : 'Available products',
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w800,
                           ),
                         ),
                       ),
-                      if (products.isNotEmpty)
-                        Text(
-                          '${products.length} found',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: theme.colorScheme.outlineVariant,
+                            width: 1,
                           ),
                         ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (products.isNotEmpty)
+                              Text(
+                                '${products.length} FOUND',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+
+                            if (productController.hasActiveFilter) ...[
+                              const SizedBox(width: 10),
+
+                              InkWell(
+                                onTap: () {
+                                  _searchController.clear();
+                                  productController.clearFilters();
+                                },
+                                borderRadius: BorderRadius.circular(10),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.filter_alt_off_outlined,
+                                        size: 18,
+                                        color: Colors.red,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Clear',
+                                        style: theme.textTheme.labelSmall?.copyWith(
+                                          color: Colors.red,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      )
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -696,13 +796,13 @@ class _ProductsStepState extends State<_ProductsStep> {
                   message:
                       productController.infoMessage.value ??
                       'No products matched your search.',
-                  actionLabel: productController.hasActiveSearch
-                      ? 'Clear Search'
+                  actionLabel: productController.hasActiveFilter
+                      ? 'Clear Filters'
                       : 'Refresh',
-                  onAction: productController.hasActiveSearch
+                  onAction: productController.hasActiveFilter
                       ? () async {
                           _searchController.clear();
-                          productController.clearSearch();
+                          productController.clearFilters();
                         }
                       : () async {
                           await productController.retry();
@@ -753,6 +853,55 @@ class _ProductsStepState extends State<_ProductsStep> {
     });
   }
 }
+
+// ── Category Chip ────────────────────────────────────────────────────────────
+
+class _CategoryChip extends StatelessWidget {
+  const _CategoryChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? colorScheme.primary
+              : colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: isSelected
+                ? colorScheme.primary
+                : colorScheme.outlineVariant,
+          ),
+        ),
+        child: Text(
+          label,
+          style: theme.textTheme.labelMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: isSelected
+                ? colorScheme.onPrimary
+                : colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 
 class _CartStep extends StatelessWidget {
   const _CartStep({required this.controller});

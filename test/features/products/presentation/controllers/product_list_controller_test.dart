@@ -26,6 +26,7 @@ class FakeProductRepository extends ProductRepository {
     int page = 1,
     String? query,
     bool forceRefresh = false,
+    int? categoryId,
   }) async {
     calls.add((page, query));
     return ProductListResponseModel(
