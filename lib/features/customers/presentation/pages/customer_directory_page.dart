@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/constants/controller_tags.dart';
+import '../../../../core/routes/app_routes.dart';
 import '../../../../shared/widgets/app_message_state.dart';
 import '../../../../shared/widgets/app_page_header.dart';
 import '../../data/models/customer_model.dart';
@@ -46,6 +47,13 @@ class _CustomerDirectoryPageState extends State<CustomerDirectoryPage> {
     }
 
     controller.loadMoreIfNeeded(_scrollController.position);
+  }
+
+  Future<void> _openAddCustomer() async {
+    final result = await Get.toNamed(AppRoutes.addCustomer);
+    if (result is CustomerModel) {
+      await controller.retry();
+    }
   }
 
   @override
@@ -94,6 +102,7 @@ class _CustomerDirectoryPageState extends State<CustomerDirectoryPage> {
             _CustomerToolbar(
               searchController: _searchController,
               controller: controller,
+              onAddCustomer: _openAddCustomer,
             ),
             const SizedBox(height: 12),
             Expanded(
@@ -220,10 +229,12 @@ class _CustomerToolbar extends StatelessWidget {
   const _CustomerToolbar({
     required this.searchController,
     required this.controller,
+    required this.onAddCustomer,
   });
 
   final TextEditingController searchController;
   final CustomerSearchController controller;
+  final Future<void> Function() onAddCustomer;
 
   @override
   Widget build(BuildContext context) {
@@ -297,7 +308,7 @@ class _CustomerToolbar extends StatelessWidget {
                       color: colorScheme.onPrimaryContainer,
                     ),
                   ),
-                  onPressed: controller.openAddCustomer,
+                  onPressed: onAddCustomer,
                   icon: const Icon(Icons.person_add_alt_1),
                   label: const Text('Add'),
                 ),
