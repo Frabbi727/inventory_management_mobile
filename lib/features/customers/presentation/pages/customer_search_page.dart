@@ -18,6 +18,13 @@ class CustomerSearchPage extends GetView<CustomerSearchController> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text(
+                'Search an existing customer or add a new one.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 12),
               SearchBar(
                 controller: controller.searchController,
                 hintText: 'Search by name or phone',
@@ -72,6 +79,16 @@ class CustomerSearchPage extends GetView<CustomerSearchController> {
                   return ListView(
                     controller: controller.scrollController,
                     children: [
+                      if (controller.searchQuery.value.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Text(
+                            'All customers',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
                       for (final customer in controller.customers)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 12),
@@ -129,14 +146,28 @@ class _CustomerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const CircleAvatar(child: Icon(Icons.storefront_outlined)),
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.storefront_outlined,
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  ),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -153,13 +184,22 @@ class _CustomerCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            Text(phone),
-            const SizedBox(height: 4),
-            Text(address),
-            if ((area ?? '').isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text(area!),
-            ],
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _InfoPill(icon: Icons.phone_outlined, text: phone),
+                if ((area ?? '').isNotEmpty)
+                  _InfoPill(icon: Icons.place_outlined, text: area!),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              address,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
           ],
         ),
       ),
@@ -195,6 +235,28 @@ class _MessageState extends StatelessWidget {
             OutlinedButton(onPressed: onAction, child: Text(actionLabel)),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _InfoPill extends StatelessWidget {
+  const _InfoPill({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [Icon(icon, size: 16), const SizedBox(width: 6), Text(text)],
       ),
     );
   }

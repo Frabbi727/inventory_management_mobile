@@ -28,8 +28,12 @@ class AddCustomerPage extends GetView<AddCustomerController> {
                   child: Form(
                     key: controller.formKey,
                     child: Card(
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
                       child: Padding(
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.all(18),
                         child: AnimatedSwitcher(
                           duration: const Duration(milliseconds: 220),
                           child: controller.currentStep.value == 0
@@ -174,6 +178,13 @@ class _BasicInfoStep extends StatelessWidget {
             context,
           ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
         ),
+        const SizedBox(height: 4),
+        Text(
+          'Start with the customer name and phone number.',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
         const SizedBox(height: 16),
         TextFormField(
           controller: controller.nameController,
@@ -208,6 +219,13 @@ class _AddressInfoStep extends StatelessWidget {
           style: Theme.of(
             context,
           ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Add the delivery address and area.',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 16),
         TextFormField(

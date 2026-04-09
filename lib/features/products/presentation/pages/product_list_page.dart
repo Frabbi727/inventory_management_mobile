@@ -94,8 +94,12 @@ class ProductListPage extends GetView<ProductListController> {
                       final lowStock = (product.currentStock ?? 0) <= 5;
 
                       return Card(
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
                         child: Padding(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(14),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -132,11 +136,16 @@ class ProductListPage extends GetView<ProductListController> {
                                           ),
                                     icon: const Icon(Icons.add_shopping_cart),
                                     label: const Text('Add'),
+                                    style: FilledButton.styleFrom(
+                                      visualDensity: VisualDensity.compact,
+                                    ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 16),
-                              Row(
+                              const SizedBox(height: 14),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
                                 children: [
                                   _InfoChip(
                                     icon: Icons.sell_outlined,
@@ -145,7 +154,6 @@ class ProductListPage extends GetView<ProductListController> {
                                       product.sellingPrice,
                                     ),
                                   ),
-                                  const SizedBox(width: 12),
                                   _StockChip(
                                     stock: product.currentStock ?? 0,
                                     lowStock: lowStock,
@@ -269,25 +277,19 @@ class _InfoChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 18),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                '$label: $value',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 18),
+          const SizedBox(width: 8),
+          Text('$label: $value', style: Theme.of(context).textTheme.bodyMedium),
+        ],
       ),
     );
   }
@@ -309,34 +311,29 @@ class _StockChip extends StatelessWidget {
         ? scheme.onErrorContainer
         : scheme.onSecondaryContainer;
 
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: background,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              lowStock
-                  ? Icons.warning_amber_rounded
-                  : Icons.inventory_2_outlined,
-              size: 18,
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            lowStock ? Icons.warning_amber_rounded : Icons.inventory_2_outlined,
+            size: 18,
+            color: foreground,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Stock: $stock',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: foreground,
+              fontWeight: FontWeight.w600,
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Stock: $stock',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: foreground,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

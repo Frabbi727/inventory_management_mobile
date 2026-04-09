@@ -33,13 +33,6 @@ class CartPage extends GetView<CartController> {
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Add products, review the cart, choose a customer, then submit.',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
                   const SizedBox(height: 16),
                   _StepHeader(
                     currentStep: controller.currentStep.value,
@@ -219,7 +212,9 @@ class _ProductsStep extends StatelessWidget {
               Expanded(
                 child: _StatCard(
                   label: 'Subtotal',
-                  value: cartController.formatCurrency(cartController.subtotal),
+                  value: cartController.formatCurrency(
+                    cartController.subtotal,
+                  ),
                 ),
               ),
             ],
@@ -370,7 +365,13 @@ class _ReviewStep extends StatelessWidget {
         _StepCard(
           title: 'Review',
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const _SectionLead(
+                title: 'Check quantities and pricing',
+                subtitle: 'Adjust the cart here before you attach a customer.',
+              ),
+              const SizedBox(height: 14),
               for (final item in controller.items)
                 Padding(
                   key: ValueKey(
@@ -496,6 +497,12 @@ class _CustomerStep extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const _SectionLead(
+                title: 'Attach the customer',
+                subtitle:
+                    'Choose an existing customer or add a new one if needed.',
+              ),
+              const SizedBox(height: 14),
               if (customer == null)
                 const _HintBox(
                   icon: Icons.person_search_outlined,
@@ -544,6 +551,11 @@ class _ConfirmStep extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const _SectionLead(
+                title: 'Final order summary',
+                subtitle: 'Review the customer, products, and totals.',
+              ),
+              const SizedBox(height: 14),
               if (controller.selectedCustomer.value != null) ...[
                 Text(
                   'Customer',
@@ -680,8 +692,10 @@ class _StepCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -709,7 +723,7 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(14),
@@ -751,8 +765,10 @@ class _ProductPickerCard extends StatelessWidget {
     final lowStock = stock <= 5;
 
     return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -775,11 +791,14 @@ class _ProductPickerCard extends StatelessWidget {
                 ),
                 FilledButton.tonal(
                   onPressed: stock <= 0 ? null : onAdd,
+                  style: FilledButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
                   child: const Text('Add'),
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -850,11 +869,30 @@ class _CustomerPreview extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            customer.name ?? '-',
-            style: Theme.of(
-              context,
-            ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.storefront_outlined,
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  customer.name ?? '-',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 6),
           Text(customer.phone ?? '-'),
@@ -895,6 +933,7 @@ class _SimpleCartTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Text(
@@ -908,11 +947,28 @@ class _SimpleCartTile extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
-          Text(item.product.sku ?? '-'),
-          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _MiniChip(label: 'SKU', value: item.product.sku ?? '-'),
+              _MiniChip(label: 'Price', value: formatCurrency(item.unitPrice)),
+              _MiniChip(
+                label: 'Total',
+                value: formatCurrency(item.lineTotal),
+                highlighted: true,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
           Row(
             children: [
-              Text('Price: ${formatCurrency(item.unitPrice)}'),
+              Text(
+                'Quantity',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
               const Spacer(),
               Container(
                 decoration: BoxDecoration(
@@ -926,12 +982,14 @@ class _SimpleCartTile extends StatelessWidget {
                       onPressed: onDecrement,
                       icon: const Icon(Icons.remove),
                       tooltip: 'Decrease quantity',
+                      visualDensity: VisualDensity.compact,
                     ),
                     Text('${item.quantity}'),
                     IconButton(
                       onPressed: canIncrement ? onIncrement : null,
                       icon: const Icon(Icons.add),
                       tooltip: 'Increase quantity',
+                      visualDensity: VisualDensity.compact,
                     ),
                   ],
                 ),
@@ -1000,7 +1058,7 @@ class _HintBox extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -1038,6 +1096,37 @@ class _ReviewRow extends StatelessWidget {
       children: [
         Expanded(child: Text(label)),
         Text(value, style: style),
+      ],
+    );
+  }
+}
+
+class _SectionLead extends StatelessWidget {
+  const _SectionLead({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
       ],
     );
   }
