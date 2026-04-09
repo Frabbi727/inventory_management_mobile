@@ -17,6 +17,7 @@ class CustomerSearchController extends GetxController {
   final customers = <CustomerModel>[].obs;
   final selectedCustomer = Rxn<CustomerModel>();
   final isInitialLoading = false.obs;
+  final isRefreshing = false.obs;
   final isLoadingMore = false.obs;
   final isSearching = false.obs;
   final errorMessage = RxnString();
@@ -28,6 +29,7 @@ class CustomerSearchController extends GetxController {
   bool _hasLoadedOnce = false;
   int _requestGeneration = 0;
   String _lastExecutedQuery = '';
+  bool _pendingReset = false;
   Timer? _searchDebounce;
 
   @override
@@ -37,6 +39,8 @@ class CustomerSearchController extends GetxController {
   }
 
   bool get hasActiveSearch => searchQuery.value.isNotEmpty;
+  bool get hasLoadedOnce => _hasLoadedOnce;
+  bool get showInlineLoader => isRefreshing.value && customers.isNotEmpty;
   bool get hasErrorState =>
       errorMessage.value != null &&
       customers.isEmpty &&
@@ -53,19 +57,32 @@ class CustomerSearchController extends GetxController {
     }
   }
 
+  Future<void> onTabActivated() => fetchCustomers(reset: true);
+
   Future<void> fetchCustomers({required bool reset}) async {
     final requestedQuery = searchQuery.value.trim();
     final hasExistingItems = customers.isNotEmpty;
 
     if (reset) {
+      if (isInitialLoading.value || isRefreshing.value) {
+        _pendingReset = true;
+        return;
+      }
+
+      _pendingReset = false;
       isInitialLoading.value = !hasExistingItems;
+      isRefreshing.value = hasExistingItems;
       isSearching.value = requestedQuery.isNotEmpty;
+      isLoadingMore.value = false;
       errorMessage.value = null;
       _currentPage = 1;
       _hasNextPage = false;
       _requestGeneration++;
     } else {
-      if (isLoadingMore.value || !_hasNextPage || isInitialLoading.value) {
+      if (isLoadingMore.value ||
+          !_hasNextPage ||
+          isInitialLoading.value ||
+          isRefreshing.value) {
         return;
       }
       isLoadingMore.value = true;
@@ -109,7 +126,7 @@ class CustomerSearchController extends GetxController {
         return;
       }
       errorMessage.value = error.message;
-      if (reset) {
+      if (reset && !hasExistingItems) {
         customers.clear();
       }
     } catch (_) {
@@ -117,14 +134,20 @@ class CustomerSearchController extends GetxController {
         return;
       }
       errorMessage.value = 'Unable to load customers right now.';
-      if (reset) {
+      if (reset && !hasExistingItems) {
         customers.clear();
       }
     } finally {
       if (requestGeneration == _requestGeneration) {
         isInitialLoading.value = false;
+        isRefreshing.value = false;
         isLoadingMore.value = false;
         isSearching.value = false;
+
+        if (_pendingReset) {
+          _pendingReset = false;
+          unawaited(fetchCustomers(reset: true));
+        }
       }
     }
   }
@@ -198,11 +221,14 @@ class CustomerSearchController extends GetxController {
   }
 
   Future<void> retry() async {
-    await ensureLoaded(forceRefresh: true);
+    await fetchCustomers(reset: true);
   }
 
   Future<void> loadMoreIfNeeded(ScrollMetrics metrics) async {
-    if (isInitialLoading.value || isLoadingMore.value || !_hasNextPage) {
+    if (isInitialLoading.value ||
+        isRefreshing.value ||
+        isLoadingMore.value ||
+        !_hasNextPage) {
       return;
     }
 

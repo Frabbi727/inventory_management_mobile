@@ -70,9 +70,14 @@ class HomeController extends GetxController {
         if (Get.isRegistered<CustomerSearchController>(
           tag: ControllerTags.homeCustomerSearch,
         )) {
-          Get.find<CustomerSearchController>(
+          final customerController = Get.find<CustomerSearchController>(
             tag: ControllerTags.homeCustomerSearch,
-          ).retry();
+          );
+          if (!customerController.hasLoadedOnce) {
+            customerController.ensureLoaded();
+          } else {
+            customerController.onTabActivated();
+          }
         }
         break;
     }
