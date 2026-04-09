@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/constants/controller_tags.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../shared/widgets/app_message_state.dart';
 import '../../../customers/data/models/customer_model.dart';
@@ -28,8 +29,12 @@ class _NewOrderPageState extends State<NewOrderPage> {
   void initState() {
     super.initState();
     controller = Get.find<CartController>();
-    customerController = Get.find<CustomerSearchController>();
-    productController = Get.find<ProductListController>();
+    customerController = Get.find<CustomerSearchController>(
+      tag: ControllerTags.newOrderCustomerSearch,
+    );
+    productController = Get.find<ProductListController>(
+      tag: ControllerTags.newOrderProductSearch,
+    );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       productController.ensureLoaded();

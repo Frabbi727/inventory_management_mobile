@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/constants/controller_tags.dart';
 import '../controllers/customer_search_controller.dart';
 
 class CustomerSearchPage extends StatefulWidget {
@@ -18,7 +19,9 @@ class _CustomerSearchPageState extends State<CustomerSearchPage> {
   @override
   void initState() {
     super.initState();
-    controller = Get.find<CustomerSearchController>();
+    controller = Get.find<CustomerSearchController>(
+      tag: ControllerTags.customerSearchRoute,
+    );
     _searchController = TextEditingController(
       text: controller.searchQuery.value,
     );

@@ -46,7 +46,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test(
-    'customer search debounces and resets paging for query changes',
+    'customer search waits for 3 characters and resets to default below threshold',
     () async {
       final repository = FakeCustomerRepository();
       final controller = CustomerSearchController(
@@ -58,23 +58,39 @@ void main() {
 
       controller.onSearchChanged('ra');
       await Future<void>.delayed(const Duration(milliseconds: 500));
-      expect(repository.calls, [(1, null), (1, 'ra')]);
-      expect(controller.customers.first.name, 'Search ra');
-
-      await controller.fetchCustomers(reset: false);
-      expect(repository.calls, [(1, null), (1, 'ra'), (2, 'ra')]);
+      expect(repository.calls, [(1, null)]);
+      expect(controller.customers.first.name, 'Customer 1');
 
       controller.onSearchChanged('rah');
       await Future<void>.delayed(const Duration(milliseconds: 500));
-      expect(repository.calls, [(1, null), (1, 'ra'), (2, 'ra'), (1, 'rah')]);
+      expect(repository.calls, [(1, null), (1, 'rah')]);
       expect(controller.customers.first.name, 'Search rah');
+
+      await controller.fetchCustomers(reset: false);
+      expect(repository.calls, [(1, null), (1, 'rah'), (2, 'rah')]);
+
+      controller.onSearchChanged('ra');
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      expect(repository.calls, [(1, null), (1, 'rah'), (2, 'rah'), (1, null)]);
+      expect(controller.customers.first.name, 'Customer 1');
+
+      controller.onSearchChanged('rah');
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      expect(repository.calls, [
+        (1, null),
+        (1, 'rah'),
+        (2, 'rah'),
+        (1, null),
+        (1, 'rah'),
+      ]);
 
       controller.clearSearch();
       await Future<void>.delayed(const Duration(milliseconds: 50));
       expect(repository.calls, [
         (1, null),
-        (1, 'ra'),
-        (2, 'ra'),
+        (1, 'rah'),
+        (2, 'rah'),
+        (1, null),
         (1, 'rah'),
         (1, null),
       ]);

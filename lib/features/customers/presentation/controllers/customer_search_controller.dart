@@ -27,6 +27,7 @@ class CustomerSearchController extends GetxController {
   bool _hasNextPage = false;
   bool _hasLoadedOnce = false;
   int _requestGeneration = 0;
+  String _lastExecutedQuery = '';
   Timer? _searchDebounce;
 
   @override
@@ -54,9 +55,10 @@ class CustomerSearchController extends GetxController {
 
   Future<void> fetchCustomers({required bool reset}) async {
     final requestedQuery = searchQuery.value.trim();
+    final hasExistingItems = customers.isNotEmpty;
 
     if (reset) {
-      isInitialLoading.value = true;
+      isInitialLoading.value = !hasExistingItems;
       isSearching.value = requestedQuery.isNotEmpty;
       errorMessage.value = null;
       _currentPage = 1;
@@ -133,24 +135,39 @@ class CustomerSearchController extends GetxController {
     _searchDebounce?.cancel();
 
     if (trimmed.isEmpty) {
-      final hadSearch = searchQuery.value.isNotEmpty;
+      final hadSearch =
+          searchQuery.value.isNotEmpty || _lastExecutedQuery.isNotEmpty;
       searchQuery.value = '';
       infoMessage.value = null;
+      isSearching.value = false;
+      _lastExecutedQuery = '';
       if (hadSearch || customers.isEmpty) {
         unawaited(fetchCustomers(reset: true));
       }
       return;
     }
 
-    isSearching.value = true;
+    if (trimmed.length < 3) {
+      final hadActiveSearch =
+          searchQuery.value.isNotEmpty || _lastExecutedQuery.isNotEmpty;
+      searchQuery.value = '';
+      infoMessage.value = null;
+      isSearching.value = false;
+      if (hadActiveSearch) {
+        _lastExecutedQuery = '';
+        unawaited(fetchCustomers(reset: true));
+      }
+      return;
+    }
 
     _searchDebounce = Timer(const Duration(milliseconds: 400), () {
-      if (trimmed == searchQuery.value) {
+      if (trimmed == _lastExecutedQuery) {
         isSearching.value = false;
         return;
       }
       searchQuery.value = trimmed;
       infoMessage.value = null;
+      _lastExecutedQuery = trimmed;
       unawaited(fetchCustomers(reset: true));
     });
   }
@@ -164,6 +181,7 @@ class CustomerSearchController extends GetxController {
     searchQuery.value = '';
     infoMessage.value = null;
     isSearching.value = false;
+    _lastExecutedQuery = '';
     unawaited(fetchCustomers(reset: true));
   }
 

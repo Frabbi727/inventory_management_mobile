@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/constants/controller_tags.dart';
 import '../../../../shared/widgets/app_message_state.dart';
 import '../../../../shared/widgets/app_page_header.dart';
 import '../../../cart_orders/presentation/widgets/order_flow_widgets.dart';
@@ -21,7 +22,9 @@ class _CustomerDirectoryPageState extends State<CustomerDirectoryPage> {
   @override
   void initState() {
     super.initState();
-    controller = Get.find<CustomerSearchController>();
+    controller = Get.find<CustomerSearchController>(
+      tag: ControllerTags.homeCustomerSearch,
+    );
     _searchController = TextEditingController(
       text: controller.searchQuery.value,
     );

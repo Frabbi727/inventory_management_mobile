@@ -25,6 +25,7 @@ class ProductListController extends GetxController {
   bool _hasNextPage = false;
   bool _hasLoadedOnce = false;
   int _requestGeneration = 0;
+  String _lastExecutedQuery = '';
   Timer? _searchDebounce;
 
   bool get hasActiveSearch => searchQuery.value.isNotEmpty;
@@ -47,9 +48,10 @@ class ProductListController extends GetxController {
     bool forceRefresh = false,
   }) async {
     final requestedQuery = searchQuery.value.trim();
+    final hasExistingItems = products.isNotEmpty;
 
     if (reset) {
-      isInitialLoading.value = true;
+      isInitialLoading.value = !hasExistingItems;
       isSearching.value = requestedQuery.isNotEmpty;
       errorMessage.value = null;
       _currentPage = 1;
@@ -129,24 +131,39 @@ class ProductListController extends GetxController {
     _searchDebounce?.cancel();
 
     if (trimmed.isEmpty) {
-      final hadSearch = searchQuery.value.isNotEmpty;
+      final hadSearch =
+          searchQuery.value.isNotEmpty || _lastExecutedQuery.isNotEmpty;
       searchQuery.value = '';
       infoMessage.value = null;
+      isSearching.value = false;
+      _lastExecutedQuery = '';
       if (hadSearch || products.isEmpty) {
         unawaited(fetchProducts(reset: true));
       }
       return;
     }
 
-    isSearching.value = true;
+    if (trimmed.length < 3) {
+      final hadActiveSearch =
+          searchQuery.value.isNotEmpty || _lastExecutedQuery.isNotEmpty;
+      searchQuery.value = '';
+      infoMessage.value = null;
+      isSearching.value = false;
+      if (hadActiveSearch) {
+        _lastExecutedQuery = '';
+        unawaited(fetchProducts(reset: true));
+      }
+      return;
+    }
 
     _searchDebounce = Timer(const Duration(milliseconds: 400), () {
-      if (trimmed == searchQuery.value) {
+      if (trimmed == _lastExecutedQuery) {
         isSearching.value = false;
         return;
       }
       searchQuery.value = trimmed;
       infoMessage.value = null;
+      _lastExecutedQuery = trimmed;
       unawaited(fetchProducts(reset: true));
     });
   }
@@ -160,6 +177,7 @@ class ProductListController extends GetxController {
     searchQuery.value = '';
     infoMessage.value = null;
     isSearching.value = false;
+    _lastExecutedQuery = '';
     unawaited(fetchProducts(reset: true));
   }
 

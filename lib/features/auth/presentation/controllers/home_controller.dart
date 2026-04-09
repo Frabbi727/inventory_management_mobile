@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 
+import '../../../../core/constants/controller_tags.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/storage/token_storage.dart';
 import '../../../../core/storage/user_storage.dart';
@@ -56,8 +57,12 @@ class HomeController extends GetxController {
         }
         break;
       case 2:
-        if (Get.isRegistered<CustomerSearchController>()) {
-          Get.find<CustomerSearchController>().retry();
+        if (Get.isRegistered<CustomerSearchController>(
+          tag: ControllerTags.homeCustomerSearch,
+        )) {
+          Get.find<CustomerSearchController>(
+            tag: ControllerTags.homeCustomerSearch,
+          ).retry();
         }
         break;
     }
