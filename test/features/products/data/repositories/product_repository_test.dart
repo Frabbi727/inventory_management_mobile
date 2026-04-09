@@ -72,4 +72,59 @@ void main() {
       ),
     );
   });
+
+  test(
+    'fetchProducts reuses cached responses for the same page and query',
+    () async {
+      var callCount = 0;
+      final repository = ProductRepository(
+        apiClient: ApiClient(
+          httpClient: MockClient((request) async {
+            callCount += 1;
+            return http.Response(
+              jsonEncode({
+                'data': const [],
+                'links': {'next': null},
+                'meta': {'current_page': 1, 'last_page': 1},
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }),
+        ),
+        tokenStorage: TokenStorage(),
+      );
+
+      await repository.fetchProducts(page: 1);
+      await repository.fetchProducts(page: 1);
+
+      expect(callCount, 1);
+    },
+  );
+
+  test('fetchProducts forceRefresh bypasses the cache', () async {
+    var callCount = 0;
+    final repository = ProductRepository(
+      apiClient: ApiClient(
+        httpClient: MockClient((request) async {
+          callCount += 1;
+          return http.Response(
+            jsonEncode({
+              'data': const [],
+              'links': {'next': null},
+              'meta': {'current_page': 1, 'last_page': 1},
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+      ),
+      tokenStorage: TokenStorage(),
+    );
+
+    await repository.fetchProducts(page: 1);
+    await repository.fetchProducts(page: 1, forceRefresh: true);
+
+    expect(callCount, 2);
+  });
 }

@@ -12,9 +12,9 @@ import '../../data/models/order_item_request_model.dart';
 import '../../data/repositories/order_repository.dart';
 
 class CartController extends GetxController {
-  static const int productsStep = 0;
-  static const int reviewStep = 1;
-  static const int customerStep = 2;
+  static const int customerStep = 0;
+  static const int productsStep = 1;
+  static const int cartStep = 2;
   static const int confirmStep = 3;
 
   CartController({required OrderRepository orderRepository})
@@ -27,11 +27,19 @@ class CartController extends GetxController {
   final currentStep = 0.obs;
   final discountType = RxnString();
   final discountValue = Rxn<num>();
+  final noteText = ''.obs;
   final isSubmitting = false.obs;
   final errorMessage = RxnString();
 
   final noteController = TextEditingController();
   final discountValueController = TextEditingController();
+
+  @override
+  void onInit() {
+    super.onInit();
+    noteController.addListener(_syncNoteText);
+    discountValueController.addListener(_syncDiscountValue);
+  }
 
   int _indexOfProduct(int? productId) {
     if (productId == null) {
@@ -153,54 +161,62 @@ class CartController extends GetxController {
 
   bool get hasItems => items.isNotEmpty;
 
+  bool get showFooterTotals => currentStep.value != customerStep && hasItems;
+
+  bool get isDiscountEnabled => discountType.value != null;
+
+  String? get apiDiscountType {
+    if (_isPercentageDiscount(discountType.value)) {
+      return 'percentage';
+    }
+
+    return discountType.value;
+  }
+
+  num? get appliedDiscountValue {
+    final rawValue = discountValue.value;
+    if (rawValue == null) {
+      return null;
+    }
+
+    if (_isPercentageDiscount(discountType.value)) {
+      return _normalizeMoney(rawValue.clamp(0, 100));
+    }
+
+    return _normalizeMoney(rawValue < 0 ? 0 : rawValue);
+  }
+
   bool get canContinueCurrentStep {
     switch (currentStep.value) {
-      case productsStep:
-      case reviewStep:
-        return hasItems;
       case customerStep:
-        return hasCustomerSelected;
+        return true;
+      case productsStep:
+      case cartStep:
+        return true;
       default:
-        return canSubmit;
+        return !isSubmitting.value;
     }
   }
 
   bool canGoToStep(int step) {
-    if (step < productsStep || step > confirmStep) {
-      return false;
-    }
-
-    if (step > productsStep && !hasItems) {
-      return false;
-    }
-
-    if (step > customerStep && !hasCustomerSelected) {
-      return false;
-    }
-
-    return true;
-  }
-
-  bool canOpenProductsStepFromProductsTab() => hasItems;
-
-  void openProductsStepFromProductsTab() {
-    if (!canOpenProductsStepFromProductsTab()) {
-      return;
-    }
-
-    errorMessage.value = null;
-    currentStep.value = reviewStep;
+    return step >= customerStep && step <= confirmStep;
   }
 
   void clearCart() {
     items.clear();
     selectedCustomer.value = null;
-    currentStep.value = productsStep;
+    currentStep.value = customerStep;
     discountType.value = null;
     discountValue.value = null;
+    noteText.value = '';
     noteController.clear();
     discountValueController.clear();
     errorMessage.value = null;
+  }
+
+  void startNewOrder() {
+    clearCart();
+    currentStep.value = customerStep;
   }
 
   void setSelectedCustomer(CustomerModel? customer) {
@@ -209,17 +225,7 @@ class CartController extends GetxController {
   }
 
   void nextStep() {
-    if (currentStep.value == productsStep && !hasItems) {
-      errorMessage.value = 'Add at least one product to continue.';
-      return;
-    }
-
-    if (currentStep.value == customerStep && !hasCustomerSelected) {
-      errorMessage.value = 'Select a customer to continue.';
-      return;
-    }
-
-    errorMessage.value = null;
+    errorMessage.value = validationMessageForStep(currentStep.value);
     if (currentStep.value < confirmStep) {
       currentStep.value += 1;
     }
@@ -227,7 +233,7 @@ class CartController extends GetxController {
 
   void previousStep() {
     errorMessage.value = null;
-    if (currentStep.value > productsStep) {
+    if (currentStep.value > customerStep) {
       currentStep.value -= 1;
     }
   }
@@ -237,7 +243,7 @@ class CartController extends GetxController {
       return;
     }
 
-    errorMessage.value = null;
+    errorMessage.value = validationMessageForStep(step);
     currentStep.value = step;
   }
 
@@ -249,34 +255,58 @@ class CartController extends GetxController {
       return;
     }
 
-    discountType.value = value;
+    discountType.value = _isPercentageDiscount(value) ? 'percentage' : value;
+    if (discountValueController.text.trim().isNotEmpty) {
+      _syncDiscountValue();
+    }
   }
 
   void onDiscountValueChanged(String value) {
-    discountValue.value = num.tryParse(value.trim());
+    discountValue.value = _parseDiscountValue(value.trim());
+  }
+
+  void normalizeDiscountInputText() {
+    final normalizedValue = appliedDiscountValue;
+    if (normalizedValue == null) {
+      if (discountValueController.text.isNotEmpty) {
+        discountValueController.clear();
+      }
+      return;
+    }
+
+    final normalizedText = normalizedValue.toStringAsFixed(2);
+    if (discountValueController.text == normalizedText) {
+      return;
+    }
+
+    discountValueController.value = TextEditingValue(
+      text: normalizedText,
+      selection: TextSelection.collapsed(offset: normalizedText.length),
+    );
   }
 
   int get totalUnits => items.fold(0, (sum, item) => sum + item.quantity);
 
-  num get subtotal => items.fold(0, (sum, item) => sum + item.lineTotal);
+  num get subtotal => _normalizeMoney(
+    items.fold<num>(0, (sum, item) => sum + item.lineTotal),
+  );
 
   num get estimatedDiscountAmount {
-    final rawValue = discountValue.value;
+    final rawValue = appliedDiscountValue;
     if (rawValue == null || rawValue <= 0) {
       return 0;
     }
 
-    if (discountType.value == 'percent') {
-      final cappedPercent = rawValue.clamp(0, 100);
-      return subtotal * (cappedPercent / 100);
+    if (_isPercentageDiscount(discountType.value)) {
+      return _normalizeMoney(subtotal * (rawValue / 100));
     }
 
-    return rawValue > subtotal ? subtotal : rawValue;
+    return _normalizeMoney(rawValue > subtotal ? subtotal : rawValue);
   }
 
   num get grandTotal {
     final total = subtotal - estimatedDiscountAmount;
-    return total < 0 ? 0 : total;
+    return _normalizeMoney(total < 0 ? 0 : total);
   }
 
   bool get canSubmit =>
@@ -284,16 +314,24 @@ class CartController extends GetxController {
       selectedCustomer.value?.id != null &&
       items.isNotEmpty;
 
+  String? validationMessageForStep(int step) {
+    if (step >= productsStep && !hasCustomerSelected) {
+      return 'Select a customer before finalizing this order.';
+    }
+
+    if (step >= cartStep && !hasItems) {
+      return 'Add at least one product before reviewing the cart.';
+    }
+
+    return null;
+  }
+
   String formatCurrency(num? value) {
     if (value == null) {
-      return '-';
+      return '৳0.00';
     }
 
-    if (value == value.roundToDouble()) {
-      return '৳${value.toInt()}';
-    }
-
-    return '৳${value.toStringAsFixed(2)}';
+    return '৳${_normalizeMoney(value).toStringAsFixed(2)}';
   }
 
   Future<CreateOrderResponseModel?> submitOrder() async {
@@ -314,11 +352,9 @@ class CartController extends GetxController {
       final request = CreateOrderRequestModel(
         customerId: selectedCustomer.value?.id,
         orderDate: _formatDate(DateTime.now()),
-        note: noteController.text.trim().isEmpty
-            ? null
-            : noteController.text.trim(),
-        discountType: discountType.value,
-        discountValue: discountValue.value,
+        note: noteText.value.trim().isEmpty ? null : noteText.value.trim(),
+        discountType: apiDiscountType,
+        discountValue: appliedDiscountValue,
         items: items
             .where((item) => item.productId != null)
             .map(
@@ -349,12 +385,12 @@ class CartController extends GetxController {
 
   String submitButtonLabel() {
     switch (currentStep.value) {
-      case productsStep:
-        return 'Review Order';
-      case reviewStep:
-        return 'Customer';
       case customerStep:
-        return 'Confirm';
+        return 'Continue to Products';
+      case productsStep:
+        return 'Review Cart';
+      case cartStep:
+        return 'Continue to Confirm';
       default:
         return 'Submit Order';
     }
@@ -366,8 +402,51 @@ class CartController extends GetxController {
     return '${value.year}-$month-$day';
   }
 
+  void _syncNoteText() {
+    noteText.value = noteController.text;
+  }
+
+  void _syncDiscountValue() {
+    if (!isDiscountEnabled) {
+      discountValue.value = null;
+      return;
+    }
+
+    final rawValue = discountValueController.text.trim();
+    if (rawValue.isEmpty) {
+      discountValue.value = null;
+      return;
+    }
+
+    discountValue.value = _parseDiscountValue(rawValue);
+  }
+
+  num _normalizeMoney(num value) {
+    return num.parse(value.toStringAsFixed(2));
+  }
+
+  num? _parseDiscountValue(String rawValue) {
+    final parsedValue = num.tryParse(rawValue);
+    if (parsedValue == null) {
+      return null;
+    }
+
+    final nonNegativeValue = parsedValue < 0 ? 0 : parsedValue;
+    if (_isPercentageDiscount(discountType.value)) {
+      return _normalizeMoney(nonNegativeValue.clamp(0, 100));
+    }
+
+    return _normalizeMoney(nonNegativeValue);
+  }
+
+  bool _isPercentageDiscount(String? value) {
+    return value == 'percentage' || value == 'percent';
+  }
+
   @override
   void onClose() {
+    noteController.removeListener(_syncNoteText);
+    discountValueController.removeListener(_syncDiscountValue);
     noteController.dispose();
     discountValueController.dispose();
     super.onClose();

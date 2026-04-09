@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/storage/token_storage.dart';
 import '../../../../core/storage/user_storage.dart';
+import '../../../customers/presentation/controllers/customer_search_controller.dart';
+import '../../../invoice/presentation/controllers/invoice_controller.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
 
@@ -29,12 +31,40 @@ class HomeController extends GetxController {
     _loadUser();
   }
 
+  @override
+  void onReady() {
+    super.onReady();
+    _loadTabData(selectedIndex.value);
+  }
+
   Future<void> _loadUser() async {
     user.value = await _userStorage.getUser();
   }
 
   void changeTab(int index) {
     selectedIndex.value = index;
+    _loadTabData(index);
+  }
+
+  void _loadTabData(int index) {
+    switch (index) {
+      case 0:
+        break;
+      case 1:
+        if (Get.isRegistered<InvoiceController>()) {
+          Get.find<InvoiceController>().ensureLoaded();
+        }
+        break;
+      case 2:
+        if (Get.isRegistered<CustomerSearchController>()) {
+          Get.find<CustomerSearchController>().retry();
+        }
+        break;
+    }
+  }
+
+  Future<void> openNewOrder() async {
+    await Get.toNamed(AppRoutes.newOrder);
   }
 
   Future<void> logout() async {

@@ -163,7 +163,7 @@ class OrderSuccessPage extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: FilledButton(
-                  onPressed: () => _goToTab(1),
+                  onPressed: () => _startNewOrder(),
                   child: const Text('New Order'),
                 ),
               ),
@@ -179,6 +179,14 @@ class OrderSuccessPage extends StatelessWidget {
     if (Get.isRegistered<HomeController>()) {
       Get.find<HomeController>().changeTab(index);
     }
+  }
+
+  void _startNewOrder() {
+    Get.until((route) => route.settings.name == AppRoutes.home);
+    if (Get.isRegistered<HomeController>()) {
+      Get.find<HomeController>().changeTab(0);
+    }
+    Get.toNamed(AppRoutes.newOrder);
   }
 
   static String _formatCurrency(num? value) {

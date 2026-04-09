@@ -7,10 +7,8 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:inventory_management_sales/app.dart';
 import 'package:inventory_management_sales/core/network/api_client.dart';
-import 'package:inventory_management_sales/core/routes/app_routes.dart';
 import 'package:inventory_management_sales/core/storage/token_storage.dart';
 import 'package:inventory_management_sales/core/storage/user_storage.dart';
-import 'package:inventory_management_sales/features/auth/presentation/controllers/home_controller.dart';
 import 'package:inventory_management_sales/features/auth/data/models/user_model.dart';
 import 'package:inventory_management_sales/features/auth/data/repositories/auth_repository.dart';
 import 'package:inventory_management_sales/features/cart_orders/data/repositories/order_repository.dart';
@@ -319,7 +317,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 700));
     await tester.pumpAndSettle();
 
-    expect(find.text('Login'), findsOneWidget);
+    expect(find.text('Salesman Sign In'), findsOneWidget);
     expect(find.text('Salesman Sign In'), findsOneWidget);
   });
 
@@ -396,8 +394,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 700));
     await tester.pumpAndSettle();
 
-    expect(find.text('Products'), findsWidgets);
-    expect(find.text('Fresh Milk 500ml'), findsOneWidget);
+    expect(find.text('Home'), findsWidgets);
+    expect(find.text('Start New Order'), findsOneWidget);
     expect(find.text('Orders'), findsOneWidget);
   });
 
@@ -446,7 +444,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 700));
     await tester.pumpAndSettle();
 
-    expect(find.text('Login'), findsOneWidget);
+    expect(find.text('Salesman Sign In'), findsOneWidget);
     expect(await tokenStorage.getToken(), isNull);
   });
 
@@ -529,7 +527,7 @@ void main() {
     await tester.pump();
     await tester.pumpAndSettle();
 
-    expect(find.text('Fresh Milk 500ml'), findsOneWidget);
+    expect(find.text('Home'), findsWidgets);
     expect(find.text('New Order'), findsOneWidget);
     expect(await tokenStorage.getToken(), equals('login-token'));
     expect((await userStorage.getUser())?.name, equals('Sales Demo'));
@@ -650,15 +648,15 @@ void main() {
     await tester.pump(const Duration(milliseconds: 700));
     await tester.pumpAndSettle();
 
-    expect(find.text('Fresh Milk 500ml'), findsOneWidget);
-
-    await tester.tap(find.text('New Order'));
-    await tester.pumpAndSettle();
-    expect(find.text('Products'), findsWidgets);
+    expect(find.text('Home'), findsWidgets);
 
     await tester.tap(find.text('Orders'));
     await tester.pumpAndSettle();
     expect(find.text('ORD-2026-001'), findsOneWidget);
+
+    await tester.tap(find.text('Customers'));
+    await tester.pumpAndSettle();
+    expect(find.text('Rahman Store'), findsOneWidget);
 
     await tester.tap(find.text('Profile'));
     await tester.pumpAndSettle();
@@ -733,12 +731,12 @@ void main() {
     await tester.pump();
     await tester.pumpAndSettle();
 
-    expect(find.text('Login'), findsOneWidget);
+    expect(find.text('Salesman Sign In'), findsOneWidget);
     expect(await tokenStorage.getToken(), isNull);
     expect(await userStorage.getUser(), isNull);
   });
 
-  testWidgets('customer selection flows back into new order screen', (
+  testWidgets('customer selection works inside the guided new order flow', (
     WidgetTester tester,
   ) async {
     SharedPreferences.setMockInitialValues(<String, Object>{
@@ -797,12 +795,11 @@ void main() {
     await tester.pump(const Duration(milliseconds: 700));
     await tester.pumpAndSettle();
 
-    Get.find<HomeController>().changeTab(1);
+    await tester.tap(find.text('New Order'));
     await tester.pumpAndSettle();
-    final customerSelectionFuture = Get.toNamed<dynamic>(
-      AppRoutes.customerSearch,
-    );
-    await tester.pumpAndSettle();
+
+    expect(find.text('Subtotal'), findsNothing);
+    expect(find.text('Total'), findsNothing);
 
     await tester.enterText(find.byType(SearchBar), 'rah');
     await tester.pump(const Duration(milliseconds: 500));
@@ -810,18 +807,16 @@ void main() {
 
     expect(find.text('Rahman Store'), findsOneWidget);
     await tester.tap(find.widgetWithText(FilledButton, 'Select').first);
-    await tester.pumpAndSettle();
+    await tester.pump();
 
-    final selectedCustomer = await customerSelectionFuture;
-    Get.find<CartController>().setSelectedCustomer(
-      selectedCustomer as CustomerModel,
-    );
     final cartController = Get.find<CartController>();
     expect(cartController.selectedCustomer.value?.name, equals('Rahman Store'));
     expect(
       cartController.selectedCustomer.value?.phone,
       equals('+8801710001001'),
     );
+    expect(find.text('Clear'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Selected'), findsOneWidget);
   });
 
   testWidgets('products can be added and submitted from new order flow', (
@@ -935,7 +930,7 @@ void main() {
   });
 
   testWidgets(
-    'product add from products tab syncs with new order quantity controls',
+    'guided new order flow syncs product add with cart quantity controls',
     (WidgetTester tester) async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'auth_token': 'cart-sync-token',
@@ -993,45 +988,54 @@ void main() {
       await tester.pump(const Duration(milliseconds: 700));
       await tester.pumpAndSettle();
 
-      expect(find.text('Fresh Milk 500ml'), findsOneWidget);
+      await tester.tap(find.text('New Order'));
+      await tester.pumpAndSettle();
+      expect(find.text('Customer'), findsWidgets);
 
       final cartController = Get.find<CartController>();
       cartController.setSelectedCustomer(
         const CustomerModel(id: 1, name: 'Rahman Store'),
       );
+      cartController.goToStep(CartController.productsStep);
+      await tester.pumpAndSettle();
 
+      expect(find.text('Fresh Milk 500ml'), findsOneWidget);
       await tester.ensureVisible(find.text('Add').first);
       await tester.tap(find.text('Add').first);
       await tester.pump();
 
       expect(cartController.items.single.productId, equals(2));
       expect(cartController.items.single.quantity, equals(1));
+      expect(find.text('In cart: 1'), findsOneWidget);
 
-      final homeController = Get.find<HomeController>();
-      cartController.openProductsStepFromProductsTab();
-      homeController.changeTab(1);
+      cartController.goToStep(CartController.cartStep);
       await tester.pumpAndSettle();
 
-      expect(find.text('Review'), findsWidgets);
+      expect(find.text('Cart'), findsWidgets);
       expect(find.text('Fresh Milk 500ml'), findsOneWidget);
+      expect(find.text('Subtotal'), findsOneWidget);
+      expect(find.text('Total'), findsOneWidget);
+      expect(find.text('৳52.00'), findsWidgets);
 
       await tester.tap(
         find.descendant(
-          of: find.byKey(const ValueKey('cart-item-2')),
+          of: find.byKey(const ValueKey('cart-item-Fresh Milk 500ml')),
           matching: find.byTooltip('Increase quantity'),
         ),
       );
       await tester.pump();
       expect(cartController.items.single.quantity, equals(2));
+      expect(find.text('৳104.00'), findsWidgets);
 
       await tester.tap(
         find.descendant(
-          of: find.byKey(const ValueKey('cart-item-2')),
+          of: find.byKey(const ValueKey('cart-item-Fresh Milk 500ml')),
           matching: find.byTooltip('Decrease quantity'),
         ),
       );
       await tester.pump();
       expect(cartController.items.single.quantity, equals(1));
+      expect(find.text('৳52.00'), findsWidgets);
     },
   );
 }

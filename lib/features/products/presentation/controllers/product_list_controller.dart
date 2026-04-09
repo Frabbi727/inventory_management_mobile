@@ -25,16 +25,25 @@ class ProductListController extends GetxController {
 
   int _currentPage = 1;
   bool _hasNextPage = false;
+  bool _hasLoadedOnce = false;
   Timer? _searchDebounce;
 
   @override
   void onInit() {
     super.onInit();
     scrollController.addListener(_onScroll);
-    fetchProducts(reset: true);
   }
 
-  Future<void> fetchProducts({required bool reset}) async {
+  Future<void> ensureLoaded({bool forceRefresh = false}) async {
+    if (forceRefresh || !_hasLoadedOnce) {
+      await fetchProducts(reset: true, forceRefresh: forceRefresh);
+    }
+  }
+
+  Future<void> fetchProducts({
+    required bool reset,
+    bool forceRefresh = false,
+  }) async {
     if (reset) {
       isInitialLoading.value = true;
       errorMessage.value = null;
@@ -51,6 +60,7 @@ class ProductListController extends GetxController {
       final response = await _productRepository.fetchProducts(
         page: _currentPage,
         query: searchQuery.value.isEmpty ? null : searchQuery.value,
+        forceRefresh: forceRefresh,
       );
 
       final fetchedProducts = response.data ?? const <ProductModel>[];
@@ -59,6 +69,7 @@ class ProductListController extends GetxController {
       } else {
         products.addAll(fetchedProducts);
       }
+      _hasLoadedOnce = true;
 
       final currentPage = response.meta?.currentPage ?? _currentPage;
       final lastPage = response.meta?.lastPage ?? currentPage;
@@ -119,7 +130,7 @@ class ProductListController extends GetxController {
     });
   }
 
-  Future<void> retry() => fetchProducts(reset: true);
+  Future<void> retry() => ensureLoaded(forceRefresh: true);
 
   void _onScroll() {
     if (!scrollController.hasClients) {
@@ -135,10 +146,6 @@ class ProductListController extends GetxController {
   String formatPrice(num? value) {
     if (value == null) {
       return '-';
-    }
-
-    if (value == value.roundToDouble()) {
-      return '৳${value.toInt()}';
     }
 
     return '৳${value.toStringAsFixed(2)}';

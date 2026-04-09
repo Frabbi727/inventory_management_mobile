@@ -25,6 +25,7 @@ class FakeProductRepository extends ProductRepository {
   Future<ProductListResponseModel> fetchProducts({
     int page = 1,
     String? query,
+    bool forceRefresh = false,
   }) async {
     calls.add((page, query));
     return ProductListResponseModel(
@@ -46,11 +47,14 @@ class FakeProductRepository extends ProductRepository {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('controller fetches initial products on init', () async {
+  test('controller fetches products when first loaded', () async {
     final repository = FakeProductRepository();
     final controller = ProductListController(productRepository: repository);
 
     controller.onInit();
+    expect(repository.calls, isEmpty);
+
+    await controller.ensureLoaded();
     await Future<void>.delayed(const Duration(milliseconds: 10));
 
     expect(repository.calls, [(1, null)]);
@@ -63,6 +67,7 @@ void main() {
     final controller = ProductListController(productRepository: repository);
 
     controller.onInit();
+    await controller.ensureLoaded();
     await Future<void>.delayed(const Duration(milliseconds: 10));
 
     controller.onSearchChanged('mi');

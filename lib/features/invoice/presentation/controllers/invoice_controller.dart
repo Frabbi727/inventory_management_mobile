@@ -20,12 +20,18 @@ class InvoiceController extends GetxController {
 
   int _currentPage = 1;
   bool _hasNextPage = false;
+  bool _hasLoadedOnce = false;
 
   @override
   void onInit() {
     super.onInit();
     scrollController.addListener(_onScroll);
-    fetchOrders(reset: true);
+  }
+
+  Future<void> ensureLoaded({bool forceRefresh = false}) async {
+    if (forceRefresh || !_hasLoadedOnce) {
+      await fetchOrders(reset: true);
+    }
   }
 
   Future<void> fetchOrders({required bool reset}) async {
@@ -50,6 +56,7 @@ class InvoiceController extends GetxController {
       } else {
         orders.addAll(fetchedOrders);
       }
+      _hasLoadedOnce = true;
 
       final currentPage = response.meta?.currentPage ?? _currentPage;
       final lastPage = response.meta?.lastPage ?? currentPage;
@@ -75,7 +82,7 @@ class InvoiceController extends GetxController {
     }
   }
 
-  Future<void> retry() => fetchOrders(reset: true);
+  Future<void> retry() => ensureLoaded(forceRefresh: true);
 
   String formatCurrency(num? value) {
     if (value == null) {

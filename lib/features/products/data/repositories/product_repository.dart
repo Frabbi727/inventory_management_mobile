@@ -13,10 +13,13 @@ class ProductRepository {
 
   final ApiClient _apiClient;
   final TokenStorage _tokenStorage;
+  final Map<String, ProductListResponseModel> _responseCache = {};
+  final Map<String, Future<ProductListResponseModel>> _inflightRequests = {};
 
   Future<ProductListResponseModel> fetchProducts({
     int page = 1,
     String? query,
+    bool forceRefresh = false,
   }) async {
     final token = await _tokenStorage.getToken();
     if (token == null || token.isEmpty) {
@@ -24,6 +27,19 @@ class ProductRepository {
         message: 'Authentication token not found.',
         statusCode: 401,
       );
+    }
+
+    final cacheKey = '$page|${query?.trim() ?? ''}';
+    if (!forceRefresh) {
+      final cachedResponse = _responseCache[cacheKey];
+      if (cachedResponse != null) {
+        return cachedResponse;
+      }
+
+      final inflightRequest = _inflightRequests[cacheKey];
+      if (inflightRequest != null) {
+        return inflightRequest;
+      }
     }
 
     final queryParameters = <String, String>{
@@ -35,12 +51,22 @@ class ProductRepository {
       queryParameters['q'] = query;
     }
 
-    final response = await _apiClient.get(
-      ApiEndpoints.products,
-      token: token,
-      queryParameters: queryParameters,
-    );
+    final request = _apiClient
+        .get(
+          ApiEndpoints.products,
+          token: token,
+          queryParameters: queryParameters,
+        )
+        .then((response) => ProductListResponseModel.fromJson(response));
 
-    return ProductListResponseModel.fromJson(response);
+    _inflightRequests[cacheKey] = request;
+
+    try {
+      final parsedResponse = await request;
+      _responseCache[cacheKey] = parsedResponse;
+      return parsedResponse;
+    } finally {
+      _inflightRequests.remove(cacheKey);
+    }
   }
 }

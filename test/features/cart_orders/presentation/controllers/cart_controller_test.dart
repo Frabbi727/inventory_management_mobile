@@ -67,7 +67,7 @@ void main() {
     controller.addProduct(product);
     controller.addProduct(const ProductModel(id: 8, sellingPrice: 48));
 
-    controller.setDiscountType('percent');
+    controller.setDiscountType('percentage');
     controller.onDiscountValueChanged('10');
     expect(controller.estimatedDiscountAmount, equals(10));
 
@@ -75,6 +75,43 @@ void main() {
     controller.onDiscountValueChanged('20');
     expect(controller.estimatedDiscountAmount, equals(20));
     expect(controller.grandTotal, equals(80));
+  });
+
+  test('money values are normalized and formatted with two decimals', () {
+    final controller = CartController(
+      orderRepository: createRepository((request) async {
+        return http.Response('{}', 200);
+      }),
+    );
+
+    controller.addProduct(const ProductModel(id: 8, sellingPrice: 48.456));
+    controller.setDiscountType('amount');
+    controller.onDiscountValueChanged('12.345');
+
+    expect(controller.subtotal, equals(48.46));
+    expect(controller.discountValue.value, equals(12.35));
+    expect(controller.grandTotal, equals(36.11));
+    expect(controller.formatCurrency(controller.grandTotal), equals('৳36.11'));
+    expect(controller.formatCurrency(80), equals('৳80.00'));
+  });
+
+  test('percent discount is clamped and input text normalizes to two decimals', () {
+    final controller = CartController(
+      orderRepository: createRepository((request) async {
+        return http.Response('{}', 200);
+      }),
+    );
+
+    controller.addProduct(const ProductModel(id: 8, sellingPrice: 48.456));
+    controller.setDiscountType('percentage');
+    controller.onDiscountValueChanged('150.999');
+    controller.discountValueController.text = '150.999';
+    controller.normalizeDiscountInputText();
+
+    expect(controller.appliedDiscountValue, equals(100));
+    expect(controller.discountValueController.text, equals('100.00'));
+    expect(controller.estimatedDiscountAmount, equals(48.46));
+    expect(controller.grandTotal, equals(0));
   });
 
   test('increment and decrement update items by product id', () {
@@ -93,20 +130,7 @@ void main() {
 
     controller.decrementQuantity(product.id);
     expect(controller.items, isEmpty);
-    expect(controller.currentStep.value, CartController.productsStep);
-  });
-
-  test('opening order from products tab lands on review when items exist', () {
-    final controller = CartController(
-      orderRepository: createRepository((request) async {
-        return http.Response('{}', 200);
-      }),
-    );
-
-    controller.addProduct(product);
-    controller.openProductsStepFromProductsTab();
-
-    expect(controller.currentStep.value, CartController.reviewStep);
+    expect(controller.currentStep.value, CartController.customerStep);
   });
 
   test(
