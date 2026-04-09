@@ -51,10 +51,6 @@ class CartController extends GetxController {
     if (existingIndex == -1) {
       items.add(CartItemModel(product: product, quantity: 1));
       errorMessage.value = null;
-
-      if (selectedCustomer.value?.id != null && currentStep.value < 1) {
-        currentStep.value = 1;
-      }
       return true;
     }
 
@@ -150,29 +146,29 @@ class CartController extends GetxController {
   bool get hasItems => items.isNotEmpty;
 
   bool canGoToStep(int step) {
-    if (step < 0 || step > 2) {
+    if (step < 0 || step > 3) {
       return false;
     }
 
-    if (step > 0 && !hasCustomerSelected) {
+    if (step > 0 && !hasItems) {
       return false;
     }
 
-    if (step > 1 && !hasItems) {
+    if (step > 2 && !hasCustomerSelected) {
       return false;
     }
 
     return true;
   }
 
-  bool canOpenProductsStepFromProductsTab() {
-    return hasCustomerSelected;
-  }
+  bool canOpenProductsStepFromProductsTab() => hasItems;
 
   void openProductsStepFromProductsTab() {
-    if (canOpenProductsStepFromProductsTab()) {
-      currentStep.value = 1;
+    if (!canOpenProductsStepFromProductsTab()) {
+      return;
     }
+
+    currentStep.value = 0;
   }
 
   void clearCart() {
@@ -191,18 +187,18 @@ class CartController extends GetxController {
   }
 
   void nextStep() {
-    if (currentStep.value == 0 && selectedCustomer.value?.id == null) {
-      errorMessage.value = 'Select a customer to continue.';
-      return;
-    }
-
-    if (currentStep.value == 1 && items.isEmpty) {
+    if (currentStep.value == 0 && !hasItems) {
       errorMessage.value = 'Add at least one product to continue.';
       return;
     }
 
+    if (currentStep.value == 2 && !hasCustomerSelected) {
+      errorMessage.value = 'Select a customer to continue.';
+      return;
+    }
+
     errorMessage.value = null;
-    if (currentStep.value < 2) {
+    if (currentStep.value < 3) {
       currentStep.value += 1;
     }
   }
@@ -330,11 +326,16 @@ class CartController extends GetxController {
   }
 
   String submitButtonLabel() {
-    if (currentStep.value < 2) {
-      return 'Continue';
+    switch (currentStep.value) {
+      case 0:
+        return 'Review Order';
+      case 1:
+        return 'Customer';
+      case 2:
+        return 'Confirm';
+      default:
+        return 'Submit Order';
     }
-
-    return 'Submit order';
   }
 
   String _formatDate(DateTime value) {

@@ -11,6 +11,8 @@ import '../../features/customers/presentation/bindings/customer_binding.dart';
 import '../../features/customers/presentation/pages/add_customer_page.dart';
 import '../../features/customers/presentation/pages/customer_search_page.dart';
 import '../../features/cart_orders/presentation/pages/order_success_page.dart';
+import '../../features/invoice/presentation/bindings/order_details_binding.dart';
+import '../../features/invoice/presentation/pages/order_details_page.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -45,6 +47,11 @@ class AppPages {
     GetPage<OrderSuccessPage>(
       name: AppRoutes.orderSuccess,
       page: OrderSuccessPage.new,
+    ),
+    GetPage<OrderDetailsPage>(
+      name: AppRoutes.orderDetails,
+      page: OrderDetailsPage.new,
+      binding: OrderDetailsBinding(),
     ),
   ];
 }

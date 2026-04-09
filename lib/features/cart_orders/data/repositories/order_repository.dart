@@ -4,6 +4,8 @@ import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/storage/token_storage.dart';
 import '../models/create_order_request_model.dart';
 import '../models/create_order_response_model.dart';
+import '../models/order_details_response_model.dart';
+import '../models/order_list_response_model.dart';
 
 class OrderRepository {
   OrderRepository({
@@ -15,9 +17,7 @@ class OrderRepository {
   final ApiClient _apiClient;
   final TokenStorage _tokenStorage;
 
-  Future<CreateOrderResponseModel> createOrder(
-    CreateOrderRequestModel request,
-  ) async {
+  Future<String> _requireToken() async {
     final token = await _tokenStorage.getToken();
     if (token == null || token.isEmpty) {
       throw ApiException(
@@ -25,6 +25,58 @@ class OrderRepository {
         statusCode: 401,
       );
     }
+
+    return token;
+  }
+
+  Future<OrderListResponseModel> fetchOrders({
+    int page = 1,
+    String? status,
+    int? customerId,
+    String? startDate,
+    String? endDate,
+  }) async {
+    final token = await _requireToken();
+
+    final queryParameters = <String, String>{'page': page.toString()};
+
+    if (status != null && status.isNotEmpty) {
+      queryParameters['status'] = status;
+    }
+    if (customerId != null) {
+      queryParameters['customer_id'] = customerId.toString();
+    }
+    if (startDate != null && startDate.isNotEmpty) {
+      queryParameters['start_date'] = startDate;
+    }
+    if (endDate != null && endDate.isNotEmpty) {
+      queryParameters['end_date'] = endDate;
+    }
+
+    final response = await _apiClient.get(
+      ApiEndpoints.orders,
+      token: token,
+      queryParameters: queryParameters,
+    );
+
+    return OrderListResponseModel.fromJson(response);
+  }
+
+  Future<OrderDetailsResponseModel> fetchOrderDetails(int orderId) async {
+    final token = await _requireToken();
+
+    final response = await _apiClient.get(
+      ApiEndpoints.orderDetails(orderId),
+      token: token,
+    );
+
+    return OrderDetailsResponseModel.fromJson(response);
+  }
+
+  Future<CreateOrderResponseModel> createOrder(
+    CreateOrderRequestModel request,
+  ) async {
+    final token = await _requireToken();
 
     final response = await _apiClient.post(
       ApiEndpoints.orders,

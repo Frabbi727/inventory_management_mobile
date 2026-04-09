@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 
 import '../../../cart_orders/presentation/bindings/cart_dependencies.dart';
+import '../../../cart_orders/presentation/controllers/order_product_picker_controller.dart';
 import '../../../invoice/presentation/controllers/invoice_controller.dart';
 import '../../../products/presentation/bindings/product_dependencies.dart';
 import '../../../products/presentation/controllers/product_list_controller.dart';
@@ -24,8 +25,20 @@ class HomeBinding extends Bindings {
       );
     }
 
+    if (!Get.isRegistered<OrderProductPickerController>()) {
+      Get.lazyPut(
+        () => OrderProductPickerController(
+          productRepository: Get.find<ProductRepository>(),
+        ),
+        fenix: true,
+      );
+    }
+
     if (!Get.isRegistered<InvoiceController>()) {
-      Get.lazyPut(InvoiceController.new, fenix: true);
+      Get.lazyPut(
+        () => InvoiceController(orderRepository: Get.find()),
+        fenix: true,
+      );
     }
 
     Get.lazyPut(

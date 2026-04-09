@@ -5,4 +5,5 @@ abstract class AppRoutes {
   static const customerSearch = '/customers/search';
   static const addCustomer = '/customers/add';
   static const orderSuccess = '/orders/success';
+  static const orderDetails = '/orders/details';
 }

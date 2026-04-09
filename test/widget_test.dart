@@ -196,6 +196,108 @@ void main() {
     };
   }
 
+  Map<String, dynamic> orderListPayload() {
+    return {
+      'data': [
+        {
+          'id': 11,
+          'order_no': 'ORD-2026-001',
+          'order_date': '2026-04-09T00:00:00.000000Z',
+          'subtotal': 139,
+          'discount_type': null,
+          'discount_value': null,
+          'discount_amount': 0,
+          'grand_total': 139,
+          'status': 'confirmed',
+          'note': null,
+          'customer': {
+            'id': 1,
+            'name': 'Rahman Store',
+            'phone': '+8801710001001',
+          },
+          'salesman': {'id': 2, 'name': 'Sales Demo'},
+          'items': [
+            {
+              'id': 1,
+              'product_id': 2,
+              'product_name': 'Fresh Milk 500ml',
+              'quantity': 2,
+              'unit_price': 52,
+              'line_total': 104,
+            },
+          ],
+          'created_at': '2026-04-09T10:00:00.000000Z',
+          'updated_at': '2026-04-09T10:00:00.000000Z',
+        },
+      ],
+      'links': {'next': null},
+      'meta': {'current_page': 1, 'last_page': 1},
+    };
+  }
+
+  Map<String, dynamic> orderDetailsPayload() {
+    return {
+      'data': {
+        'id': 11,
+        'order_no': 'ORD-2026-001',
+        'order_date': '2026-04-09',
+        'subtotal': 139,
+        'discount_type': null,
+        'discount_value': null,
+        'discount_amount': 0,
+        'grand_total': 139,
+        'status': 'confirmed',
+        'note': 'Deliver before noon',
+        'customer': {
+          'id': 1,
+          'name': 'Rahman Store',
+          'phone': '+8801710001001',
+        },
+        'salesman': {'id': 2, 'name': 'Sales Demo'},
+        'items': [
+          {
+            'id': 1,
+            'product_id': 2,
+            'product_name': 'Fresh Milk 500ml',
+            'quantity': 2,
+            'unit_price': 52,
+            'line_total': 104,
+          },
+        ],
+      },
+    };
+  }
+
+  void registerDefaultOrderRepository() {
+    Get.put<OrderRepository>(
+      createOrderRepository((request) async {
+        if (request.method == 'GET' &&
+            request.url.path.endsWith('/orders/11')) {
+          return http.Response(
+            jsonEncode(orderDetailsPayload()),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+
+        if (request.method == 'GET' && request.url.path.endsWith('/orders')) {
+          return http.Response(
+            jsonEncode(orderListPayload()),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+
+        return http.Response(
+          jsonEncode(orderCreatePayload()),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+      permanent: true,
+    );
+  }
+
   testWidgets('app boots into splash screen first', (
     WidgetTester tester,
   ) async {
@@ -270,6 +372,25 @@ void main() {
       }),
       permanent: true,
     );
+    Get.put<OrderRepository>(
+      createOrderRepository((request) async {
+        if (request.method == 'GET' &&
+            request.url.path.endsWith('/orders/11')) {
+          return http.Response(
+            jsonEncode(orderDetailsPayload()),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+
+        return http.Response(
+          jsonEncode(orderListPayload()),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+      permanent: true,
+    );
 
     await tester.pumpWidget(const SalesApp());
     await tester.pump(const Duration(milliseconds: 700));
@@ -317,6 +438,7 @@ void main() {
       }),
       permanent: true,
     );
+    registerDefaultOrderRepository();
 
     final tokenStorage = TokenStorage();
 
@@ -389,6 +511,7 @@ void main() {
       }),
       permanent: true,
     );
+    registerDefaultOrderRepository();
 
     final tokenStorage = TokenStorage();
     final userStorage = UserStorage();
@@ -452,6 +575,7 @@ void main() {
       }),
       permanent: true,
     );
+    registerDefaultOrderRepository();
 
     await tester.pumpWidget(const SalesApp());
     await tester.pump(const Duration(milliseconds: 700));
@@ -520,6 +644,7 @@ void main() {
       }),
       permanent: true,
     );
+    registerDefaultOrderRepository();
 
     await tester.pumpWidget(const SalesApp());
     await tester.pump(const Duration(milliseconds: 700));
@@ -529,7 +654,7 @@ void main() {
 
     await tester.tap(find.text('New Order'));
     await tester.pumpAndSettle();
-    expect(find.text('Step 1: Customer'), findsOneWidget);
+    expect(find.text('Step 1: Add Products'), findsOneWidget);
 
     await tester.tap(find.text('Orders'));
     await tester.pumpAndSettle();
@@ -593,6 +718,7 @@ void main() {
       }),
       permanent: true,
     );
+    registerDefaultOrderRepository();
 
     final tokenStorage = TokenStorage();
     final userStorage = UserStorage();
@@ -665,6 +791,7 @@ void main() {
       }),
       permanent: true,
     );
+    registerDefaultOrderRepository();
 
     await tester.pumpWidget(const SalesApp());
     await tester.pump(const Duration(milliseconds: 700));
@@ -752,6 +879,23 @@ void main() {
     );
     Get.put<OrderRepository>(
       createOrderRepository((request) async {
+        if (request.method == 'GET' &&
+            request.url.path.endsWith('/orders/11')) {
+          return http.Response(
+            jsonEncode(orderDetailsPayload()),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+
+        if (request.method == 'GET' && request.url.path.endsWith('/orders')) {
+          return http.Response(
+            jsonEncode(orderListPayload()),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+
         expect(request.url.path.endsWith('/orders'), isTrue);
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         expect(body['customer_id'], equals(1));
@@ -843,6 +987,7 @@ void main() {
         }),
         permanent: true,
       );
+      registerDefaultOrderRepository();
 
       await tester.pumpWidget(const SalesApp());
       await tester.pump(const Duration(milliseconds: 700));
@@ -865,8 +1010,13 @@ void main() {
       await tester.tap(find.text('New Order'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Step 2: Products'), findsOneWidget);
+      expect(find.text('Step 1: Add Products'), findsOneWidget);
       expect(find.text('Fresh Milk 500ml'), findsOneWidget);
+
+      cartController.nextStep();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Step 2: Review'), findsOneWidget);
 
       await tester.tap(
         find.descendant(

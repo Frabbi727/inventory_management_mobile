@@ -70,4 +70,96 @@ void main() {
     expect(response.message, equals('Order created successfully.'));
     expect(response.data?.orderNo, equals('ORD-ABC12345'));
   });
+
+  test('fetchOrders sends page query with auth header', () async {
+    final repository = OrderRepository(
+      apiClient: ApiClient(
+        httpClient: MockClient((request) async {
+          expect(request.method, equals('GET'));
+          expect(
+            request.url.toString(),
+            equals('https://ordermanage.b2bhaat.com/api/orders?page=2'),
+          );
+          expect(
+            request.headers['X-Authorization'],
+            equals('Bearer order-token'),
+          );
+
+          return http.Response(
+            jsonEncode({
+              'data': [
+                {
+                  'id': 2,
+                  'order_no': 'ORD-NHPXCXHK',
+                  'order_date': '2026-04-07T00:00:00.000000Z',
+                  'grand_total': 85,
+                  'status': 'confirmed',
+                  'customer': {
+                    'id': 2,
+                    'name': 'Bismillah Traders',
+                    'phone': '+8801710001002',
+                  },
+                  'salesman': {'id': 2, 'name': 'Sales Demo'},
+                  'items': const [],
+                },
+              ],
+              'links': {'next': null},
+              'meta': {'current_page': 2, 'last_page': 2},
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+      ),
+      tokenStorage: TokenStorage(),
+    );
+
+    final response = await repository.fetchOrders(page: 2);
+
+    expect(response.data?.single.orderNo, equals('ORD-NHPXCXHK'));
+  });
+
+  test('fetchOrderDetails sends order id with auth header', () async {
+    final repository = OrderRepository(
+      apiClient: ApiClient(
+        httpClient: MockClient((request) async {
+          expect(request.method, equals('GET'));
+          expect(
+            request.url.toString(),
+            equals('https://ordermanage.b2bhaat.com/api/orders/6'),
+          );
+          expect(
+            request.headers['X-Authorization'],
+            equals('Bearer order-token'),
+          );
+
+          return http.Response(
+            jsonEncode({
+              'data': {
+                'id': 6,
+                'order_no': 'ORD-0006',
+                'order_date': '2026-04-08',
+                'grand_total': 140,
+                'status': 'confirmed',
+                'customer': {
+                  'id': 1,
+                  'name': 'Rahman Store',
+                  'phone': '+8801710001001',
+                },
+                'salesman': {'id': 2, 'name': 'Sales Demo'},
+                'items': const [],
+              },
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+      ),
+      tokenStorage: TokenStorage(),
+    );
+
+    final response = await repository.fetchOrderDetails(6);
+
+    expect(response.data?.orderNo, equals('ORD-0006'));
+  });
 }
