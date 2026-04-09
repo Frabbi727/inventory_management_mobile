@@ -716,6 +716,8 @@ class _ProductsStepState extends State<_ProductsStep> {
                 itemBuilder: (context, index) {
                   final product = products[index];
                   final cartItem = cartController.itemByProductId(product.id);
+                  final unitLabel =
+                      product.unit?.shortName ?? product.unit?.name;
 
                   return ProductCard(
                     name: product.name ?? 'Unnamed product',
@@ -723,6 +725,12 @@ class _ProductsStepState extends State<_ProductsStep> {
                     price: productController.formatPrice(product.sellingPrice),
                     stock: product.currentStock ?? 0,
                     selectedQuantity: cartItem?.quantity ?? 0,
+                    imageUrl: product.primaryPhotoUrl,
+                    unitLabel: unitLabel == null ? null : 'Unit $unitLabel',
+                    categoryLabel: product.category?.name,
+                    onViewDetails: () {
+                      Get.toNamed(AppRoutes.productDetails, arguments: product);
+                    },
                     onAdd: () => cartController.addProduct(product),
                     onIncrement: () =>
                         cartController.incrementQuantity(product.id),

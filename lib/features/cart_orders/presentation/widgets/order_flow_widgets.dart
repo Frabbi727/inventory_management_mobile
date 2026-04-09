@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../shared/widgets/app_remote_media.dart';
+
 class StepperWidget extends StatelessWidget {
   const StepperWidget({
     super.key,
@@ -274,6 +276,10 @@ class ProductCard extends StatelessWidget {
     required this.stock,
     required this.selectedQuantity,
     required this.onAdd,
+    this.imageUrl,
+    this.unitLabel,
+    this.categoryLabel,
+    this.onViewDetails,
     this.onIncrement,
     this.onDecrement,
   });
@@ -284,6 +290,10 @@ class ProductCard extends StatelessWidget {
   final int stock;
   final int selectedQuantity;
   final VoidCallback onAdd;
+  final String? imageUrl;
+  final String? unitLabel;
+  final String? categoryLabel;
+  final VoidCallback? onViewDetails;
   final VoidCallback? onIncrement;
   final VoidCallback? onDecrement;
 
@@ -315,6 +325,8 @@ class ProductCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                _ProductImageThumb(imageUrl: imageUrl, productName: name),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -357,6 +369,13 @@ class ProductCard extends StatelessWidget {
               runSpacing: 8,
               children: [
                 _InfoPill(icon: Icons.sell_outlined, text: 'Price $price'),
+                if ((unitLabel ?? '').isNotEmpty)
+                  _InfoPill(icon: Icons.straighten_outlined, text: unitLabel!),
+                if ((categoryLabel ?? '').isNotEmpty)
+                  _InfoPill(
+                    icon: Icons.category_outlined,
+                    text: categoryLabel!,
+                  ),
                 _InfoPill(
                   icon: lowStock
                       ? Icons.warning_amber_rounded
@@ -375,6 +394,13 @@ class ProductCard extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
+                  if (onViewDetails != null)
+                    TextButton.icon(
+                      onPressed: onViewDetails,
+                      icon: const Icon(Icons.visibility_outlined),
+                      label: const Text('Details'),
+                    ),
+                  if (onViewDetails != null) const SizedBox(width: 8),
                   Text(
                     'Quantity in cart',
                     style: theme.textTheme.bodyMedium?.copyWith(
@@ -391,14 +417,94 @@ class ProductCard extends StatelessWidget {
               ),
             ] else if (isOutOfStock) ...[
               const SizedBox(height: 12),
-              Text(
-                'This product cannot be added right now because stock is unavailable.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+              Row(
+                children: [
+                  if (onViewDetails != null)
+                    TextButton.icon(
+                      onPressed: onViewDetails,
+                      icon: const Icon(Icons.visibility_outlined),
+                      label: const Text('Details'),
+                    ),
+                  if (onViewDetails != null) const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'This product cannot be added right now because stock is unavailable.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ] else if (onViewDetails != null) ...[
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: onViewDetails,
+                  icon: const Icon(Icons.visibility_outlined),
+                  label: const Text('Details'),
                 ),
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProductImageThumb extends StatelessWidget {
+  const _ProductImageThumb({required this.imageUrl, required this.productName});
+
+  final String? imageUrl;
+  final String productName;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final resolvedImageUrl = imageUrl;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        width: 74,
+        height: 74,
+        color: theme.colorScheme.surfaceContainerHigh,
+        child: resolvedImageUrl == null || resolvedImageUrl.isEmpty
+            ? _ProductImagePlaceholder(productName: productName)
+            : AppCachedNetworkImage(
+                imageUrl: resolvedImageUrl,
+                fit: BoxFit.cover,
+                placeholder: const Center(
+                  child: SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+                errorWidget: _ProductImagePlaceholder(productName: productName),
+              ),
+      ),
+    );
+  }
+}
+
+class _ProductImagePlaceholder extends StatelessWidget {
+  const _ProductImagePlaceholder({required this.productName});
+
+  final String productName;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Center(
+      child: Text(
+        productName.isEmpty ? '?' : productName[0].toUpperCase(),
+        style: theme.textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.w800,
+          color: theme.colorScheme.onSurfaceVariant,
         ),
       ),
     );

@@ -15,6 +15,8 @@ import '../../features/cart_orders/presentation/pages/new_order_page.dart';
 import '../../features/cart_orders/presentation/pages/order_success_page.dart';
 import '../../features/invoice/presentation/bindings/order_details_binding.dart';
 import '../../features/invoice/presentation/pages/order_details_page.dart';
+import '../../features/products/presentation/bindings/product_details_binding.dart';
+import '../../features/products/presentation/pages/product_details_page.dart';
 import 'app_routes.dart';
 
 class AppPages {
@@ -50,6 +52,11 @@ class AppPages {
       name: AppRoutes.addCustomer,
       page: AddCustomerPage.new,
       binding: AddCustomerBinding(),
+    ),
+    GetPage<ProductDetailsPage>(
+      name: AppRoutes.productDetails,
+      page: ProductDetailsPage.new,
+      binding: ProductDetailsBinding(),
     ),
     GetPage<OrderSuccessPage>(
       name: AppRoutes.orderSuccess,
