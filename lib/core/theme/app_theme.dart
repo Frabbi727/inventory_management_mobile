@@ -4,14 +4,18 @@ class AppTheme {
   AppTheme._();
 
   static ThemeData light() {
-    const primaryColor = Color(0xFF1F6F5A);
-    const surfaceColor = Color(0xFFF5F4EE);
+    const primaryColor = Color(0xFF0F766E);
+    const secondaryColor = Color(0xFFEC4899);
+    const tertiaryColor = Color(0xFFF59E0B);
+    const surfaceColor = Color(0xFFF4F7FB);
     final colorScheme = ColorScheme.fromSeed(
       seedColor: primaryColor,
       primary: primaryColor,
+      secondary: secondaryColor,
+      tertiary: tertiaryColor,
       surface: surfaceColor,
-      surfaceContainerHighest: const Color(0xFFE7ECE7),
-      primaryContainer: const Color(0xFFD4F3E4),
+      surfaceContainerHighest: const Color(0xFFE9F0F5),
+      primaryContainer: const Color(0xFFD8F3EF),
     );
 
     return ThemeData(
@@ -37,25 +41,25 @@ class AppTheme {
       appBarTheme: AppBarTheme(
         centerTitle: true,
         elevation: 0,
-        backgroundColor: surfaceColor,
+        backgroundColor: Colors.transparent,
         foregroundColor: colorScheme.onSurface,
         surfaceTintColor: Colors.transparent,
         titleTextStyle: TextStyle(
           fontSize: 18,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w800,
           color: colorScheme.onSurface,
         ),
       ),
       cardTheme: CardThemeData(
         elevation: 0,
-        color: Colors.white.withValues(alpha: 0.74),
+        color: Colors.white.withValues(alpha: 0.88),
         surfaceTintColor: Colors.transparent,
         margin: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: Colors.white.withValues(alpha: 0.78),
+        fillColor: Colors.white.withValues(alpha: 0.96),
         hintStyle: TextStyle(color: colorScheme.onSurfaceVariant),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
@@ -84,7 +88,10 @@ class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size(0, 52),
+          minimumSize: const Size(0, 54),
+          elevation: 0,
+          backgroundColor: primaryColor,
+          foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
@@ -103,6 +110,7 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           minimumSize: const Size(0, 52),
+          backgroundColor: Colors.white.withValues(alpha: 0.72),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
@@ -112,7 +120,7 @@ class AppTheme {
       ),
       navigationBarTheme: NavigationBarThemeData(
         height: 74,
-        backgroundColor: Colors.white.withValues(alpha: 0.88),
+        backgroundColor: Colors.white.withValues(alpha: 0.94),
         indicatorColor: colorScheme.primaryContainer,
         elevation: 0,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {

@@ -38,7 +38,10 @@ class _NewOrderPageState extends State<NewOrderPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(title: const Text('New Order')),
       body: SafeArea(
         bottom: false,
@@ -50,6 +53,7 @@ class _NewOrderPageState extends State<NewOrderPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+
                     StepperWidget(
                       steps: _steps,
                       currentStep: controller.currentStep.value,
@@ -69,7 +73,7 @@ class _NewOrderPageState extends State<NewOrderPage> {
                   duration: const Duration(milliseconds: 220),
                   child: Padding(
                     key: ValueKey(controller.currentStep.value),
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
                     child: switch (controller.currentStep.value) {
                       CartController.customerStep => _CustomerStep(
                         cartController: controller,
@@ -79,7 +83,9 @@ class _NewOrderPageState extends State<NewOrderPage> {
                         cartController: controller,
                         productController: productController,
                       ),
-                      CartController.cartStep => _CartStep(controller: controller),
+                      CartController.cartStep => _CartStep(
+                        controller: controller,
+                      ),
                       _ => _ConfirmStep(controller: controller),
                     },
                   ),
@@ -141,6 +147,8 @@ class _CustomerStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Obx(
       () => Column(
         children: [
@@ -160,13 +168,20 @@ class _CustomerStep extends StatelessWidget {
           SearchBar(
             controller: customerController.searchController,
             hintText: 'Search by name or phone',
-            leading: const Icon(Icons.search),
+            leading: Icon(Icons.search, color: theme.colorScheme.primary),
+            backgroundColor: WidgetStatePropertyAll(
+              Colors.white.withValues(alpha: 0.96),
+            ),
+            elevation: const WidgetStatePropertyAll(0),
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+            ),
             onChanged: customerController.onSearchChanged,
             padding: const WidgetStatePropertyAll(
               EdgeInsets.symmetric(horizontal: 16),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Align(
             alignment: Alignment.centerRight,
             child: OutlinedButton.icon(
@@ -236,7 +251,8 @@ class _CustomerStep extends StatelessWidget {
                         phone: customer.phone ?? '-',
                         address: customer.address ?? '-',
                         area: customer.area,
-                        onTap: () => cartController.setSelectedCustomer(customer),
+                        onTap: () =>
+                            cartController.setSelectedCustomer(customer),
                         trailing: FilledButton.tonal(
                           onPressed: () =>
                               cartController.setSelectedCustomer(customer),
@@ -266,18 +282,27 @@ class _ProductsStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Column(
       children: [
         SearchBar(
           controller: productController.searchController,
           hintText: 'Search by product name or SKU',
-          leading: const Icon(Icons.search),
+          leading: Icon(Icons.search, color: theme.colorScheme.primary),
+          backgroundColor: WidgetStatePropertyAll(
+            Colors.white.withValues(alpha: 0.96),
+          ),
+          elevation: const WidgetStatePropertyAll(0),
+          shape: WidgetStatePropertyAll(
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+          ),
           onChanged: productController.onSearchChanged,
           padding: const WidgetStatePropertyAll(
             EdgeInsets.symmetric(horizontal: 16),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         Expanded(
           child: Obx(() {
             final _ = cartController.items.length;
@@ -363,7 +388,8 @@ class _CartStep extends StatelessWidget {
           message:
               'Your cart is empty. Add products before confirming the order.',
           actionLabel: 'Back to Products',
-          onAction: () async => controller.goToStep(CartController.productsStep),
+          onAction: () async =>
+              controller.goToStep(CartController.productsStep),
         );
       }
 

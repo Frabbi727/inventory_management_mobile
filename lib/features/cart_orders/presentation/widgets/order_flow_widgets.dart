@@ -16,73 +16,159 @@ class StepperWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Row(
-      children: List.generate(steps.length, (index) {
-        final isCurrent = index == currentStep;
-        final isCompleted = index < currentStep;
-
-        return Expanded(
-          child: InkWell(
-            onTap: () => onStepTap(index),
-            borderRadius: BorderRadius.circular(18),
-            child: Container(
-              margin: EdgeInsets.only(right: index == steps.length - 1 ? 0 : 8),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: isCurrent
-                    ? theme.colorScheme.primaryContainer
-                    : theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: isCompleted
-                      ? theme.colorScheme.primary
-                      : isCurrent
-                      ? theme.colorScheme.primary.withValues(alpha: 0.35)
-                      : theme.colorScheme.outlineVariant,
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            theme.colorScheme.primary.withValues(alpha: 0.14),
+            theme.colorScheme.secondary.withValues(alpha: 0.08),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.12),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Order progress',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
                 ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: isCompleted || isCurrent
-                          ? theme.colorScheme.primary
-                          : Colors.transparent,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: isCompleted || isCurrent
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.outline,
-                      ),
-                    ),
-                    child: Icon(
-                      isCompleted
-                          ? Icons.check
-                          : isCurrent
-                          ? Icons.circle
-                          : Icons.circle_outlined,
-                      size: 14,
-                      color: isCompleted || isCurrent
-                          ? theme.colorScheme.onPrimary
-                          : theme.colorScheme.outline,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    steps[index],
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+              const Spacer(),
+              Text(
+                '${currentStep + 1}/${steps.length}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: theme.colorScheme.primary,
+                ),
               ),
-            ),
+            ],
           ),
-        );
-      }),
+          const SizedBox(height: 12),
+          Row(
+            children: List.generate(steps.length, (index) {
+              final isActive = index <= currentStep;
+
+              return Expanded(
+                child: Container(
+                  margin: EdgeInsets.only(
+                    right: index == steps.length - 1 ? 0 : 8,
+                  ),
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? (index == currentStep
+                              ? theme.colorScheme.secondary
+                              : theme.colorScheme.primary)
+                        : theme.colorScheme.primary.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: List.generate(steps.length, (index) {
+              final isCurrent = index == currentStep;
+              final isCompleted = index < currentStep;
+              final background = isCurrent
+                  ? theme.colorScheme.primary
+                  : isCompleted
+                  ? theme.colorScheme.primaryContainer
+                  : Colors.white.withValues(alpha: 0.82);
+              final foreground = isCurrent
+                  ? theme.colorScheme.onPrimary
+                  : isCompleted
+                  ? theme.colorScheme.onPrimaryContainer
+                  : theme.colorScheme.onSurfaceVariant;
+
+              return InkWell(
+                onTap: () => onStepTap(index),
+                borderRadius: BorderRadius.circular(999),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: background,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: isCurrent
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.outlineVariant.withValues(
+                              alpha: 0.6,
+                            ),
+                    ),
+                    boxShadow: isCurrent
+                        ? [
+                            BoxShadow(
+                              color: theme.colorScheme.primary.withValues(
+                                alpha: 0.18,
+                              ),
+                              blurRadius: 16,
+                              offset: const Offset(0, 8),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: isCurrent
+                              ? theme.colorScheme.onPrimary.withValues(
+                                  alpha: 0.18,
+                                )
+                              : isCompleted
+                              ? theme.colorScheme.primary.withValues(
+                                  alpha: 0.16,
+                                )
+                              : theme.colorScheme.surfaceContainerHighest,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          isCompleted ? Icons.check_rounded : Icons.circle,
+                          size: isCompleted ? 14 : 10,
+                          color: isCurrent
+                              ? theme.colorScheme.onPrimary
+                              : isCompleted
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.outline,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        steps[index],
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: foreground,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -112,25 +198,32 @@ class CustomerTile extends StatelessWidget {
     return Card(
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(24),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(18),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 42,
-                height: 42,
+                width: 52,
+                height: 52,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    colors: [
+                      theme.colorScheme.primaryContainer,
+                      theme.colorScheme.secondary.withValues(alpha: 0.16),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Icon(
                   Icons.storefront_outlined,
                   color: theme.colorScheme.onPrimaryContainer,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -199,7 +292,7 @@ class ProductCard extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -226,7 +319,7 @@ class ProductCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                FilledButton.tonal(
+                FilledButton(
                   onPressed: stock <= 0 ? null : onAdd,
                   child: const Text('Add'),
                 ),
@@ -237,18 +330,18 @@ class ProductCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _InfoPill(icon: Icons.sell_outlined, text: 'Price: $price'),
+                _InfoPill(icon: Icons.sell_outlined, text: 'Price $price'),
                 _InfoPill(
                   icon: lowStock
                       ? Icons.warning_amber_rounded
                       : Icons.inventory_2_outlined,
-                  text: 'Stock: $stock',
+                  text: 'Stock $stock',
                   highlighted: lowStock,
                 ),
                 if (selectedQuantity > 0)
                   _InfoPill(
                     icon: Icons.shopping_cart_outlined,
-                    text: 'In cart: $selectedQuantity',
+                    text: 'In cart $selectedQuantity',
                   ),
               ],
             ),
@@ -256,26 +349,36 @@ class ProductCard extends StatelessWidget {
               const SizedBox(height: 12),
               Align(
                 alignment: Alignment.centerRight,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      onPressed: onDecrement,
-                      icon: const Icon(Icons.remove_circle_outline),
-                      tooltip: 'Decrease quantity',
-                    ),
-                    Text(
-                      '$selectedQuantity',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        onPressed: onDecrement,
+                        icon: const Icon(Icons.remove_circle_outline),
+                        tooltip: 'Decrease quantity',
                       ),
-                    ),
-                    IconButton(
-                      onPressed: onIncrement,
-                      icon: const Icon(Icons.add_circle_outline),
-                      tooltip: 'Increase quantity',
-                    ),
-                  ],
+                      Text(
+                        '$selectedQuantity',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: onIncrement,
+                        icon: const Icon(Icons.add_circle_outline),
+                        tooltip: 'Increase quantity',
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -316,10 +419,20 @@ class CartItemWidget extends StatelessWidget {
 
     return Container(
       key: ValueKey('cart-item-$title'),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.08),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -345,10 +458,10 @@ class CartItemWidget extends StatelessWidget {
               TextButton(onPressed: onRemove, child: const Text('Remove')),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Row(
             children: [
-              Text('Unit: $unitPrice'),
+              _InfoPill(icon: Icons.sell_outlined, text: 'Unit $unitPrice'),
               const Spacer(),
               Text(
                 lineTotal,
@@ -358,7 +471,7 @@ class CartItemWidget extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           Row(
             children: [
               Text(
@@ -368,16 +481,32 @@ class CartItemWidget extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              IconButton(
-                onPressed: onDecrement,
-                icon: const Icon(Icons.remove_circle_outline),
-                tooltip: 'Decrease quantity',
-              ),
-              Text('$quantity'),
-              IconButton(
-                onPressed: canIncrement ? onIncrement : null,
-                icon: const Icon(Icons.add_circle_outline),
-                tooltip: 'Increase quantity',
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: onDecrement,
+                      icon: const Icon(Icons.remove_circle_outline),
+                      tooltip: 'Decrease quantity',
+                    ),
+                    Text(
+                      '$quantity',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: canIncrement ? onIncrement : null,
+                      icon: const Icon(Icons.add_circle_outline),
+                      tooltip: 'Increase quantity',
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -414,59 +543,82 @@ class SummaryFooter extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Material(
-      elevation: 8,
-      color: theme.colorScheme.surface,
+      elevation: 0,
+      color: Colors.transparent,
       child: SafeArea(
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (showTotals && subtotal != null && total != null) ...[
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.94),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(
+                color: theme.colorScheme.primary.withValues(alpha: 0.08),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 24,
+                  offset: const Offset(0, -8),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (showTotals && subtotal != null && total != null) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _SummaryValue(
+                          label: 'Subtotal',
+                          value: subtotal!,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _SummaryValue(
+                          label: 'Total',
+                          value: total!,
+                          emphasized: true,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                ],
                 Row(
                   children: [
+                    if (secondaryLabel != null &&
+                        onSecondaryPressed != null) ...[
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: onSecondaryPressed,
+                          child: Text(secondaryLabel!),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
                     Expanded(
-                      child: _SummaryValue(label: 'Subtotal', value: subtotal!),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _SummaryValue(
-                        label: 'Total',
-                        value: total!,
-                        emphasized: true,
+                      child: FilledButton(
+                        onPressed: isLoading ? null : onPrimaryPressed,
+                        child: isLoading
+                            ? const SizedBox(
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Text(primaryLabel),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
               ],
-              Row(
-                children: [
-                  if (secondaryLabel != null && onSecondaryPressed != null) ...[
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: onSecondaryPressed,
-                        child: Text(secondaryLabel!),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                  ],
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: isLoading ? null : onPrimaryPressed,
-                      child: isLoading
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : Text(primaryLabel),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -485,10 +637,10 @@ class InlineWarningBanner extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: theme.colorScheme.errorContainer,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -534,7 +686,7 @@ class _InfoPill extends StatelessWidget {
         : theme.colorScheme.onSurface;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(999),
