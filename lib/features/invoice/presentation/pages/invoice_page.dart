@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/routes/app_routes.dart';
+import '../../../../shared/widgets/app_message_state.dart';
+import '../../../../shared/widgets/app_page_header.dart';
 import '../../../cart_orders/data/models/order_model.dart';
 import '../controllers/invoice_controller.dart';
 
@@ -10,19 +12,16 @@ class InvoicePage extends GetView<InvoiceController> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Orders',
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+            const AppPageHeader(
+              title: 'Orders',
+              subtitle:
+                  'View recent orders and open any order for full details.',
             ),
             const SizedBox(height: 16),
             Expanded(
@@ -34,7 +33,7 @@ class InvoicePage extends GetView<InvoiceController> {
 
                 if (controller.errorMessage.value != null &&
                     controller.orders.isEmpty) {
-                  return _MessageState(
+                  return AppMessageState(
                     icon: Icons.cloud_off_outlined,
                     message: controller.errorMessage.value!,
                     actionLabel: 'Retry',
@@ -43,7 +42,7 @@ class InvoicePage extends GetView<InvoiceController> {
                 }
 
                 if (controller.orders.isEmpty) {
-                  return _MessageState(
+                  return AppMessageState(
                     icon: Icons.receipt_long_outlined,
                     message:
                         controller.infoMessage.value ??
@@ -114,32 +113,78 @@ class _OrderCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Card(
-      child: ListTile(
-        contentPadding: const EdgeInsets.all(16),
-        leading: const CircleAvatar(child: Icon(Icons.receipt_long_outlined)),
-        title: Text(order.orderNo ?? 'Order'),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 6),
-          child: Text(
-            '${order.customer?.name ?? '-'}\n${_titleCase(order.status)} • ${formatDate(order.orderDate)}',
+      elevation: 0,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.receipt_long_outlined,
+                  color: theme.colorScheme.onPrimaryContainer,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      order.orderNo ?? 'Order',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      order.customer?.name ?? '-',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _OrderPill(text: _titleCase(order.status)),
+                        _OrderPill(text: formatDate(order.orderDate)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    formatCurrency(order.grandTotal),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'View',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
-        isThreeLine: true,
-        trailing: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              formatCurrency(order.grandTotal),
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text('View'),
-          ],
-        ),
-        onTap: onTap,
       ),
     );
   }
@@ -153,35 +198,20 @@ class _OrderCard extends StatelessWidget {
   }
 }
 
-class _MessageState extends StatelessWidget {
-  const _MessageState({
-    required this.icon,
-    required this.message,
-    required this.actionLabel,
-    required this.onAction,
-  });
+class _OrderPill extends StatelessWidget {
+  const _OrderPill({required this.text});
 
-  final IconData icon;
-  final String message;
-  final String actionLabel;
-  final Future<void> Function() onAction;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 48),
-            const SizedBox(height: 12),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            OutlinedButton(onPressed: onAction, child: Text(actionLabel)),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(999),
       ),
+      child: Text(text),
     );
   }
 }

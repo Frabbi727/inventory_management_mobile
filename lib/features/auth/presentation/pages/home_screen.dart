@@ -33,6 +33,7 @@ class HomeScreen extends GetView<HomeController> {
         bottomNavigationBar: NavigationBar(
           selectedIndex: controller.selectedIndex.value,
           onDestinationSelected: controller.changeTab,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
           destinations: const [
             NavigationDestination(
               icon: Icon(Icons.inventory_2_outlined),
