@@ -1159,103 +1159,107 @@ class _ConfirmStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Obx(() {
       final customer = controller.selectedCustomer.value;
 
       return ListView(
+        padding: const EdgeInsets.only(bottom: 120),
         children: [
-          if (customer != null) ...[
-            CustomerTile(
-              customerName: customer.name ?? '-',
-              phone: customer.phone ?? '-',
-              address: customer.address ?? '-',
-              area: customer.area,
-            ),
-            const SizedBox(height: 12),
-          ],
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Items',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  if (controller.items.isEmpty)
-                    const Text('No products selected yet.')
-                  else
-                    for (final item in controller.items) ...[
-                      _ConfirmRow(
-                        title: item.product.name ?? 'Unnamed product',
-                        subtitle:
-                            '${item.quantity} x ${controller.formatCurrency(item.unitPrice)}',
-                        value: controller.formatCurrency(item.lineTotal),
-                      ),
-                      const SizedBox(height: 10),
-                    ],
-                ],
-              ),
+          Text(
+            'Confirm order',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 12),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  _TotalRow(
-                    label: 'Subtotal',
-                    value: controller.formatCurrency(controller.subtotal),
-                  ),
-                  const SizedBox(height: 12),
-                  _TotalRow(
-                    label: 'Discount',
-                    value: controller.formatCurrency(
-                      controller.estimatedDiscountAmount,
+          const SizedBox(height: 16),
+          if (customer != null) ...[
+            _CartCustomerSummaryCard(customer: customer),
+            const SizedBox(height: 16),
+          ],
+          _CartSectionCard(
+            title: 'Items',
+            child: controller.items.isEmpty
+                ? Text(
+                    'No products selected yet.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
+                  )
+                : Column(
+                    children: [
+                      for (
+                        var index = 0;
+                        index < controller.items.length;
+                        index++
+                      ) ...[
+                        _ConfirmRow(
+                          count: index + 1,
+                          title:
+                              controller.items[index].product.name ??
+                              'Unnamed product',
+                          subtitle:
+                              '${controller.items[index].quantity} x ${controller.formatCurrency(controller.items[index].unitPrice)}',
+                          value: controller.formatCurrency(
+                            controller.items[index].lineTotal,
+                          ),
+                        ),
+                        if (index != controller.items.length - 1) ...[
+                          const SizedBox(height: 14),
+                          Divider(
+                            height: 1,
+                            color: theme.colorScheme.outlineVariant,
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+                      ],
+                    ],
                   ),
-                  const SizedBox(height: 12),
-                  _TotalRow(
+          ),
+          const SizedBox(height: 16),
+          _CartSectionCard(
+            title: 'Order summary',
+            child: Column(
+              children: [
+                _TotalRow(
+                  label: 'Subtotal',
+                  value: controller.formatCurrency(controller.subtotal),
+                ),
+                const SizedBox(height: 12),
+                _TotalRow(
+                  label: 'Discount',
+                  value: controller.formatCurrency(
+                    controller.estimatedDiscountAmount,
+                  ),
+                  highlighted: true,
+                ),
+                const SizedBox(height: 14),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerLowest,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: _TotalRow(
                     label: 'Total',
                     value: controller.formatCurrency(controller.grandTotal),
                     strong: true,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 12),
-          const InlineWarningBanner(
-            message:
-                'Final total will be confirmed by the server after the order is submitted.',
-          ),
           if (controller.noteText.value.trim().isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Note',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(controller.noteText.value.trim()),
-                  ],
-                ),
+            const SizedBox(height: 16),
+            _CartSectionCard(
+              title: 'Note',
+              child: Text(
+                controller.noteText.value.trim(),
+                style: theme.textTheme.bodyMedium?.copyWith(height: 1.4),
               ),
             ),
           ],
-          const SizedBox(height: 120),
         ],
       );
     });
@@ -1264,40 +1268,64 @@ class _ConfirmStep extends StatelessWidget {
 
 class _ConfirmRow extends StatelessWidget {
   const _ConfirmRow({
+    required this.count,
     required this.title,
     required this.subtitle,
     required this.value,
   });
 
+  final int count;
   final String title;
   final String subtitle;
   final String value;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: Column(
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                title,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                '$count.',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-              const SizedBox(height: 4),
-              Text(subtitle),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
+        const SizedBox(width: 12),
         Text(
           value,
-          style: Theme.of(
-            context,
-          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ],
     );
@@ -1309,25 +1337,55 @@ class _TotalRow extends StatelessWidget {
     required this.label,
     required this.value,
     this.strong = false,
+    this.highlighted = false,
   });
 
   final String label;
   final String value;
   final bool strong;
+  final bool highlighted;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final style = strong
-        ? Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)
-        : Theme.of(context).textTheme.bodyMedium;
+        ? theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)
+        : highlighted
+        ? theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: theme.colorScheme.primary,
+          )
+        : theme.textTheme.bodyMedium;
 
-    return Row(
-      children: [
-        Expanded(child: Text(label)),
-        Text(value, style: style),
-      ],
+    return Container(
+      padding: highlighted
+          ? const EdgeInsets.symmetric(horizontal: 12, vertical: 10)
+          : EdgeInsets.zero,
+      decoration: highlighted
+          ? BoxDecoration(
+              color: theme.colorScheme.primaryContainer.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(14),
+            )
+          : null,
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: highlighted
+                  ? theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: theme.colorScheme.primary,
+                    )
+                  : null,
+            ),
+          ),
+          SizedBox(
+            width: 120,
+            child: Text(value, textAlign: TextAlign.right, style: style),
+          ),
+        ],
+      ),
     );
   }
 }

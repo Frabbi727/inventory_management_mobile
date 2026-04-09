@@ -23,34 +23,9 @@ class OrderSuccessPage extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: ListView(
             children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(
-                      Icons.check_circle,
-                      color: theme.colorScheme.primary,
-                      size: 42,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      response?.message ?? 'Order created successfully.',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'The order is now confirmed and ready for follow-up.',
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
+              _SuccessCard(
+                title: response?.message ?? 'Order created successfully.',
+                message: 'The order has been saved and is ready for follow-up.',
               ),
               const SizedBox(height: 16),
               _DetailCard(
@@ -60,7 +35,7 @@ class OrderSuccessPage extends StatelessWidget {
                     _DetailRow(label: 'Order No', value: order?.orderNo ?? '-'),
                     _DetailRow(
                       label: 'Order date',
-                      value: order?.orderDate ?? '-',
+                      value: _formatOrderDate(order?.orderDate),
                     ),
                     _DetailRow(
                       label: 'Customer',
@@ -73,57 +48,45 @@ class OrderSuccessPage extends StatelessWidget {
                     _DetailRow(
                       label: 'Status',
                       value: order?.status ?? 'confirmed',
+                      badge: true,
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               _DetailCard(
                 title: 'Items',
                 child: items.isEmpty
-                    ? const Text('No items returned by the server.')
+                    ? Text(
+                        'No items returned by the server.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      )
                     : Column(
-                        children: items
-                            .map(
-                              (item) => Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            item.productName ?? 'Product',
-                                            style: theme.textTheme.titleSmall
-                                                ?.copyWith(
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            '${item.quantity ?? 0} x ${_formatCurrency(item.unitPrice)}',
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    Text(
-                                      _formatCurrency(item.lineTotal),
-                                      style: theme.textTheme.titleSmall
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                    ),
-                                  ],
-                                ),
+                        children: [
+                          for (
+                            var index = 0;
+                            index < items.length;
+                            index++
+                          ) ...[
+                            _SuccessItemRow(
+                              index: index + 1,
+                              item: items[index],
+                            ),
+                            if (index != items.length - 1) ...[
+                              const SizedBox(height: 14),
+                              Divider(
+                                height: 1,
+                                color: theme.colorScheme.outlineVariant,
                               ),
-                            )
-                            .toList(),
+                              const SizedBox(height: 14),
+                            ],
+                          ],
+                        ],
                       ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               _DetailCard(
                 title: 'Totals',
                 child: Column(
@@ -135,6 +98,7 @@ class OrderSuccessPage extends StatelessWidget {
                     _DetailRow(
                       label: 'Discount',
                       value: _formatCurrency(order?.discountAmount),
+                      highlighted: true,
                     ),
                     _DetailRow(
                       label: 'Grand total',
@@ -144,6 +108,15 @@ class OrderSuccessPage extends StatelessWidget {
                   ],
                 ),
               ),
+              const SizedBox(height: 16),
+              if ((order?.note ?? '').trim().isNotEmpty)
+                _DetailCard(
+                  title: 'Note',
+                  child: Text(
+                    order!.note!.trim(),
+                    style: theme.textTheme.bodyMedium?.copyWith(height: 1.4),
+                  ),
+                ),
             ],
           ),
         ),
@@ -157,6 +130,9 @@ class OrderSuccessPage extends StatelessWidget {
               Expanded(
                 child: OutlinedButton(
                   onPressed: () => _goToTab(2),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                  ),
                   child: const Text('View Orders'),
                 ),
               ),
@@ -164,6 +140,9 @@ class OrderSuccessPage extends StatelessWidget {
               Expanded(
                 child: FilledButton(
                   onPressed: () => _startNewOrder(),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                  ),
                   child: const Text('New Order'),
                 ),
               ),
@@ -200,6 +179,34 @@ class OrderSuccessPage extends StatelessWidget {
 
     return '৳${value.toStringAsFixed(2)}';
   }
+
+  static String _formatOrderDate(String? rawValue) {
+    if (rawValue == null || rawValue.trim().isEmpty) {
+      return '-';
+    }
+
+    final parsed = DateTime.tryParse(rawValue)?.toLocal();
+    if (parsed == null) {
+      return rawValue;
+    }
+
+    const months = <String>[
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+
+    return '${parsed.day.toString().padLeft(2, '0')} ${months[parsed.month - 1]} ${parsed.year}';
+  }
 }
 
 class _DetailCard extends StatelessWidget {
@@ -212,22 +219,32 @@ class _DetailCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
             ),
-            const SizedBox(height: 16),
-            child,
-          ],
-        ),
+          ),
+          const SizedBox(height: 16),
+          child,
+        ],
       ),
     );
   }
@@ -238,28 +255,210 @@ class _DetailRow extends StatelessWidget {
     required this.label,
     required this.value,
     this.strong = false,
+    this.highlighted = false,
+    this.badge = false,
   });
 
   final String label;
   final String value;
   final bool strong;
+  final bool highlighted;
+  final bool badge;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final style = strong
-        ? Theme.of(
-            context,
-          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)
-        : Theme.of(context).textTheme.bodyMedium;
+        ? theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)
+        : highlighted
+        ? theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: theme.colorScheme.primary,
+          )
+        : theme.textTheme.bodyMedium;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
+      child: Container(
+        padding: highlighted
+            ? const EdgeInsets.symmetric(horizontal: 12, vertical: 10)
+            : EdgeInsets.zero,
+        decoration: highlighted
+            ? BoxDecoration(
+                color: theme.colorScheme.primaryContainer.withValues(
+                  alpha: 0.45,
+                ),
+                borderRadius: BorderRadius.circular(14),
+              )
+            : null,
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: highlighted
+                    ? theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.primary,
+                      )
+                    : theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+              ),
+            ),
+            if (badge)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  _titleCase(value),
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              )
+            else
+              SizedBox(
+                width: 120,
+                child: Text(value, textAlign: TextAlign.right, style: style),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _titleCase(String input) {
+    if (input.isEmpty) {
+      return input;
+    }
+
+    return input[0].toUpperCase() + input.substring(1).toLowerCase();
+  }
+}
+
+class _SuccessCard extends StatelessWidget {
+  const _SuccessCard({required this.title, required this.message});
+
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.12),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(child: Text(label)),
-          Text(value, style: style),
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Icon(
+              Icons.check_rounded,
+              color: theme.colorScheme.onPrimary,
+              size: 28,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            title,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              height: 1.4,
+            ),
+          ),
         ],
       ),
+    );
+  }
+}
+
+class _SuccessItemRow extends StatelessWidget {
+  const _SuccessItemRow({required this.index, required this.item});
+
+  final int index;
+  final OrderItemModel item;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$index.',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.productName ?? 'Product',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${item.quantity ?? 0} x ${OrderSuccessPage._formatCurrency(item.unitPrice)}',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        SizedBox(
+          width: 110,
+          child: Text(
+            OrderSuccessPage._formatCurrency(item.lineTotal),
+            textAlign: TextAlign.right,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
