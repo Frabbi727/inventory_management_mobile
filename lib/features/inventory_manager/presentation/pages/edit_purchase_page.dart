@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../controllers/edit_purchase_controller.dart';
@@ -44,6 +45,7 @@ class EditPurchasePage extends GetView<EditPurchaseController> {
 
           final purchase = controller.purchase.value;
           return ListView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
             children: [
               if (controller.submitError.value != null)
@@ -123,8 +125,14 @@ class EditPurchasePage extends GetView<EditPurchaseController> {
                   padding: const EdgeInsets.only(bottom: 12),
                   child: _EditablePurchaseItemCard(
                     item: item,
+                    quantityController: controller.quantityControllerFor(
+                      item.productId,
+                    ),
+                    unitCostController: controller.unitCostControllerFor(
+                      item.productId,
+                    ),
                     formatCurrency: controller.formatCurrency,
-                    onEdit: () => _showEditItemSheet(context, item),
+                    isSubmitting: controller.isSubmitting.value,
                   ),
                 ),
               ),
@@ -158,8 +166,14 @@ class EditPurchasePage extends GetView<EditPurchaseController> {
       ),
       bottomNavigationBar: SafeArea(
         top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: AnimatedPadding(
+          duration: const Duration(milliseconds: 180),
+          padding: EdgeInsets.fromLTRB(
+            16,
+            0,
+            16,
+            16 + MediaQuery.viewInsetsOf(context).bottom,
+          ),
           child: Obx(
             () => FilledButton(
               onPressed: controller.isSubmitting.value
@@ -178,121 +192,22 @@ class EditPurchasePage extends GetView<EditPurchaseController> {
       ),
     );
   }
-
-  Future<void> _showEditItemSheet(
-    BuildContext context,
-    PurchaseDraftItem item,
-  ) async {
-    final quantityController = TextEditingController(text: '${item.quantity}');
-    final unitCostController = TextEditingController(
-      text: item.unitCost.toStringAsFixed(2),
-    );
-    String? errorText;
-
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return SafeArea(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  20,
-                  8,
-                  20,
-                  20 + MediaQuery.of(context).viewInsets.bottom,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.name,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: quantityController,
-                      keyboardType: TextInputType.number,
-                      decoration: InputDecoration(
-                        labelText: 'Quantity',
-                        border: const OutlineInputBorder(),
-                        errorText: errorText,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: unitCostController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      decoration: const InputDecoration(
-                        labelText: 'Unit Cost',
-                        prefixText: '৳',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton(
-                        onPressed: () {
-                          final quantity = int.tryParse(
-                            quantityController.text.trim(),
-                          );
-                          final unitCost = double.tryParse(
-                            unitCostController.text.trim(),
-                          );
-
-                          if (quantity == null ||
-                              quantity <= 0 ||
-                              unitCost == null ||
-                              unitCost < 0) {
-                            setModalState(() {
-                              errorText =
-                                  'Quantity must be greater than 0 and unit cost cannot be negative.';
-                            });
-                            return;
-                          }
-
-                          controller.updateDraftItem(
-                            original: item,
-                            quantity: quantity,
-                            unitCost: unitCost,
-                          );
-                          Navigator.of(context).pop();
-                        },
-                        child: const Text('Save Item'),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-
-    quantityController.dispose();
-    unitCostController.dispose();
-  }
 }
 
 class _EditablePurchaseItemCard extends StatelessWidget {
   const _EditablePurchaseItemCard({
     required this.item,
+    required this.quantityController,
+    required this.unitCostController,
     required this.formatCurrency,
-    required this.onEdit,
+    required this.isSubmitting,
   });
 
   final PurchaseDraftItem item;
+  final TextEditingController quantityController;
+  final TextEditingController unitCostController;
   final String Function(num value) formatCurrency;
-  final VoidCallback onEdit;
+  final bool isSubmitting;
 
   @override
   Widget build(BuildContext context) {
@@ -304,46 +219,71 @@ class _EditablePurchaseItemCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.name,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        item.barcode,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                FilledButton.tonalIcon(
-                  onPressed: onEdit,
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Edit'),
-                ),
-              ],
+            Text(
+              item.name,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              item.barcode,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 12),
             Wrap(
               spacing: 10,
               runSpacing: 10,
               children: [
-                _ItemPill(label: 'Qty', value: '${item.quantity}'),
-                _ItemPill(
-                  label: 'Unit Cost',
-                  value: formatCurrency(item.unitCost),
+                _ItemPill(label: 'SKU', value: item.sku),
+                _ItemPill(label: 'Category', value: item.categoryName),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: quantityController,
+                    enabled: !isSubmitting,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: const InputDecoration(
+                      labelText: 'Quantity',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
                 ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: unitCostController,
+                    enabled: !isSubmitting,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'^\d*\.?\d{0,2}'),
+                      ),
+                    ],
+                    decoration: const InputDecoration(
+                      labelText: 'Unit Cost',
+                      prefixText: '৳',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
                 _ItemPill(
                   label: 'Line Total',
                   value: formatCurrency(item.totalAmount),

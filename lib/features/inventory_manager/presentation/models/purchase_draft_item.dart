@@ -2,6 +2,7 @@ class PurchaseDraftItem {
   const PurchaseDraftItem({
     required this.productId,
     required this.name,
+    required this.sku,
     required this.barcode,
     required this.quantity,
     required this.unitCost,
@@ -11,6 +12,7 @@ class PurchaseDraftItem {
 
   final int productId;
   final String name;
+  final String sku;
   final String barcode;
   final int quantity;
   final double unitCost;
@@ -22,6 +24,7 @@ class PurchaseDraftItem {
   PurchaseDraftItem copyWith({
     int? productId,
     String? name,
+    String? sku,
     String? barcode,
     int? quantity,
     double? unitCost,
@@ -31,6 +34,7 @@ class PurchaseDraftItem {
     return PurchaseDraftItem(
       productId: productId ?? this.productId,
       name: name ?? this.name,
+      sku: sku ?? this.sku,
       barcode: barcode ?? this.barcode,
       quantity: quantity ?? this.quantity,
       unitCost: unitCost ?? this.unitCost,
