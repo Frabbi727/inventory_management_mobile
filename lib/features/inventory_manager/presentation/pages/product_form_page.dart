@@ -13,9 +13,7 @@ class ProductFormPage extends GetView<ProductFormController> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Obx(
-          () => Text(controller.isEdit ? 'Edit Product' : 'Create Product'),
-        ),
+        title: Text(controller.isEdit ? 'Edit Product' : 'Create Product'),
       ),
       body: SafeArea(
         child: Form(
@@ -187,75 +185,77 @@ class _PhotoSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Photos (max 200 KB each)',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'JPEG and PNG inputs are accepted. Larger files are compressed to JPEG before upload.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                OutlinedButton.icon(
-                  onPressed: controller.isSubmitting.value
-                      ? null
-                      : controller.pickFromCamera,
-                  icon: const Icon(Icons.photo_camera_outlined),
-                  label: const Text('Camera'),
-                ),
-                const SizedBox(width: 12),
-                OutlinedButton.icon(
-                  onPressed: controller.isSubmitting.value
-                      ? null
-                      : controller.pickFromGallery,
-                  icon: const Icon(Icons.photo_library_outlined),
-                  label: const Text('Gallery'),
+    return Obx(
+      () => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Photos (max 200 KB each)',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'JPEG and PNG inputs are accepted. Larger files are compressed to JPEG before upload.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: controller.isSubmitting.value
+                        ? null
+                        : controller.pickFromCamera,
+                    icon: const Icon(Icons.photo_camera_outlined),
+                    label: const Text('Camera'),
+                  ),
+                  const SizedBox(width: 12),
+                  OutlinedButton.icon(
+                    onPressed: controller.isSubmitting.value
+                        ? null
+                        : controller.pickFromGallery,
+                    icon: const Icon(Icons.photo_library_outlined),
+                    label: const Text('Gallery'),
+                  ),
+                ],
+              ),
+              if (controller.hasPendingCompression) ...[
+                const SizedBox(height: 12),
+                const LinearProgressIndicator(),
+              ],
+              if (controller.photoErrorMessage.value != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  controller.photoErrorMessage.value!,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.error,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
-            ),
-            if (controller.hasPendingCompression) ...[
-              const SizedBox(height: 12),
-              const LinearProgressIndicator(),
-            ],
-            if (controller.photoErrorMessage.value != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                controller.photoErrorMessage.value!,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.error,
-                  fontWeight: FontWeight.w600,
+              if (controller.selectedPhotos.isEmpty) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'No photos selected yet.',
+                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
-              ),
+              ] else ...[
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: controller.selectedPhotos
+                      .map(
+                        (photo) =>
+                            _PhotoCard(photo: photo, controller: controller),
+                      )
+                      .toList(),
+                ),
+              ],
             ],
-            if (controller.selectedPhotos.isEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                'No photos selected yet.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ] else ...[
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: controller.selectedPhotos
-                    .map(
-                      (photo) =>
-                          _PhotoCard(photo: photo, controller: controller),
-                    )
-                    .toList(),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );
