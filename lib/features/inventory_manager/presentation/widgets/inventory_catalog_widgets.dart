@@ -1,53 +1,135 @@
 import 'package:flutter/material.dart';
 
-import '../../../products/data/models/category_response_model.dart';
 import '../../../products/data/models/product_model.dart';
 
-class InventoryQuickActionCard extends StatelessWidget {
-  const InventoryQuickActionCard({
+class InventorySearchPanel extends StatelessWidget {
+  const InventorySearchPanel({
     super.key,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
+    required this.searchController,
+    required this.onSearchChanged,
+    required this.onClearSearch,
+    required this.hasActiveSearch,
+    required this.isSearching,
   });
 
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
+  final TextEditingController searchController;
+  final ValueChanged<String> onSearchChanged;
+  final VoidCallback onClearSearch;
+  final bool hasActiveSearch;
+  final bool isSearching;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colorScheme = Theme.of(context).colorScheme;
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, color: theme.colorScheme.primary),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(subtitle, style: theme.textTheme.bodySmall),
-            ],
-          ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.7),
+        ),
+      ),
+      child: TextField(
+        controller: searchController,
+        onChanged: onSearchChanged,
+        decoration: InputDecoration(
+          isDense: true,
+          hintText: 'Search products',
+          prefixIcon: const Icon(Icons.search, size: 20),
+          suffixIcon: isSearching
+              ? Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: colorScheme.primary,
+                    ),
+                  ),
+                )
+              : hasActiveSearch
+              ? IconButton(
+                  onPressed: onClearSearch,
+                  icon: const Icon(Icons.close, size: 20),
+                )
+              : null,
         ),
       ),
     );
   }
 }
 
+class InventoryCatalogHeader extends StatelessWidget {
+  const InventoryCatalogHeader({
+    super.key,
+    required this.totalProducts,
+    required this.hasActiveFilter,
+    required this.onClearFilters,
+    this.searchQuery,
+    this.selectedCategoryName,
+  });
+
+  final int totalProducts;
+  final bool hasActiveFilter;
+  final VoidCallback onClearFilters;
+  final String? searchQuery;
+  final String? selectedCategoryName;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final activeLabels = <String>[
+      if ((searchQuery ?? '').isNotEmpty) 'Search: ${searchQuery!}',
+      if ((selectedCategoryName ?? '').isNotEmpty)
+        'Category: $selectedCategoryName',
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Catalog',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$totalProducts items',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (hasActiveFilter)
+              TextButton(onPressed: onClearFilters, child: const Text('Reset')),
+          ],
+        ),
+        if (activeLabels.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: activeLabels
+                .map((label) => InventoryMetaPill(label: label, value: ''))
+                .toList(),
+          ),
+        ],
+      ],
+    );
+  }
+}
 
 class InventoryProductCard extends StatelessWidget {
   const InventoryProductCard({
@@ -63,67 +145,147 @@ class InventoryProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final stock = product.currentStock ?? 0;
+    final minimumStock = product.minimumStockAlert ?? 0;
+    final isLowStock = minimumStock > 0 && stock <= minimumStock;
+    final accentColor = isLowStock ? colorScheme.error : colorScheme.primary;
+    final details = <String>[
+      'Cost ৳${product.purchasePrice ?? 0}',
+      if ((product.unit?.shortName ?? product.unit?.name ?? '').isNotEmpty)
+        'Unit ${product.unit?.shortName ?? product.unit?.name}',
+      if (minimumStock > 0) 'Min $minimumStock',
+    ];
 
     return Card(
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
+          padding: const EdgeInsets.fromLTRB(16, 15, 14, 15),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(
-                  Icons.inventory_2_outlined,
-                  color: colorScheme.onPrimaryContainer,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      product.name ?? 'Unnamed product',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: accentColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    const SizedBox(height: 6),
-                    Text('SKU: ${product.sku ?? '-'}'),
-                    const SizedBox(height: 4),
-                    Text('Barcode: ${product.barcode ?? '-'}'),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                    child: Icon(
+                      Icons.inventory_2_rounded,
+                      color: accentColor,
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        InventoryMetaPill(
-                          label: 'Stock',
-                          value: '${product.currentStock ?? 0}',
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                product.name ?? 'Unnamed product',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            if (isLowStock) ...[
+                              const SizedBox(width: 8),
+                              _InventoryStatusBadge(
+                                label: 'Low stock',
+                                color: accentColor,
+                              ),
+                            ],
+                          ],
                         ),
-                        InventoryMetaPill(
-                          label: 'Category',
-                          value: product.category?.name ?? '-',
-                        ),
-                        InventoryMetaPill(
-                          label: 'Cost',
-                          value: '৳${(product.purchasePrice ?? 0).toString()}',
+                        const SizedBox(height: 4),
+                        Text(
+                          product.category?.name ?? 'Uncategorized',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              const Icon(Icons.chevron_right),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Barcode ${product.barcode ?? '-'}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'SKU ${product.sku ?? '-'}',
+                      textAlign: TextAlign.end,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: InventoryMetaPill(label: 'Stock', value: '$stock'),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: InventoryMetaPill(
+                      label: 'Selling Price',
+                      value: '৳${product.sellingPrice ?? 0}',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: InventoryMetaPill(
+                      label: 'Purchase Price',
+                      value: '৳${product.purchasePrice ?? 0}',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: InventoryMetaPill(
+                      label: 'Unit',
+                      value:
+                          '${product.currentStock} (${product.unit?.name ?? ""})',
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),
@@ -144,17 +306,23 @@ class InventoryMetaPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final text = value.isEmpty ? label : '$label: $value';
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        color: theme.colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        '$label: $value',
-        style: Theme.of(
-          context,
-        ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.labelSmall?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }
@@ -173,21 +341,30 @@ class InventoryInfoChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(16),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: RichText(
         text: TextSpan(
-          style: theme.textTheme.bodyMedium,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
           children: [
             TextSpan(
               text: '$label: ',
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
-            TextSpan(text: value),
+            TextSpan(
+              text: value,
+              style: TextStyle(
+                color: theme.colorScheme.onSurface,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
       ),
@@ -195,36 +372,81 @@ class InventoryInfoChip extends StatelessWidget {
   }
 }
 
-class _CategoryPill extends StatelessWidget {
-  const _CategoryPill({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
+class InventoryPageState extends StatelessWidget {
+  const InventoryPageState({
+    super.key,
+    required this.icon,
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+    this.isLoading = false,
   });
 
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
+  final IconData icon;
+  final String message;
+  final String? actionLabel;
+  final Future<void> Function()? onAction;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
 
-    return Material(
-      color: isSelected ? colorScheme.primary : colorScheme.surface,
-      borderRadius: BorderRadius.circular(999),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: isSelected ? colorScheme.onPrimary : colorScheme.onSurface,
-              fontWeight: FontWeight.w700,
-            ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (isLoading)
+            const SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2.4),
+            )
+          else
+            Icon(icon, size: 24, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(height: 12),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium,
           ),
+          if (actionLabel != null && onAction != null) ...[
+            const SizedBox(height: 14),
+            OutlinedButton(onPressed: onAction, child: Text(actionLabel!)),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _InventoryStatusBadge extends StatelessWidget {
+  const _InventoryStatusBadge({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );

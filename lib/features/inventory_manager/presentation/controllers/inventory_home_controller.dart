@@ -5,6 +5,7 @@ import '../../../../core/storage/token_storage.dart';
 import '../../../../core/storage/user_storage.dart';
 import '../../../auth/data/models/user_model.dart';
 import '../../../auth/data/repositories/auth_repository.dart';
+import '../models/barcode_scan_models.dart';
 import 'inventory_products_controller.dart';
 import 'inventory_summary_controller.dart';
 
@@ -43,6 +44,15 @@ class InventoryHomeController extends GetxController {
 
     selectedIndex.value = index;
     _loadTabData(index);
+  }
+
+  void openScan() {
+    Get.toNamed(
+      AppRoutes.inventoryBarcodeScan,
+      arguments: const BarcodeScanArgs(
+        context: BarcodeScanContext.productLookup,
+      ),
+    );
   }
 
   @override

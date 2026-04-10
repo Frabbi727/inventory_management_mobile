@@ -29,10 +29,13 @@ class InventoryCategoryFilterSection extends StatelessWidget {
 
     if (isLoading && categories.isEmpty) {
       return Container(
-        height: 56,
+        height: 44,
         decoration: BoxDecoration(
-          color: colorScheme.surface,
+          color: Colors.white.withValues(alpha: 0.92),
           borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: colorScheme.outlineVariant.withValues(alpha: 0.7),
+          ),
         ),
         child: const ClipRRect(
           borderRadius: BorderRadius.all(Radius.circular(18)),
@@ -48,19 +51,18 @@ class InventoryCategoryFilterSection extends StatelessWidget {
     if (compact) {
       return SingleChildScrollView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(vertical: 2),
         child: Row(
           children: [
-            _ModernCategoryChip(
+            _InventoryCategoryChip(
               label: 'All',
-              icon: Icons.apps_rounded,
               isSelected: selectedCategoryId == null,
               onTap: onReset,
             ),
             const SizedBox(width: 10),
             ...categories.expand(
-                  (category) => [
-                _ModernCategoryChip(
+              (category) => [
+                _InventoryCategoryChip(
                   label: category.name ?? 'Category',
                   isSelected: selectedCategoryId == category.id,
                   onTap: () => onSelectCategory(category.id),
@@ -74,111 +76,48 @@ class InventoryCategoryFilterSection extends StatelessWidget {
     }
 
     return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(24),
+        color: Colors.white.withValues(alpha: 0.94),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(
           color: colorScheme.outlineVariant.withValues(alpha: 0.7),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
       ),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      colorScheme.primary,
-                      colorScheme.primary.withValues(alpha: 0.75),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(
-                  Icons.category_rounded,
-                  color: colorScheme.onPrimary,
-                  size: 22,
+              Text(
+                'Category',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Filter by Category',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: colorScheme.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Select a category to narrow product results.',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              const Spacer(),
               if (hasActiveCategory)
-                TextButton.icon(
-                  onPressed: onReset,
-                  style: TextButton.styleFrom(
-                    foregroundColor: colorScheme.primary,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                  ),
-                  icon: const Icon(Icons.refresh_rounded, size: 18),
-                  label: const Text('Reset'),
-                ),
+                TextButton(onPressed: onReset, child: const Text('Reset')),
             ],
           ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 44,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: categories.length + 1,
-              separatorBuilder: (_, _) => const SizedBox(width: 10),
-              itemBuilder: (context, index) {
-                if (index == 0) {
-                  return _ModernCategoryChip(
-                    label: 'All',
-                    icon: Icons.apps_rounded,
-                    isSelected: selectedCategoryId == null,
-                    onTap: onReset,
-                  );
-                }
-
-                final category = categories[index - 1];
-                final isSelected = category.id == selectedCategoryId;
-
-                return _ModernCategoryChip(
-                  label: category.name ?? 'Category ${category.id ?? index}',
-                  isSelected: isSelected,
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _InventoryCategoryChip(
+                label: 'All',
+                isSelected: selectedCategoryId == null,
+                onTap: onReset,
+              ),
+              ...categories.map(
+                (category) => _InventoryCategoryChip(
+                  label: category.name ?? 'Category',
+                  isSelected: selectedCategoryId == category.id,
                   onTap: () => onSelectCategory(category.id),
-                );
-              },
-            ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -186,18 +125,16 @@ class InventoryCategoryFilterSection extends StatelessWidget {
   }
 }
 
-class _ModernCategoryChip extends StatelessWidget {
-  const _ModernCategoryChip({
+class _InventoryCategoryChip extends StatelessWidget {
+  const _InventoryCategoryChip({
     required this.label,
     required this.isSelected,
     required this.onTap,
-    this.icon,
   });
 
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
-  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -209,62 +146,26 @@ class _ModernCategoryChip extends StatelessWidget {
       borderRadius: BorderRadius.circular(14),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          gradient: isSelected
-              ? LinearGradient(
-            colors: [
-              colorScheme.primary,
-              colorScheme.primary.withValues(alpha: 0.82),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          )
-              : null,
           color: isSelected
-              ? null
-              : colorScheme.secondaryContainer.withValues(alpha: 0.45),
+              ? colorScheme.primaryContainer
+              : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isSelected
-                ? colorScheme.primary
+                ? colorScheme.primary.withValues(alpha: 0.2)
                 : colorScheme.outlineVariant.withValues(alpha: 0.7),
           ),
-          boxShadow: isSelected
-              ? [
-            BoxShadow(
-              color: colorScheme.primary.withValues(alpha: 0.20),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ]
-              : [],
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(
-                icon,
-                size: 16,
-                color: isSelected
-                    ? colorScheme.onPrimary
-                    : colorScheme.onSecondaryContainer,
-              ),
-              const SizedBox(width: 6),
-            ],
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.labelLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: isSelected
-                    ? colorScheme.onPrimary
-                    : colorScheme.onSurface,
-              ),
-            ),
-          ],
+        child: Text(
+          label,
+          style: theme.textTheme.labelLarge?.copyWith(
+            color: isSelected
+                ? colorScheme.primary
+                : colorScheme.onSurfaceVariant,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+          ),
         ),
       ),
     );

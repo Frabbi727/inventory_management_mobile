@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../../../core/routes/app_routes.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
 import '../controllers/inventory_home_controller.dart';
 import 'inventory_products_page.dart';
 import 'purchase_list_page.dart';
 import 'inventory_summary_page.dart';
+import '../widgets/inventory_bottom_navigation.dart';
 
 class InventoryHomeScreen extends GetView<InventoryHomeController> {
   const InventoryHomeScreen({super.key});
@@ -31,40 +31,14 @@ class InventoryHomeScreen extends GetView<InventoryHomeController> {
             ),
           ],
         ),
-        bottomNavigationBar: NavigationBar(
+        bottomNavigationBar: InventoryBottomNavigation(
           selectedIndex: controller.selectedIndex.value,
-          onDestinationSelected: controller.changeTab,
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.inventory_2_outlined),
-              selectedIcon: Icon(Icons.inventory_2),
-              label: 'Products',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.local_shipping_outlined),
-              selectedIcon: Icon(Icons.local_shipping),
-              label: 'Purchases',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.analytics_outlined),
-              selectedIcon: Icon(Icons.analytics),
-              label: 'Inventory',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
-              label: 'Profile',
-            ),
-          ],
+          onTabSelected: controller.changeTab,
         ),
-        floatingActionButton: controller.selectedIndex.value == 3
-            ? null
-            : FloatingActionButton.extended(
-                onPressed: () => Get.toNamed(AppRoutes.inventoryPurchaseCreate),
-                icon: const Icon(Icons.add),
-                label: const Text('New Purchase'),
-              ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        floatingActionButton: InventoryScanButton(
+          onPressed: controller.openScan,
+        ),
       ),
     );
   }
