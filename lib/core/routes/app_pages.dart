@@ -11,6 +11,11 @@ import '../../features/customers/presentation/bindings/customer_binding.dart';
 import '../../features/customers/presentation/pages/add_customer_page.dart';
 import '../../features/customers/presentation/pages/customer_search_page.dart';
 import '../../features/inventory_manager/presentation/bindings/inventory_home_binding.dart';
+import '../../features/inventory_manager/presentation/bindings/barcode_scan_binding.dart';
+import '../../features/inventory_manager/presentation/bindings/create_purchase_binding.dart';
+import '../../features/inventory_manager/presentation/bindings/low_stock_binding.dart';
+import '../../features/inventory_manager/presentation/bindings/product_form_binding.dart';
+import '../../features/inventory_manager/presentation/bindings/purchase_details_binding.dart';
 import '../../features/inventory_manager/presentation/pages/barcode_scan_page.dart';
 import '../../features/inventory_manager/presentation/pages/create_purchase_page.dart';
 import '../../features/inventory_manager/presentation/pages/inventory_home_screen.dart';
@@ -22,7 +27,6 @@ import '../../features/cart_orders/presentation/pages/new_order_page.dart';
 import '../../features/cart_orders/presentation/pages/order_success_page.dart';
 import '../../features/invoice/presentation/bindings/order_details_binding.dart';
 import '../../features/invoice/presentation/pages/order_details_page.dart';
-import '../../features/products/presentation/bindings/product_binding.dart';
 import '../../features/products/presentation/bindings/product_details_binding.dart';
 import '../../features/products/presentation/pages/product_details_page.dart';
 import 'app_routes.dart';
@@ -54,27 +58,27 @@ class AppPages {
     GetPage<BarcodeScanPage>(
       name: AppRoutes.inventoryBarcodeScan,
       page: BarcodeScanPage.new,
-      binding: InventoryHomeBinding(),
+      binding: BarcodeScanBinding(),
     ),
     GetPage<ProductFormPage>(
       name: AppRoutes.inventoryProductForm,
       page: ProductFormPage.new,
-      binding: InventoryHomeBinding(),
+      binding: ProductFormBinding(),
     ),
     GetPage<CreatePurchasePage>(
       name: AppRoutes.inventoryPurchaseCreate,
       page: CreatePurchasePage.new,
-      binding: InventoryHomeBinding(),
+      binding: CreatePurchaseBinding(),
     ),
     GetPage<PurchaseDetailsPage>(
       name: AppRoutes.inventoryPurchaseDetails,
       page: PurchaseDetailsPage.new,
-      binding: InventoryHomeBinding(),
+      binding: PurchaseDetailsBinding(),
     ),
     GetPage<LowStockPage>(
       name: AppRoutes.inventoryLowStock,
       page: LowStockPage.new,
-      binding: ProductBinding(),
+      binding: LowStockBinding(),
     ),
     GetPage<NewOrderPage>(
       name: AppRoutes.newOrder,

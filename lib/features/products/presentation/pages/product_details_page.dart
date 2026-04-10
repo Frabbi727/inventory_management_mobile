@@ -5,7 +5,7 @@ import '../../../../core/routes/app_routes.dart';
 import '../../../../shared/widgets/app_message_state.dart';
 import '../../../../shared/widgets/app_remote_media.dart';
 import '../../data/models/product_model.dart';
-import '../../../inventory_manager/presentation/pages/product_form_page.dart';
+import '../../../inventory_manager/presentation/models/product_form_args.dart';
 import '../controllers/product_details_controller.dart';
 
 class ProductDetailsPage extends GetView<ProductDetailsController> {

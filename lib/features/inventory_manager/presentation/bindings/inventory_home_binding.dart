@@ -1,36 +1,20 @@
 import 'package:get/get.dart';
 
 import '../../../auth/presentation/bindings/auth_dependencies.dart';
-import '../../../products/presentation/bindings/product_dependencies.dart';
-import '../../../products/presentation/controllers/product_list_controller.dart';
-import '../../data/repositories/inventory_manager_repository.dart';
 import '../controllers/inventory_home_controller.dart';
-import '../controllers/purchase_draft_controller.dart';
-import '../controllers/purchase_flow_controller.dart';
+import 'inventory_manager_dependencies.dart';
+import 'inventory_products_binding.dart';
+import 'inventory_summary_binding.dart';
+import 'purchase_list_binding.dart';
 
 class InventoryHomeBinding extends Bindings {
   @override
   void dependencies() {
     AuthDependencies.ensureRegistered();
-    ProductDependencies.ensureRegistered();
-
-    if (!Get.isRegistered<InventoryManagerRepository>()) {
-      Get.lazyPut(
-        () => InventoryManagerRepository(
-          productRepository: Get.find(),
-          apiClient: Get.find(),
-          tokenStorage: Get.find(),
-        ),
-        fenix: true,
-      );
-    }
-
-    if (!Get.isRegistered<ProductListController>()) {
-      Get.lazyPut(
-        () => ProductListController(productRepository: Get.find()),
-        fenix: true,
-      );
-    }
+    InventoryManagerDependencies.ensureRegistered();
+    InventoryProductsBinding().dependencies();
+    PurchaseListBinding().dependencies();
+    InventorySummaryBinding().dependencies();
 
     if (!Get.isRegistered<InventoryHomeController>()) {
       Get.lazyPut(
@@ -39,19 +23,6 @@ class InventoryHomeBinding extends Bindings {
           tokenStorage: Get.find(),
           userStorage: Get.find(),
         ),
-      );
-    }
-
-    if (!Get.isRegistered<PurchaseDraftController>()) {
-      Get.put(PurchaseDraftController(), permanent: true);
-    }
-
-    if (!Get.isRegistered<PurchaseFlowController>()) {
-      Get.lazyPut(
-        () => PurchaseFlowController(
-          inventoryManagerRepository: Get.find<InventoryManagerRepository>(),
-        ),
-        fenix: true,
       );
     }
   }

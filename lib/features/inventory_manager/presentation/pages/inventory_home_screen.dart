@@ -5,6 +5,7 @@ import '../../../../core/routes/app_routes.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
 import '../controllers/inventory_home_controller.dart';
 import 'inventory_products_page.dart';
+import 'purchase_list_page.dart';
 import 'inventory_summary_page.dart';
 
 class InventoryHomeScreen extends GetView<InventoryHomeController> {
@@ -12,17 +13,13 @@ class InventoryHomeScreen extends GetView<InventoryHomeController> {
 
   @override
   Widget build(BuildContext context) {
-    return Obx(() {
-      final selectedIndex = controller.selectedIndex.value == 1
-          ? 0
-          : controller.selectedIndex.value;
-
-      return Scaffold(
+    return Obx(
+      () => Scaffold(
         body: IndexedStack(
-          index: selectedIndex,
+          index: controller.selectedIndex.value,
           children: [
             const InventoryProductsPage(),
-            const SizedBox.shrink(),
+            const PurchaseListPage(),
             const InventorySummaryPage(),
             ProfilePage(
               name: controller.user.value?.name ?? '-',
@@ -35,15 +32,8 @@ class InventoryHomeScreen extends GetView<InventoryHomeController> {
           ],
         ),
         bottomNavigationBar: NavigationBar(
-          selectedIndex: selectedIndex,
-          onDestinationSelected: (index) {
-            if (index == 1) {
-              Get.toNamed(AppRoutes.inventoryPurchaseCreate);
-              return;
-            }
-
-            controller.changeTab(index);
-          },
+          selectedIndex: controller.selectedIndex.value,
+          onDestinationSelected: controller.changeTab,
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
           destinations: const [
             NavigationDestination(
@@ -68,7 +58,14 @@ class InventoryHomeScreen extends GetView<InventoryHomeController> {
             ),
           ],
         ),
-      );
-    });
+        floatingActionButton: controller.selectedIndex.value == 3
+            ? null
+            : FloatingActionButton.extended(
+                onPressed: () => Get.toNamed(AppRoutes.inventoryPurchaseCreate),
+                icon: const Icon(Icons.add),
+                label: const Text('New Purchase'),
+              ),
+      ),
+    );
   }
 }

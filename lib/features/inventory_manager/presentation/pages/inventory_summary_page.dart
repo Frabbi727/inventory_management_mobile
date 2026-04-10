@@ -1,45 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../../../core/routes/app_routes.dart';
 import '../../../../shared/widgets/app_page_header.dart';
-import '../../../products/data/models/product_model.dart';
-import '../../../products/presentation/controllers/product_list_controller.dart';
+import '../controllers/inventory_summary_controller.dart';
 
-class InventorySummaryPage extends StatefulWidget {
+class InventorySummaryPage extends GetView<InventorySummaryController> {
   const InventorySummaryPage({super.key});
-
-  @override
-  State<InventorySummaryPage> createState() => _InventorySummaryPageState();
-}
-
-class _InventorySummaryPageState extends State<InventorySummaryPage> {
-  late final ProductListController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = Get.find<ProductListController>();
-    _controller.ensureLoaded();
-  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return SafeArea(
-      child: Obx(() {
-        final products = _controller.products.toList();
-        final lowStockProducts = products
-            .where(_isLowStock)
-            .toList(growable: false);
-        final outOfStockProducts = products
-            .where((product) => (product.currentStock ?? 0) <= 0)
-            .toList(growable: false);
-
-        return RefreshIndicator(
-          onRefresh: () => _controller.ensureLoaded(forceRefresh: true),
+      child: Obx(
+        () => RefreshIndicator(
+          onRefresh: controller.retry,
           child: ListView(
+            controller: controller.scrollController,
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
               AppPageHeader(
@@ -47,7 +24,7 @@ class _InventorySummaryPageState extends State<InventorySummaryPage> {
                 subtitle:
                     'Watch stock health, low-stock exposure, and the products that need attention.',
                 trailing: OutlinedButton(
-                  onPressed: () => Get.toNamed(AppRoutes.inventoryLowStock),
+                  onPressed: controller.openLowStock,
                   child: const Text('Low Stock'),
                 ),
               ),
@@ -57,7 +34,7 @@ class _InventorySummaryPageState extends State<InventorySummaryPage> {
                   Expanded(
                     child: _SummaryCard(
                       label: 'Products',
-                      value: '${products.length}',
+                      value: '${controller.products.length}',
                       icon: Icons.inventory_2_outlined,
                     ),
                   ),
@@ -65,7 +42,7 @@ class _InventorySummaryPageState extends State<InventorySummaryPage> {
                   Expanded(
                     child: _SummaryCard(
                       label: 'Low stock',
-                      value: '${lowStockProducts.length}',
+                      value: '${controller.lowStockProducts.length}',
                       icon: Icons.warning_amber_rounded,
                     ),
                   ),
@@ -77,7 +54,7 @@ class _InventorySummaryPageState extends State<InventorySummaryPage> {
                   Expanded(
                     child: _SummaryCard(
                       label: 'Out of stock',
-                      value: '${outOfStockProducts.length}',
+                      value: '${controller.outOfStockProducts.length}',
                       icon: Icons.remove_shopping_cart_outlined,
                     ),
                   ),
@@ -85,8 +62,7 @@ class _InventorySummaryPageState extends State<InventorySummaryPage> {
                   Expanded(
                     child: _SummaryCard(
                       label: 'Categories',
-                      value:
-                          '${products.map((e) => e.category?.id).whereType<int>().toSet().length}',
+                      value: '${controller.categoryCount}',
                       icon: Icons.category_outlined,
                     ),
                   ),
@@ -100,7 +76,7 @@ class _InventorySummaryPageState extends State<InventorySummaryPage> {
                 ),
               ),
               const SizedBox(height: 12),
-              if (lowStockProducts.isEmpty)
+              if (controller.lowStockProducts.isEmpty)
                 const Card(
                   child: Padding(
                     padding: EdgeInsets.all(16),
@@ -108,25 +84,28 @@ class _InventorySummaryPageState extends State<InventorySummaryPage> {
                   ),
                 )
               else
-                ...lowStockProducts
+                ...controller.lowStockProducts
                     .take(8)
                     .map(
                       (product) => Padding(
                         padding: const EdgeInsets.only(bottom: 12),
-                        child: _AttentionCard(product: product),
+                        child: Card(
+                          child: ListTile(
+                            title: Text(product.name ?? 'Unnamed product'),
+                            subtitle: Text(
+                              'Stock ${product.currentStock ?? 0} | Alert ${product.minimumStockAlert ?? 0}',
+                            ),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () => controller.openDetails(product),
+                          ),
+                        ),
                       ),
                     ),
             ],
           ),
-        );
-      }),
+        ),
+      ),
     );
-  }
-
-  bool _isLowStock(ProductModel product) {
-    final currentStock = product.currentStock ?? 0;
-    final minimumStockAlert = product.minimumStockAlert ?? 0;
-    return currentStock <= minimumStockAlert;
   }
 }
 
@@ -163,26 +142,6 @@ class _SummaryCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _AttentionCard extends StatelessWidget {
-  const _AttentionCard({required this.product});
-
-  final ProductModel product;
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        title: Text(product.name ?? 'Unnamed product'),
-        subtitle: Text(
-          'Stock ${product.currentStock ?? 0} | Alert ${product.minimumStockAlert ?? 0}',
-        ),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () => Get.toNamed(AppRoutes.productDetails, arguments: product),
       ),
     );
   }

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../../../core/routes/app_routes.dart';
 import '../../../../shared/widgets/app_page_header.dart';
+import '../controllers/purchase_list_controller.dart';
 
-class PurchaseListPage extends StatelessWidget {
+class PurchaseListPage extends GetView<PurchaseListController> {
   const PurchaseListPage({super.key});
 
   @override
@@ -17,9 +17,9 @@ class PurchaseListPage extends StatelessWidget {
             AppPageHeader(
               title: 'Purchases',
               subtitle:
-                  'Prepare receiving items from product search, category filters, and barcode scan. Final purchase save is still web-only.',
+                  'Prepare receiving items from search, category filters, and barcode scan using the same inventory flow.',
               trailing: FilledButton.icon(
-                onPressed: () => Get.toNamed(AppRoutes.inventoryPurchaseCreate),
+                onPressed: controller.openNewPurchase,
                 icon: const Icon(Icons.add),
                 label: const Text('New Purchase'),
               ),
@@ -39,25 +39,15 @@ class PurchaseListPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Use the live product APIs to search by name, filter by category, review stock, and scan barcodes. Build a local purchase draft on mobile, then complete final save in web until the backend exposes purchase write APIs.',
+                      'Use the live product APIs to search by name, filter by category, review stock, and scan barcodes before submitting a purchase.',
                     ),
                     const SizedBox(height: 16),
                     FilledButton.icon(
-                      onPressed: () =>
-                          Get.toNamed(AppRoutes.inventoryPurchaseCreate),
+                      onPressed: controller.openNewPurchase,
                       icon: const Icon(Icons.qr_code_scanner),
                       label: const Text('Start Receiving'),
                     ),
                   ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: Text(
-                  'Backend limitation: /api/inventory-manager/purchases does not exist yet. This tab only supports purchase preparation using product list and barcode lookup APIs.',
                 ),
               ),
             ),

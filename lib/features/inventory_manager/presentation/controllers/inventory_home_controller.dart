@@ -5,6 +5,8 @@ import '../../../../core/storage/token_storage.dart';
 import '../../../../core/storage/user_storage.dart';
 import '../../../auth/data/models/user_model.dart';
 import '../../../auth/data/repositories/auth_repository.dart';
+import 'inventory_products_controller.dart';
+import 'inventory_summary_controller.dart';
 
 class InventoryHomeController extends GetxController {
   InventoryHomeController({
@@ -34,7 +36,34 @@ class InventoryHomeController extends GetxController {
   }
 
   void changeTab(int index) {
+    final previousIndex = selectedIndex.value;
+    if (previousIndex == index) {
+      return;
+    }
+
     selectedIndex.value = index;
+    _loadTabData(index);
+  }
+
+  @override
+  void onReady() {
+    super.onReady();
+    _loadTabData(selectedIndex.value);
+  }
+
+  void _loadTabData(int index) {
+    switch (index) {
+      case 0:
+        if (Get.isRegistered<InventoryProductsController>()) {
+          Get.find<InventoryProductsController>().onTabActivated();
+        }
+        break;
+      case 2:
+        if (Get.isRegistered<InventorySummaryController>()) {
+          Get.find<InventorySummaryController>().onTabActivated();
+        }
+        break;
+    }
   }
 
   Future<void> logout() async {
