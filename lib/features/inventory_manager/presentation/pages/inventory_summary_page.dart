@@ -59,11 +59,6 @@ class _InventorySummaryPageState extends State<InventorySummaryPage> {
                 title: 'Inventory',
                 subtitle:
                     'Watch stock health, low-stock exposure, and the products that need attention.',
-                trailing: OutlinedButton.icon(
-                  onPressed: controller.openLowStock,
-                  icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                  label: const Text('Low Stock'),
-                ),
               ),
               const SizedBox(height: 20),
               _InventoryOverviewBanner(

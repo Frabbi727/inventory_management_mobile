@@ -10,11 +10,10 @@ import '../../features/customers/presentation/bindings/add_customer_binding.dart
 import '../../features/customers/presentation/bindings/customer_binding.dart';
 import '../../features/customers/presentation/pages/add_customer_page.dart';
 import '../../features/customers/presentation/pages/customer_search_page.dart';
-import '../../features/inventory_manager/presentation/bindings/inventory_home_binding.dart';
 import '../../features/inventory_manager/presentation/bindings/barcode_scan_binding.dart';
 import '../../features/inventory_manager/presentation/bindings/create_purchase_binding.dart';
 import '../../features/inventory_manager/presentation/bindings/edit_purchase_binding.dart';
-import '../../features/inventory_manager/presentation/bindings/low_stock_binding.dart';
+import '../../features/inventory_manager/presentation/bindings/inventory_home_binding.dart';
 import '../../features/inventory_manager/presentation/bindings/purchase_records_binding.dart';
 import '../../features/inventory_manager/presentation/bindings/purchase_view_binding.dart';
 import '../../features/inventory_manager/presentation/bindings/product_form_binding.dart';
@@ -23,7 +22,6 @@ import '../../features/inventory_manager/presentation/pages/barcode_scan_page.da
 import '../../features/inventory_manager/presentation/pages/create_purchase_page.dart';
 import '../../features/inventory_manager/presentation/pages/edit_purchase_page.dart';
 import '../../features/inventory_manager/presentation/pages/inventory_home_screen.dart';
-import '../../features/inventory_manager/presentation/pages/low_stock_page.dart';
 import '../../features/inventory_manager/presentation/pages/product_form_page.dart';
 import '../../features/inventory_manager/presentation/pages/purchase_details_page.dart';
 import '../../features/inventory_manager/presentation/pages/purchase_records_page.dart';
@@ -95,11 +93,6 @@ class AppPages {
       name: AppRoutes.inventoryPurchaseEdit,
       page: EditPurchasePage.new,
       binding: EditPurchaseBinding(),
-    ),
-    GetPage<LowStockPage>(
-      name: AppRoutes.inventoryLowStock,
-      page: LowStockPage.new,
-      binding: LowStockBinding(),
     ),
     GetPage<NewOrderPage>(
       name: AppRoutes.newOrder,

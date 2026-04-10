@@ -10,7 +10,6 @@ abstract class AppRoutes {
   static const inventoryPurchaseDetails = '/inventory/purchases/details';
   static const inventoryPurchaseView = '/inventory/purchases/view';
   static const inventoryPurchaseEdit = '/inventory/purchases/edit';
-  static const inventoryLowStock = '/inventory/low-stock';
   static const newOrder = '/orders/new';
   static const customerSearch = '/customers/search';
   static const addCustomer = '/customers/add';

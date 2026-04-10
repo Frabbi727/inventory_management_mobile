@@ -36,10 +36,6 @@ class InventorySummaryController extends InventoryProductCatalogController {
     return 'No inventory summary is available right now.';
   }
 
-  void openLowStock() {
-    Get.toNamed(AppRoutes.inventoryLowStock);
-  }
-
   void openDetails(ProductModel product) {
     Get.toNamed(AppRoutes.productDetails, arguments: product);
   }
