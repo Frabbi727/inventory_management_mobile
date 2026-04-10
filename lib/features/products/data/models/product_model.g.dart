@@ -17,6 +17,7 @@ ProductModel _$ProductModelFromJson(Map<String, dynamic> json) => ProductModel(
   purchasePrice: json['purchase_price'] as num?,
   sellingPrice: json['selling_price'] as num?,
   minimumStockAlert: (json['minimum_stock_alert'] as num?)?.toInt(),
+  stockStatus: ProductStockStatus.fromApiValue(json['stock_status'] as String?),
   status: json['status'] as String?,
   currentStock: (json['current_stock'] as num?)?.toInt(),
   primaryPhoto: json['primary_photo'] == null
@@ -48,6 +49,7 @@ Map<String, dynamic> _$ProductModelToJson(ProductModel instance) =>
       'purchase_price': instance.purchasePrice,
       'selling_price': instance.sellingPrice,
       'minimum_stock_alert': instance.minimumStockAlert,
+      'stock_status': ProductStockStatus.toApiValue(instance.stockStatus),
       'status': instance.status,
       'current_stock': instance.currentStock,
       'primary_photo': instance.primaryPhoto?.toJson(),

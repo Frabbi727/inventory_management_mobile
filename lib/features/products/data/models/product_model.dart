@@ -3,6 +3,7 @@ import 'package:json_annotation/json_annotation.dart';
 import '../../../../core/network/media_url_resolver.dart';
 import 'product_category_model.dart';
 import 'product_photo_model.dart';
+import 'product_stock_status.dart';
 import 'product_unit_model.dart';
 
 part 'product_model.g.dart';
@@ -18,6 +19,7 @@ class ProductModel {
     this.purchasePrice,
     this.sellingPrice,
     this.minimumStockAlert,
+    this.stockStatus,
     this.status,
     this.currentStock,
     this.primaryPhoto,
@@ -46,6 +48,13 @@ class ProductModel {
   @JsonKey(name: 'minimum_stock_alert')
   final int? minimumStockAlert;
 
+  @JsonKey(
+    name: 'stock_status',
+    fromJson: ProductStockStatus.fromApiValue,
+    toJson: ProductStockStatus.toApiValue,
+  )
+  final ProductStockStatus? stockStatus;
+
   final String? status;
 
   @JsonKey(name: 'current_stock')
@@ -69,6 +78,12 @@ class ProductModel {
   final String? updatedAt;
 
   String? get primaryPhotoUrl => primaryPhoto?.fileUrl;
+
+  ProductStockStatus get resolvedStockStatus => ProductStockStatus.resolve(
+    apiStatus: stockStatus,
+    currentStock: currentStock,
+    minimumStockAlert: minimumStockAlert,
+  );
 
   List<ProductPhotoModel> get galleryPhotos {
     final resolvedPhotos = photos ?? const <ProductPhotoModel>[];

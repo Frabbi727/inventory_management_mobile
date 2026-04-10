@@ -9,6 +9,7 @@ import '../../../products/data/repositories/product_repository.dart';
 import '../models/barcode_resolve_response.dart';
 import '../models/create_or_update_barcode_product_request.dart';
 import '../models/create_or_update_purchase_request.dart';
+import '../models/inventory_purchase_list_response_model.dart';
 import '../models/product_photo_upload_file.dart';
 import '../models/purchase_response_model.dart';
 import '../models/purchase_response_wrapper_model.dart';
@@ -152,6 +153,47 @@ class InventoryManagerRepository {
     final parsed = PurchaseResponseWrapperModel.fromJson(response);
     if (parsed.data == null) {
       throw ApiException(message: 'Purchase response was not returned.');
+    }
+    return parsed.data!;
+  }
+
+  Future<InventoryPurchaseListResponseModel> fetchPurchases({
+    int page = 1,
+    String? query,
+    String? startDate,
+    String? endDate,
+  }) async {
+    final token = await _requireToken();
+    final queryParameters = <String, String>{'page': page.toString()};
+
+    if (query != null && query.isNotEmpty) {
+      queryParameters['q'] = query;
+    }
+    if (startDate != null && startDate.isNotEmpty) {
+      queryParameters['start_date'] = startDate;
+    }
+    if (endDate != null && endDate.isNotEmpty) {
+      queryParameters['end_date'] = endDate;
+    }
+
+    final response = await _apiClient.get(
+      ApiEndpoints.purchases,
+      token: token,
+      queryParameters: queryParameters,
+    );
+
+    return InventoryPurchaseListResponseModel.fromJson(response);
+  }
+
+  Future<PurchaseResponseModel> fetchPurchaseDetails(int purchaseId) async {
+    final token = await _requireToken();
+    final response = await _apiClient.get(
+      ApiEndpoints.purchaseDetails(purchaseId),
+      token: token,
+    );
+    final parsed = PurchaseResponseWrapperModel.fromJson(response);
+    if (parsed.data == null) {
+      throw ApiException(message: 'Purchase details were not returned.');
     }
     return parsed.data!;
   }

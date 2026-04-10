@@ -5,8 +5,10 @@ abstract class AppRoutes {
   static const inventoryHome = '/inventory/home';
   static const inventoryBarcodeScan = '/inventory/barcode-scan';
   static const inventoryProductForm = '/inventory/product-form';
+  static const inventoryPurchases = '/inventory/purchases';
   static const inventoryPurchaseCreate = '/inventory/purchases/create';
   static const inventoryPurchaseDetails = '/inventory/purchases/details';
+  static const inventoryPurchaseEdit = '/inventory/purchases/edit';
   static const inventoryLowStock = '/inventory/low-stock';
   static const newOrder = '/orders/new';
   static const customerSearch = '/customers/search';

@@ -13,15 +13,19 @@ import '../../features/customers/presentation/pages/customer_search_page.dart';
 import '../../features/inventory_manager/presentation/bindings/inventory_home_binding.dart';
 import '../../features/inventory_manager/presentation/bindings/barcode_scan_binding.dart';
 import '../../features/inventory_manager/presentation/bindings/create_purchase_binding.dart';
+import '../../features/inventory_manager/presentation/bindings/edit_purchase_binding.dart';
 import '../../features/inventory_manager/presentation/bindings/low_stock_binding.dart';
+import '../../features/inventory_manager/presentation/bindings/purchase_records_binding.dart';
 import '../../features/inventory_manager/presentation/bindings/product_form_binding.dart';
 import '../../features/inventory_manager/presentation/bindings/purchase_details_binding.dart';
 import '../../features/inventory_manager/presentation/pages/barcode_scan_page.dart';
 import '../../features/inventory_manager/presentation/pages/create_purchase_page.dart';
+import '../../features/inventory_manager/presentation/pages/edit_purchase_page.dart';
 import '../../features/inventory_manager/presentation/pages/inventory_home_screen.dart';
 import '../../features/inventory_manager/presentation/pages/low_stock_page.dart';
 import '../../features/inventory_manager/presentation/pages/product_form_page.dart';
 import '../../features/inventory_manager/presentation/pages/purchase_details_page.dart';
+import '../../features/inventory_manager/presentation/pages/purchase_records_page.dart';
 import '../../features/cart_orders/presentation/bindings/new_order_binding.dart';
 import '../../features/cart_orders/presentation/pages/new_order_page.dart';
 import '../../features/cart_orders/presentation/pages/order_success_page.dart';
@@ -65,6 +69,11 @@ class AppPages {
       page: ProductFormPage.new,
       binding: ProductFormBinding(),
     ),
+    GetPage<PurchaseRecordsPage>(
+      name: AppRoutes.inventoryPurchases,
+      page: PurchaseRecordsPage.new,
+      binding: PurchaseRecordsBinding(),
+    ),
     GetPage<CreatePurchasePage>(
       name: AppRoutes.inventoryPurchaseCreate,
       page: CreatePurchasePage.new,
@@ -74,6 +83,11 @@ class AppPages {
       name: AppRoutes.inventoryPurchaseDetails,
       page: PurchaseDetailsPage.new,
       binding: PurchaseDetailsBinding(),
+    ),
+    GetPage<EditPurchasePage>(
+      name: AppRoutes.inventoryPurchaseEdit,
+      page: EditPurchasePage.new,
+      binding: EditPurchaseBinding(),
     ),
     GetPage<LowStockPage>(
       name: AppRoutes.inventoryLowStock,

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../../../core/routes/app_routes.dart';
 import '../../../products/data/models/product_model.dart';
+import '../../data/models/purchase_response_model.dart';
 import '../../data/repositories/inventory_manager_repository.dart';
 import '../models/barcode_scan_models.dart';
 import '../models/product_form_args.dart';
@@ -69,8 +70,15 @@ class CreatePurchaseController extends InventoryProductCatalogController {
     }
   }
 
-  void openPurchaseDetails(ProductModel product) {
-    Get.toNamed(AppRoutes.inventoryPurchaseDetails, arguments: product);
+  Future<void> openPurchaseDetails(ProductModel product) async {
+    final result = await Get.toNamed(
+      AppRoutes.inventoryPurchaseDetails,
+      arguments: product,
+    );
+
+    if (result is PurchaseResponseModel) {
+      Get.back(result: result);
+    }
   }
 
   void openCreateProduct(String barcode) {

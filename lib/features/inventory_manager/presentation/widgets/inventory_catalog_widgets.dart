@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../shared/widgets/app_remote_media.dart';
+import '../../../../shared/widgets/product_stock_status_badge.dart';
 import '../../../products/data/models/product_model.dart';
 
 class InventorySearchPanel extends StatelessWidget {
@@ -147,9 +148,8 @@ class InventoryProductCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final stock = product.currentStock ?? 0;
-    final minimumStock = product.minimumStockAlert ?? 0;
-    final isLowStock = minimumStock > 0 && stock <= minimumStock;
-    final accentColor = isLowStock ? colorScheme.error : colorScheme.primary;
+    final stockStatus = product.resolvedStockStatus;
+    final accentColor = stockStatus.textColor;
     final primaryPhotoUrl = product.primaryPhotoUrl;
 
     return Card(
@@ -203,13 +203,8 @@ class InventoryProductCard extends StatelessWidget {
                                 ),
                               ),
                             ),
-                            if (isLowStock) ...[
-                              const SizedBox(width: 8),
-                              _InventoryStatusBadge(
-                                label: 'Low stock',
-                                color: accentColor,
-                              ),
-                            ],
+                            const SizedBox(width: 8),
+                            ProductStockStatusBadge(status: stockStatus),
                           ],
                         ),
                         const SizedBox(height: 4),
@@ -427,31 +422,6 @@ class InventoryPageState extends StatelessWidget {
             OutlinedButton(onPressed: onAction, child: Text(actionLabel!)),
           ],
         ],
-      ),
-    );
-  }
-}
-
-class _InventoryStatusBadge extends StatelessWidget {
-  const _InventoryStatusBadge({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: color,
-          fontWeight: FontWeight.w800,
-        ),
       ),
     );
   }

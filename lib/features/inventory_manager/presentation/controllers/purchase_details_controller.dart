@@ -134,7 +134,7 @@ class PurchaseDetailsController extends GetxController {
         ),
       );
 
-      Get.back();
+      Get.back(result: response);
       Get.snackbar('Purchase created', buildPurchaseSavedMessage(response));
     } on ApiException catch (error) {
       submitError.value = _buildPurchaseError(error);

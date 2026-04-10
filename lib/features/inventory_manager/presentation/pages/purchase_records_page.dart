@@ -2,182 +2,188 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../shared/widgets/app_message_state.dart';
-import '../../../../shared/widgets/app_page_header.dart';
+import '../controllers/purchase_records_controller.dart';
 import '../../data/models/inventory_purchase_model.dart';
-import '../controllers/purchase_list_controller.dart';
 
-class PurchaseListPage extends GetView<PurchaseListController> {
-  const PurchaseListPage({super.key});
+class PurchaseRecordsPage extends GetView<PurchaseRecordsController> {
+  const PurchaseRecordsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-        child: Column(
-          children: [
-            AppPageHeader(
-              title: 'Purchases',
-              subtitle: controller.hasAnyQueryApplied
-                  ? 'Search and date filters stay applied while refreshing the list.'
-                  : 'Review recent purchases and open any purchase to edit it.',
-              trailing: FilledButton.icon(
-                onPressed: controller.openNewPurchase,
-                icon: const Icon(Icons.add),
-                label: const Text('New Purchase'),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Purchases'),
+        actions: [
+          IconButton(
+            tooltip: 'Create purchase',
+            onPressed: controller.openCreatePurchase,
+            icon: const Icon(Icons.add_circle_outline),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: controller.openCreatePurchase,
+        icon: const Icon(Icons.add),
+        label: const Text('Create'),
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          child: Column(
+            children: [
+              _PurchaseToolbar(controller: controller),
+              const SizedBox(height: 12),
+              Obx(
+                () => AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  child: controller.activeFilterCount == 0
+                      ? const SizedBox.shrink()
+                      : Align(
+                          alignment: Alignment.centerLeft,
+                          child: Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              if (controller.hasActiveSearch)
+                                _FilterChip(
+                                  label: 'Search: ${controller.searchQuery.value}',
+                                ),
+                              if (controller.hasActiveDateFilter)
+                                _FilterChip(label: controller.dateRangeLabel),
+                              ActionChip(
+                                label: const Text('Reset'),
+                                avatar: const Icon(
+                                  Icons.restart_alt,
+                                  size: 18,
+                                ),
+                                onPressed: controller.clearAllCriteria,
+                              ),
+                            ],
+                          ),
+                        ),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            _PurchaseToolbar(controller: controller),
-            const SizedBox(height: 12),
-            Obx(
-              () => AnimatedSwitcher(
-                duration: const Duration(milliseconds: 180),
-                child: controller.activeFilterCount == 0
-                    ? const SizedBox.shrink()
-                    : Align(
-                        alignment: Alignment.centerLeft,
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            if (controller.hasActiveSearch)
-                              _FilterChip(
-                                label: 'Search: ${controller.searchQuery.value}',
-                              ),
-                            if (controller.hasActiveDateFilter)
-                              _FilterChip(label: controller.dateRangeLabel),
-                            ActionChip(
-                              label: const Text('Reset'),
-                              avatar: const Icon(
-                                Icons.restart_alt,
-                                size: 18,
-                              ),
-                              onPressed: controller.clearAllCriteria,
-                            ),
-                          ],
+              const SizedBox(height: 12),
+              Expanded(
+                child: Obx(() {
+                  if (controller.isInitialLoading.value &&
+                      controller.purchases.isEmpty) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (controller.errorMessage.value != null &&
+                      controller.purchases.isEmpty) {
+                    return AppMessageState(
+                      icon: Icons.cloud_off_outlined,
+                      message: controller.errorMessage.value!,
+                      actionLabel: 'Retry',
+                      onAction: controller.retry,
+                    );
+                  }
+
+                  return Column(
+                    children: [
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        child:
+                            controller.errorMessage.value != null &&
+                                controller.purchases.isNotEmpty
+                            ? _InlineBanner(
+                                message: controller.errorMessage.value!,
+                                onRetry: controller.retry,
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        child: controller.showInlineLoader
+                            ? const Padding(
+                                padding: EdgeInsets.only(bottom: 8),
+                                child: LinearProgressIndicator(minHeight: 3),
+                              )
+                            : const SizedBox(height: 0),
+                      ),
+                      Expanded(
+                        child: RefreshIndicator(
+                          onRefresh: controller.retry,
+                          edgeOffset: 12,
+                          displacement: 28,
+                          child: controller.purchases.isEmpty
+                              ? ListView(
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(
+                                        parent: BouncingScrollPhysics(),
+                                      ),
+                                  children: [
+                                    SizedBox(
+                                      height:
+                                          MediaQuery.of(context).size.height *
+                                          0.5,
+                                      child: AppMessageState(
+                                        icon: controller.hasAnyQueryApplied
+                                            ? Icons.search_off_outlined
+                                            : Icons.inventory_2_outlined,
+                                        message:
+                                            controller.infoMessage.value ??
+                                            'No purchases available.',
+                                        actionLabel:
+                                            controller.hasAnyQueryApplied
+                                            ? 'Clear filters'
+                                            : 'Refresh',
+                                        onAction:
+                                            controller.hasAnyQueryApplied
+                                            ? controller.clearAllCriteria
+                                            : controller.retry,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              : ListView.separated(
+                                  controller: controller.scrollController,
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(
+                                        parent: BouncingScrollPhysics(),
+                                      ),
+                                  padding: const EdgeInsets.only(
+                                    top: 4,
+                                    bottom: 112,
+                                  ),
+                                  itemCount:
+                                      controller.purchases.length +
+                                      (controller.isLoadingMore.value ? 1 : 0),
+                                  separatorBuilder: (_, _) =>
+                                      const SizedBox(height: 12),
+                                  itemBuilder: (context, index) {
+                                    if (index >= controller.purchases.length) {
+                                      return const Padding(
+                                        padding: EdgeInsets.symmetric(
+                                          vertical: 16,
+                                        ),
+                                        child: Center(
+                                          child: CircularProgressIndicator(),
+                                        ),
+                                      );
+                                    }
+
+                                    final purchase = controller.purchases[index];
+                                    return _PurchaseCard(
+                                      purchase: purchase,
+                                      formatDate: controller.formatDate,
+                                      formatCurrency:
+                                          controller.formatCurrency,
+                                      onOpen: () => controller
+                                          .openPurchaseEditor(purchase),
+                                    );
+                                  },
+                                ),
                         ),
                       ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Expanded(
-              child: Obx(() {
-                if (controller.isInitialLoading.value &&
-                    controller.purchases.isEmpty) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
-                if (controller.errorMessage.value != null &&
-                    controller.purchases.isEmpty) {
-                  return AppMessageState(
-                    icon: Icons.cloud_off_outlined,
-                    message: controller.errorMessage.value!,
-                    actionLabel: 'Retry',
-                    onAction: controller.retry,
+                    ],
                   );
-                }
-
-                return Column(
-                  children: [
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 180),
-                      child:
-                          controller.errorMessage.value != null &&
-                              controller.purchases.isNotEmpty
-                          ? _InlineBanner(
-                              message: controller.errorMessage.value!,
-                              onRetry: controller.retry,
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 180),
-                      child: controller.showInlineLoader
-                          ? const Padding(
-                              padding: EdgeInsets.only(bottom: 8),
-                              child: LinearProgressIndicator(minHeight: 3),
-                            )
-                          : const SizedBox(height: 0),
-                    ),
-                    Expanded(
-                      child: RefreshIndicator(
-                        onRefresh: controller.retry,
-                        edgeOffset: 12,
-                        displacement: 28,
-                        child: controller.purchases.isEmpty
-                            ? ListView(
-                                physics: const AlwaysScrollableScrollPhysics(
-                                  parent: BouncingScrollPhysics(),
-                                ),
-                                children: [
-                                  SizedBox(
-                                    height:
-                                        MediaQuery.of(context).size.height *
-                                        0.45,
-                                    child: AppMessageState(
-                                      icon: controller.hasAnyQueryApplied
-                                          ? Icons.search_off_outlined
-                                          : Icons.inventory_2_outlined,
-                                      message:
-                                          controller.infoMessage.value ??
-                                          'No purchases available.',
-                                      actionLabel:
-                                          controller.hasAnyQueryApplied
-                                          ? 'Clear filters'
-                                          : 'Refresh',
-                                      onAction:
-                                          controller.hasAnyQueryApplied
-                                          ? controller.clearAllCriteria
-                                          : controller.retry,
-                                    ),
-                                  ),
-                                ],
-                              )
-                            : ListView.separated(
-                                controller: controller.scrollController,
-                                physics: const AlwaysScrollableScrollPhysics(
-                                  parent: BouncingScrollPhysics(),
-                                ),
-                                padding: const EdgeInsets.only(
-                                  top: 4,
-                                  bottom: 96,
-                                ),
-                                itemCount:
-                                    controller.purchases.length +
-                                    (controller.isLoadingMore.value ? 1 : 0),
-                                separatorBuilder: (_, _) =>
-                                    const SizedBox(height: 12),
-                                itemBuilder: (context, index) {
-                                  if (index >= controller.purchases.length) {
-                                    return const Padding(
-                                      padding: EdgeInsets.symmetric(
-                                        vertical: 16,
-                                      ),
-                                      child: Center(
-                                        child: CircularProgressIndicator(),
-                                      ),
-                                    );
-                                  }
-
-                                  final purchase = controller.purchases[index];
-                                  return _PurchaseCard(
-                                    purchase: purchase,
-                                    formatDate: controller.formatDate,
-                                    formatCurrency:
-                                        controller.formatCurrency,
-                                    onOpen: () =>
-                                        controller.openPurchaseEditor(purchase),
-                                  );
-                                },
-                              ),
-                      ),
-                    ),
-                  ],
-                );
-              }),
-            ),
-          ],
+                }),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -187,7 +193,7 @@ class PurchaseListPage extends GetView<PurchaseListController> {
 class _PurchaseToolbar extends StatelessWidget {
   const _PurchaseToolbar({required this.controller});
 
-  final PurchaseListController controller;
+  final PurchaseRecordsController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -264,6 +270,39 @@ class _PurchaseToolbar extends StatelessWidget {
                         ? controller.clearAllCriteria
                         : null,
                     icon: const Icon(Icons.restart_alt),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Obx(
+              () => Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 9,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Text(
+                      '${controller.purchases.length} loaded',
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.onPrimaryContainer,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      controller.hasAnyQueryApplied
+                          ? 'Search and date filters work together across pages.'
+                          : 'Pull down to refresh the latest purchases.',
+                      style: theme.textTheme.bodySmall,
+                    ),
                   ),
                 ],
               ),
@@ -365,7 +404,10 @@ class _PurchaseCard extends StatelessWidget {
                         .withValues(alpha: 0.55),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Text(note, style: theme.textTheme.bodyMedium),
+                  child: Text(
+                    note,
+                    style: theme.textTheme.bodyMedium,
+                  ),
                 ),
               ],
             ],

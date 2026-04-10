@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../shared/widgets/app_message_state.dart';
 import '../../../../shared/widgets/app_remote_media.dart';
+import '../../../../shared/widgets/product_stock_status_badge.dart';
 import '../../data/models/product_model.dart';
 import '../../../inventory_manager/presentation/models/product_form_args.dart';
 import '../controllers/product_details_controller.dart';
@@ -287,26 +288,39 @@ class _OverviewCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isActive
-                        ? const Color(0xFFDDF4E6)
-                        : colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    product.status ?? '-',
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: isActive
-                          ? const Color(0xFF166534)
-                          : colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w700,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? const Color(0xFFDDF4E6)
+                            : colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        product.status ?? '-',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: isActive
+                              ? const Color(0xFF166534)
+                              : colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 8),
+                    ProductStockStatusBadge(
+                      status: product.resolvedStockStatus,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

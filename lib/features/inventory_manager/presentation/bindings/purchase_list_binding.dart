@@ -8,7 +8,10 @@ class PurchaseListBinding extends Bindings {
   void dependencies() {
     InventoryManagerDependencies.ensureRegistered();
     if (!Get.isRegistered<PurchaseListController>()) {
-      Get.lazyPut(PurchaseListController.new, fenix: true);
+      Get.lazyPut(
+        () => PurchaseListController(inventoryManagerRepository: Get.find()),
+        fenix: true,
+      );
     }
   }
 }
