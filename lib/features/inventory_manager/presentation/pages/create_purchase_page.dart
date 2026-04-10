@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../controllers/create_purchase_controller.dart';
 import '../widgets/inventory_catalog_widgets.dart';
+import '../widgets/inventory_cetaogry_filter.dart';
 
 class CreatePurchasePage extends GetView<CreatePurchaseController> {
   const CreatePurchasePage({super.key});

@@ -5,6 +5,7 @@ import '../../../../shared/widgets/app_message_state.dart';
 import '../../../../shared/widgets/app_page_header.dart';
 import '../controllers/inventory_products_controller.dart';
 import '../widgets/inventory_catalog_widgets.dart';
+import '../widgets/inventory_cetaogry_filter.dart';
 
 class InventoryProductsPage extends GetView<InventoryProductsController> {
   const InventoryProductsPage({super.key});
