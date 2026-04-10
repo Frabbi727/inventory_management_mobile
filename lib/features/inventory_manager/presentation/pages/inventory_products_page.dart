@@ -103,7 +103,9 @@ class _InventoryProductsPageState extends State<InventoryProductsPage> {
                     border: const OutlineInputBorder(),
                   ),
                 ),
-                if (recentProducts.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _CategoryFilterSection(controller: _controller),
+              /*  if (recentProducts.isNotEmpty) ...[
                   const SizedBox(height: 20),
                   Text(
                     'Recent Products',
@@ -124,7 +126,7 @@ class _InventoryProductsPageState extends State<InventoryProductsPage> {
                       itemCount: recentProducts.length,
                     ),
                   ),
-                ],
+                ],*/
                 const SizedBox(height: 20),
                 Row(
                   children: [
@@ -202,6 +204,196 @@ class _InventoryProductsPageState extends State<InventoryProductsPage> {
 
   void _openDetails(ProductModel product) {
     Get.toNamed(AppRoutes.productDetails, arguments: product);
+  }
+}
+
+class _CategoryFilterSection extends StatelessWidget {
+  const _CategoryFilterSection({required this.controller});
+
+  final ProductListController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final categories = controller.categories.toList(growable: false);
+    final selectedCategoryId = controller.selectedCategoryId.value;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    if (controller.isCategoriesLoading.value && categories.isEmpty) {
+      return Container(
+        height: 84,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.88),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: colorScheme.outlineVariant),
+        ),
+        padding: const EdgeInsets.all(16),
+        child: const Center(child: LinearProgressIndicator()),
+      );
+    }
+
+    if (categories.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            colorScheme.primaryContainer.withValues(alpha: 0.92),
+            Colors.white.withValues(alpha: 0.96),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: colorScheme.primary.withValues(alpha: 0.14)),
+        boxShadow: [
+          BoxShadow(
+            color: colorScheme.primary.withValues(alpha: 0.06),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: colorScheme.surface.withValues(alpha: 0.88),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  Icons.tune_rounded,
+                  color: colorScheme.primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Category Filter',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Browse one product group at a time.',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              if (controller.hasActiveCategory)
+                TextButton(
+                  onPressed: controller.clearCategory,
+                  child: const Text('Reset'),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            height: 42,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: categories.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 10),
+              itemBuilder: (context, index) {
+                final category = categories[index];
+                final isSelected = category.id == selectedCategoryId;
+                return _CategoryPill(
+                  label: category.name ?? 'Category ${category.id ?? index}',
+                  isSelected: isSelected,
+                  onTap: () => controller.onCategoryChanged(category.id),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryPill extends StatelessWidget {
+  const _CategoryPill({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? colorScheme.primary
+                : colorScheme.surface.withValues(alpha: 0.82),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: isSelected
+                  ? colorScheme.primary
+                  : colorScheme.outlineVariant,
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: colorScheme.primary.withValues(alpha: 0.2),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isSelected) ...[
+                Icon(
+                  Icons.check_rounded,
+                  size: 16,
+                  color: colorScheme.onPrimary,
+                ),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                label,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: isSelected
+                      ? colorScheme.onPrimary
+                      : colorScheme.onSurface,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
