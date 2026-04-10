@@ -155,6 +155,7 @@ class ProductFormController extends GetxController {
       status: selectedStatus.value,
     );
 
+
     isSubmitting.value = true;
     errorMessage.value = null;
     photoErrorMessage.value = null;
