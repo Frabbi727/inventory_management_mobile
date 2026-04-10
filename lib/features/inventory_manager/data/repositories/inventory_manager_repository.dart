@@ -4,9 +4,11 @@ import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/storage/token_storage.dart';
 import '../../../products/data/models/category_response_model.dart';
 import '../../../products/data/models/product_model.dart';
+import '../../../products/data/models/product_unit_model.dart';
 import '../../../products/data/repositories/product_repository.dart';
 import '../models/barcode_resolve_response.dart';
 import '../models/create_or_update_barcode_product_request.dart';
+import '../models/product_unit_list_response_model.dart';
 import '../models/purchase_barcode_lookup_response.dart';
 
 class InventoryManagerRepository {
@@ -89,6 +91,13 @@ class InventoryManagerRepository {
   Future<List<CategoryModel>> fetchCategories() async {
     final response = await _productRepository.fetchCategories();
     return response.data ?? const <CategoryModel>[];
+  }
+
+  Future<List<ProductUnitModel>> fetchUnits() async {
+    final token = await _requireToken();
+    final response = await _apiClient.get(ApiEndpoints.units, token: token);
+    final parsed = ProductUnitListResponseModel.fromJson(response);
+    return parsed.data ?? const <ProductUnitModel>[];
   }
 
   Future<String> _requireToken() async {

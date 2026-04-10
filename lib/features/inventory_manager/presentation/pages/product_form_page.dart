@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import '../../../../core/errors/api_exception.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../products/data/models/category_response_model.dart';
+import '../../../products/data/models/product_unit_model.dart';
 import '../../data/models/create_or_update_barcode_product_request.dart';
 import '../../data/repositories/inventory_manager_repository.dart';
 
@@ -22,14 +23,15 @@ class _ProductFormPageState extends State<ProductFormPage> {
   late final TextEditingController _purchasePriceController;
   late final TextEditingController _sellingPriceController;
   late final TextEditingController _minimumStockController;
-  late final TextEditingController _unitIdController;
   final _formKey = GlobalKey<FormState>();
 
   final List<CategoryModel> _categories = <CategoryModel>[];
+  final List<ProductUnitModel> _units = <ProductUnitModel>[];
   bool _isSubmitting = false;
-  bool _isCategoriesLoading = false;
+  bool _isReferenceDataLoading = false;
   String? _errorMessage;
   int? _selectedCategoryId;
+  int? _selectedUnitId;
   String _selectedStatus = 'active';
 
   @override
@@ -51,12 +53,10 @@ class _ProductFormPageState extends State<ProductFormPage> {
     _minimumStockController = TextEditingController(
       text: _args.minimumStockAlert?.toString() ?? '',
     );
-    _unitIdController = TextEditingController(
-      text: _args.unitId?.toString() ?? '',
-    );
     _selectedCategoryId = _args.categoryId;
+    _selectedUnitId = _args.unitId;
     _selectedStatus = _args.status ?? 'active';
-    _loadCategories();
+    _loadReferenceData();
   }
 
   @override
@@ -67,7 +67,6 @@ class _ProductFormPageState extends State<ProductFormPage> {
     _purchasePriceController.dispose();
     _sellingPriceController.dispose();
     _minimumStockController.dispose();
-    _unitIdController.dispose();
     super.dispose();
   }
 
@@ -124,7 +123,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                       ),
                     )
                     .toList(),
-                onChanged: _isCategoriesLoading
+                onChanged: _isReferenceDataLoading
                     ? null
                     : (value) {
                         setState(() {
@@ -132,7 +131,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
                         });
                       },
                 decoration: InputDecoration(
-                  labelText: _isCategoriesLoading
+                  labelText: _isReferenceDataLoading
                       ? 'Category (loading...)'
                       : 'Category',
                   border: const OutlineInputBorder(),
@@ -141,11 +140,36 @@ class _ProductFormPageState extends State<ProductFormPage> {
                     value == null ? 'Category is required.' : null,
               ),
               const SizedBox(height: 12),
-              _FormField(
-                controller: _unitIdController,
-                label: 'Unit ID',
-                keyboardType: TextInputType.number,
-                validator: _requiredNumberField,
+              DropdownButtonFormField<int>(
+                initialValue: _selectedUnitId,
+                isExpanded: true,
+                items: _units
+                    .map(
+                      (unit) => DropdownMenuItem<int>(
+                        value: unit.id,
+                        child: Text(
+                          unit.shortName == null || unit.shortName!.isEmpty
+                              ? (unit.name ?? 'Unit ${unit.id}')
+                              : '${unit.name ?? 'Unit'} (${unit.shortName})',
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: _isReferenceDataLoading
+                    ? null
+                    : (value) {
+                        setState(() {
+                          _selectedUnitId = value;
+                        });
+                      },
+                decoration: InputDecoration(
+                  labelText: _isReferenceDataLoading
+                      ? 'Unit (loading...)'
+                      : 'Unit',
+                  border: const OutlineInputBorder(),
+                ),
+                validator: (value) =>
+                    value == null ? 'Unit is required.' : null,
               ),
               const SizedBox(height: 12),
               _FormField(
@@ -219,14 +243,20 @@ class _ProductFormPageState extends State<ProductFormPage> {
     );
   }
 
-  Future<void> _loadCategories() async {
+  Future<void> _loadReferenceData() async {
     setState(() {
-      _isCategoriesLoading = true;
+      _isReferenceDataLoading = true;
+      _errorMessage = null;
     });
 
     try {
-      final categories = await Get.find<InventoryManagerRepository>()
-          .fetchCategories();
+      final repository = Get.find<InventoryManagerRepository>();
+      final results = await Future.wait<dynamic>([
+        repository.fetchCategories(),
+        repository.fetchUnits(),
+      ]);
+      final categories = results[0] as List<CategoryModel>;
+      final units = results[1] as List<ProductUnitModel>;
       if (!mounted) {
         return;
       }
@@ -234,9 +264,13 @@ class _ProductFormPageState extends State<ProductFormPage> {
         _categories
           ..clear()
           ..addAll(categories);
+        _units
+          ..clear()
+          ..addAll(units);
         _selectedCategoryId ??= _categories.isNotEmpty
             ? _categories.first.id
             : null;
+        _selectedUnitId ??= _units.isNotEmpty ? _units.first.id : null;
       });
     } catch (_) {
       if (!mounted) {
@@ -248,7 +282,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
     } finally {
       if (mounted) {
         setState(() {
-          _isCategoriesLoading = false;
+          _isReferenceDataLoading = false;
         });
       }
     }
@@ -261,9 +295,16 @@ class _ProductFormPageState extends State<ProductFormPage> {
     }
 
     final categoryId = _selectedCategoryId;
+    final unitId = _selectedUnitId;
     if (categoryId == null) {
       setState(() {
         _errorMessage = 'Category is required.';
+      });
+      return;
+    }
+    if (unitId == null) {
+      setState(() {
+        _errorMessage = 'Unit is required.';
       });
       return;
     }
@@ -273,7 +314,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
       sku: _skuController.text.trim(),
       barcode: _barcodeController.text.trim(),
       categoryId: categoryId,
-      unitId: int.parse(_unitIdController.text.trim()),
+      unitId: unitId,
       purchasePrice: num.parse(_purchasePriceController.text.trim()),
       sellingPrice: num.parse(_sellingPriceController.text.trim()),
       minimumStockAlert: int.parse(_minimumStockController.text.trim()),

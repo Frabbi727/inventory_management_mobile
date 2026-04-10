@@ -10,6 +10,7 @@ class ApiEndpoints {
   static const customers = '${ApiConfig.apiPrefix}/customers';
   static const orders = '${ApiConfig.apiPrefix}/orders';
   static const categories = '${ApiConfig.apiPrefix}/categories';
+  static const units = '${ApiConfig.apiPrefix}/units';
   static const inventoryManagerBarcodeBase =
       '${ApiConfig.apiPrefix}/inventory-manager/barcode';
 
