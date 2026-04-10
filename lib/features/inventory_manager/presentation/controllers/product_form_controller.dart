@@ -145,7 +145,7 @@ class ProductFormController extends GetxController {
 
     final request = CreateOrUpdateBarcodeProductRequest(
       name: nameController.text.trim(),
-      sku: "",
+      sku: isEdit ? args.sku?.trim() : null,
       barcode: barcodeController.text.trim(),
       categoryId: categoryId,
       unitId: unitId,
@@ -191,20 +191,6 @@ class ProductFormController extends GetxController {
     } finally {
       isSubmitting.value = false;
     }
-  }
-
-  String get _resolvedSku {
-    final value = skuController.text.trim();
-    if (value.isNotEmpty) {
-      return value;
-    }
-
-    final barcode = barcodeController.text.trim();
-    if (barcode.isNotEmpty) {
-      return 'SKU-$barcode';
-    }
-
-    return 'AUTO-${DateTime.now().millisecondsSinceEpoch}';
   }
 
   String? requiredField(String? value) {

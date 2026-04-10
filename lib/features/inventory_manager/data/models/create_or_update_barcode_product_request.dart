@@ -1,7 +1,12 @@
+import 'package:json_annotation/json_annotation.dart';
+
+part 'create_or_update_barcode_product_request.g.dart';
+
+@JsonSerializable(includeIfNull: false)
 class CreateOrUpdateBarcodeProductRequest {
   const CreateOrUpdateBarcodeProductRequest({
     required this.name,
-    required this.sku,
+    this.sku,
     required this.barcode,
     required this.categoryId,
     required this.unitId,
@@ -12,40 +17,40 @@ class CreateOrUpdateBarcodeProductRequest {
   });
 
   final String name;
-  final String sku;
+
+  @JsonKey(includeIfNull: false)
+  final String? sku;
+
   final String barcode;
+
+  @JsonKey(name: 'category_id')
   final int categoryId;
+
+  @JsonKey(name: 'unit_id')
   final int unitId;
+
+  @JsonKey(name: 'purchase_price')
   final num purchasePrice;
+
+  @JsonKey(name: 'selling_price')
   final num sellingPrice;
+
+  @JsonKey(name: 'minimum_stock_alert')
   final int minimumStockAlert;
+
   final String status;
 
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'name': name,
-      'sku': sku,
-      'barcode': barcode,
-      'category_id': categoryId,
-      'unit_id': unitId,
-      'purchase_price': purchasePrice,
-      'selling_price': sellingPrice,
-      'minimum_stock_alert': minimumStockAlert,
-      'status': status,
-    };
-  }
+  factory CreateOrUpdateBarcodeProductRequest.fromJson(
+    Map<String, dynamic> json,
+  ) => _$CreateOrUpdateBarcodeProductRequestFromJson(json);
+
+  Map<String, dynamic> toJson() => _$CreateOrUpdateBarcodeProductRequestToJson(
+    this,
+  );
 
   Map<String, String> toMultipartFields() {
-    return <String, String>{
-      'name': name,
-      'sku': sku,
-      'barcode': barcode,
-      'category_id': '$categoryId',
-      'unit_id': '$unitId',
-      'purchase_price': '$purchasePrice',
-      'selling_price': '$sellingPrice',
-      'minimum_stock_alert': '$minimumStockAlert',
-      'status': status,
-    };
+    return toJson().map(
+      (key, value) => MapEntry(key, value.toString()),
+    );
   }
 }
