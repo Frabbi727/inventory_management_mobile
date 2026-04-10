@@ -1,24 +1,31 @@
 import 'package:get/get.dart';
 
 import '../../../../core/errors/api_exception.dart';
+import '../../../../core/storage/user_storage.dart';
 import '../../data/models/product_model.dart';
 import '../../data/repositories/product_repository.dart';
 
 class ProductDetailsController extends GetxController {
-  ProductDetailsController({required ProductRepository productRepository})
-    : _productRepository = productRepository;
+  ProductDetailsController({
+    required ProductRepository productRepository,
+    required UserStorage userStorage,
+  }) : _productRepository = productRepository,
+       _userStorage = userStorage;
 
   final ProductRepository _productRepository;
+  final UserStorage _userStorage;
 
   final product = Rxn<ProductModel>();
   final isLoading = false.obs;
   final errorMessage = RxnString();
+  final isInventoryManager = false.obs;
 
   int? _productId;
 
   @override
   void onInit() {
     super.onInit();
+    _loadRole();
     final argument = Get.arguments;
     if (argument is int) {
       _productId = argument;
@@ -32,6 +39,12 @@ class ProductDetailsController extends GetxController {
     } else {
       errorMessage.value = 'Product details were not provided.';
     }
+  }
+
+  Future<void> _loadRole() async {
+    final user = await _userStorage.getUser();
+    final roleSlug = (user?.role?.slug ?? '').trim().toLowerCase();
+    isInventoryManager.value = roleSlug == 'inventory_manager';
   }
 
   Future<void> fetchProductDetails({bool forceRefresh = false}) async {

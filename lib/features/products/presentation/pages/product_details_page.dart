@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/routes/app_routes.dart';
 import '../../../../shared/widgets/app_message_state.dart';
 import '../../../../shared/widgets/app_remote_media.dart';
 import '../../data/models/product_model.dart';
+import '../../../inventory_manager/presentation/pages/product_form_page.dart';
 import '../controllers/product_details_controller.dart';
 
 class ProductDetailsPage extends GetView<ProductDetailsController> {
@@ -12,7 +14,38 @@ class ProductDetailsPage extends GetView<ProductDetailsController> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Product Details')),
+      appBar: AppBar(
+        title: const Text('Product Details'),
+        actions: [
+          Obx(() {
+            final product = controller.product.value;
+            if (!controller.isInventoryManager.value || product == null) {
+              return const SizedBox.shrink();
+            }
+
+            return IconButton(
+              onPressed: () {
+                Get.toNamed(
+                  AppRoutes.inventoryProductForm,
+                  arguments: ProductFormArgs.edit(
+                    name: product.name,
+                    sku: product.sku,
+                    barcode: product.barcode,
+                    categoryId: product.category?.id,
+                    unitId: product.unit?.id,
+                    purchasePrice: product.purchasePrice,
+                    sellingPrice: product.sellingPrice,
+                    minimumStockAlert: product.minimumStockAlert,
+                    status: product.status,
+                  ),
+                );
+              },
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: 'Edit product',
+            );
+          }),
+        ],
+      ),
       body: SafeArea(
         child: Obx(() {
           if (controller.isLoading.value && controller.product.value == null) {

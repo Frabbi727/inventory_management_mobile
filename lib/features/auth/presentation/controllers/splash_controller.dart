@@ -5,6 +5,7 @@ import '../../../../core/routes/app_routes.dart';
 import '../../../../core/storage/token_storage.dart';
 import '../../../../core/storage/user_storage.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../utils/home_route_resolver.dart';
 
 class SplashController extends GetxController {
   SplashController({
@@ -45,7 +46,7 @@ class SplashController extends GetxController {
       }
 
       await _userStorage.saveUser(user!);
-      await _finishWithRoute(AppRoutes.home);
+      await _finishWithRoute(resolveHomeRouteForUser(user));
     } on ApiException catch (error) {
       if (error.statusCode == 401 || error.statusCode == 403) {
         await _clearSessionAndGoToLogin();

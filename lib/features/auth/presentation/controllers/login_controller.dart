@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/errors/api_exception.dart';
-import '../../../../core/routes/app_routes.dart';
 import '../../../../core/storage/token_storage.dart';
 import '../../../../core/storage/user_storage.dart';
 import '../../data/models/login_request_model.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../utils/home_route_resolver.dart';
 
 class LoginController extends GetxController {
   LoginController({
@@ -77,7 +77,7 @@ class LoginController extends GetxController {
 
       await _tokenStorage.saveToken(token);
       await _userStorage.saveUser(user);
-      Get.offAllNamed(AppRoutes.home);
+      Get.offAllNamed(resolveHomeRouteForUser(user));
     } on ApiException catch (error) {
       errorMessage.value = error.message;
     } catch (_) {

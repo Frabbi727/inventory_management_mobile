@@ -10,8 +10,19 @@ class ApiEndpoints {
   static const customers = '${ApiConfig.apiPrefix}/customers';
   static const orders = '${ApiConfig.apiPrefix}/orders';
   static const categories = '${ApiConfig.apiPrefix}/categories';
+  static const inventoryManagerBarcodeBase =
+      '${ApiConfig.apiPrefix}/inventory-manager/barcode';
 
   static String productDetails(int id) => '$products/$id';
   static String customerDetails(int id) => '$customers/$id';
   static String orderDetails(int id) => '$orders/$id';
+  static String resolveBarcodeProduct(String barcode) =>
+      '$inventoryManagerBarcodeBase/products/$barcode/resolve';
+  static String barcodeProductDetails(String barcode) =>
+      '$inventoryManagerBarcodeBase/products/$barcode';
+  static String barcodeProducts() => '$inventoryManagerBarcodeBase/products';
+  static String updateBarcodeProduct(String barcode) =>
+      '$inventoryManagerBarcodeBase/products/$barcode';
+  static String purchaseProductByBarcode(String barcode) =>
+      '$inventoryManagerBarcodeBase/purchase-products/$barcode';
 }

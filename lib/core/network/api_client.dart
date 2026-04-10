@@ -51,6 +51,30 @@ class ApiClient {
     return _handleResponse(method: 'POST', uri: uri, response: response);
   }
 
+  Future<Map<String, dynamic>> put(
+    String endpoint, {
+    String? token,
+    Map<String, dynamic>? body,
+    Map<String, String>? queryParameters,
+  }) async {
+    final uri = _buildUri(endpoint, queryParameters);
+    final headers = _buildHeaders(token: token);
+    final encodedBody = jsonEncode(body ?? <String, dynamic>{});
+    _apiLogger.logRequest(
+      method: 'PUT',
+      uri: uri,
+      headers: headers,
+      body: body ?? <String, dynamic>{},
+    );
+    final response = await _httpClient.put(
+      uri,
+      headers: headers,
+      body: encodedBody,
+    );
+
+    return _handleResponse(method: 'PUT', uri: uri, response: response);
+  }
+
   Uri _buildUri(String endpoint, Map<String, String>? queryParameters) {
     final uri = Uri.parse('${ApiConfig.baseUrl}$endpoint');
     if (queryParameters == null || queryParameters.isEmpty) {
