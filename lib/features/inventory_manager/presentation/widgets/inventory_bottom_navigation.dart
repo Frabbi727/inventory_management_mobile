@@ -126,10 +126,14 @@ class _InventoryNavItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final baseColor = colorScheme.onSurfaceVariant;
 
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      hoverColor: Colors.transparent,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
         margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
@@ -147,18 +151,14 @@ class _InventoryNavItem extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            Icon(
-              selected ? selectedIcon : icon,
-              color: colorScheme.onSurfaceVariant,
-              size: 20,
-            ),
+            Icon(selected ? selectedIcon : icon, color: baseColor, size: 20),
             const SizedBox(height: 3),
             Text(
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.labelSmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
+                color: baseColor,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
               ),
             ),
