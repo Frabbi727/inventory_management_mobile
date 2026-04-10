@@ -51,6 +51,8 @@
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>Use the camera to scan product barcodes for inventory and purchase receiving.</string>
+	<string>Use the camera to scan barcodes and take product photos for inventory and purchase receiving.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Select product photos from your library to attach them to inventory items.</string>
 </dict>
 </plist>

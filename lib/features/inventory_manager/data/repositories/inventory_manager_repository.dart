@@ -8,6 +8,7 @@ import '../../../products/data/models/product_unit_model.dart';
 import '../../../products/data/repositories/product_repository.dart';
 import '../models/barcode_resolve_response.dart';
 import '../models/create_or_update_barcode_product_request.dart';
+import '../models/product_photo_upload_file.dart';
 import '../models/product_unit_list_response_model.dart';
 import '../models/purchase_barcode_lookup_response.dart';
 
@@ -64,27 +65,63 @@ class InventoryManagerRepository {
   }
 
   Future<ProductModel> createProductFromBarcode(
-    CreateOrUpdateBarcodeProductRequest request,
-  ) async {
+    CreateOrUpdateBarcodeProductRequest request, {
+    List<ProductPhotoUploadFile> photos = const <ProductPhotoUploadFile>[],
+  }) async {
     final token = await _requireToken();
-    await _apiClient.post(
-      ApiEndpoints.barcodeProducts(),
-      token: token,
-      body: request.toJson(),
-    );
+    if (photos.isEmpty) {
+      await _apiClient.post(
+        ApiEndpoints.barcodeProducts(),
+        token: token,
+        body: request.toJson(),
+      );
+    } else {
+      await _apiClient.postMultipart(
+        ApiEndpoints.barcodeProducts(),
+        token: token,
+        fields: request.toMultipartFields(),
+        files: photos
+            .map(
+              (photo) => MultipartFileData(
+                fieldName: 'photos[]',
+                fileName: photo.fileName,
+                bytes: photo.bytes,
+              ),
+            )
+            .toList(),
+      );
+    }
     return getProductByBarcode(request.barcode);
   }
 
   Future<ProductModel> updateProductByBarcode(
     String barcode,
-    CreateOrUpdateBarcodeProductRequest request,
-  ) async {
+    CreateOrUpdateBarcodeProductRequest request, {
+    List<ProductPhotoUploadFile> photos = const <ProductPhotoUploadFile>[],
+  }) async {
     final token = await _requireToken();
-    await _apiClient.put(
-      ApiEndpoints.updateBarcodeProduct(_normalizeBarcode(barcode)),
-      token: token,
-      body: request.toJson(),
-    );
+    if (photos.isEmpty) {
+      await _apiClient.put(
+        ApiEndpoints.updateBarcodeProduct(_normalizeBarcode(barcode)),
+        token: token,
+        body: request.toJson(),
+      );
+    } else {
+      await _apiClient.putMultipart(
+        ApiEndpoints.updateBarcodeProduct(_normalizeBarcode(barcode)),
+        token: token,
+        fields: request.toMultipartFields(),
+        files: photos
+            .map(
+              (photo) => MultipartFileData(
+                fieldName: 'photos[]',
+                fileName: photo.fileName,
+                bytes: photo.bytes,
+              ),
+            )
+            .toList(),
+      );
+    }
     return getProductByBarcode(request.barcode);
   }
 

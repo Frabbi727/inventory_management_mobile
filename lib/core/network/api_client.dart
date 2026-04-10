@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -75,6 +76,40 @@ class ApiClient {
     return _handleResponse(method: 'PUT', uri: uri, response: response);
   }
 
+  Future<Map<String, dynamic>> postMultipart(
+    String endpoint, {
+    String? token,
+    Map<String, String>? fields,
+    List<MultipartFileData> files = const <MultipartFileData>[],
+    Map<String, String>? queryParameters,
+  }) {
+    return _sendMultipartRequest(
+      method: 'POST',
+      endpoint: endpoint,
+      token: token,
+      fields: fields,
+      files: files,
+      queryParameters: queryParameters,
+    );
+  }
+
+  Future<Map<String, dynamic>> putMultipart(
+    String endpoint, {
+    String? token,
+    Map<String, String>? fields,
+    List<MultipartFileData> files = const <MultipartFileData>[],
+    Map<String, String>? queryParameters,
+  }) {
+    return _sendMultipartRequest(
+      method: 'PUT',
+      endpoint: endpoint,
+      token: token,
+      fields: fields,
+      files: files,
+      queryParameters: queryParameters,
+    );
+  }
+
   Uri _buildUri(String endpoint, Map<String, String>? queryParameters) {
     final uri = Uri.parse('${ApiConfig.baseUrl}$endpoint');
     if (queryParameters == null || queryParameters.isEmpty) {
@@ -84,17 +119,70 @@ class ApiClient {
     return uri.replace(queryParameters: queryParameters);
   }
 
-  Map<String, String> _buildHeaders({String? token}) {
-    final headers = <String, String>{
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-    };
+  Map<String, String> _buildHeaders({
+    String? token,
+    bool includeJsonContentType = true,
+  }) {
+    final headers = <String, String>{'Accept': 'application/json'};
+
+    if (includeJsonContentType) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     if (token != null && token.isNotEmpty) {
       headers[ApiConfig.protectedHeader] = '${ApiConfig.bearerPrefix} $token';
     }
 
     return headers;
+  }
+
+  Future<Map<String, dynamic>> _sendMultipartRequest({
+    required String method,
+    required String endpoint,
+    String? token,
+    Map<String, String>? fields,
+    required List<MultipartFileData> files,
+    Map<String, String>? queryParameters,
+  }) async {
+    final uri = _buildUri(endpoint, queryParameters);
+    final headers = _buildHeaders(token: token, includeJsonContentType: false);
+    final request = http.MultipartRequest(method, uri)..headers.addAll(headers);
+
+    if (fields != null && fields.isNotEmpty) {
+      request.fields.addAll(fields);
+    }
+
+    for (final file in files) {
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          file.fieldName,
+          file.bytes,
+          filename: file.fileName,
+        ),
+      );
+    }
+
+    _apiLogger.logRequest(
+      method: method,
+      uri: uri,
+      headers: request.headers,
+      body: <String, Object>{
+        'fields': request.fields,
+        'files': files
+            .map(
+              (file) => <String, Object>{
+                'field_name': file.fieldName,
+                'file_name': file.fileName,
+                'size': file.bytes.length,
+              },
+            )
+            .toList(),
+      },
+    );
+
+    final streamedResponse = await _httpClient.send(request);
+    final response = await http.Response.fromStream(streamedResponse);
+    return _handleResponse(method: method, uri: uri, response: response);
   }
 
   Map<String, dynamic> _handleResponse({
@@ -132,4 +220,16 @@ class ApiClient {
       errors: decodedBody['errors'] as Map<String, dynamic>?,
     );
   }
+}
+
+class MultipartFileData {
+  const MultipartFileData({
+    required this.fieldName,
+    required this.fileName,
+    required this.bytes,
+  });
+
+  final String fieldName;
+  final String fileName;
+  final Uint8List bytes;
 }

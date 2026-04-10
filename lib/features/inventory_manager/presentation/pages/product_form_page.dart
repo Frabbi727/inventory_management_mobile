@@ -1,5 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/errors/api_exception.dart';
 import '../../../../core/routes/app_routes.dart';
@@ -7,6 +11,8 @@ import '../../../products/data/models/category_response_model.dart';
 import '../../../products/data/models/product_unit_model.dart';
 import '../../data/models/create_or_update_barcode_product_request.dart';
 import '../../data/repositories/inventory_manager_repository.dart';
+import '../models/selected_product_photo.dart';
+import '../services/product_photo_compression_service.dart';
 
 class ProductFormPage extends StatefulWidget {
   const ProductFormPage({super.key});
@@ -24,12 +30,18 @@ class _ProductFormPageState extends State<ProductFormPage> {
   late final TextEditingController _sellingPriceController;
   late final TextEditingController _minimumStockController;
   final _formKey = GlobalKey<FormState>();
+  final ImagePicker _imagePicker = ImagePicker();
+  final ProductPhotoCompressionService _compressionService =
+      const ProductPhotoCompressionService();
 
   final List<CategoryModel> _categories = <CategoryModel>[];
   final List<ProductUnitModel> _units = <ProductUnitModel>[];
+  final List<SelectedProductPhoto> _selectedPhotos = <SelectedProductPhoto>[];
+  int _nextPhotoId = 0;
   bool _isSubmitting = false;
   bool _isReferenceDataLoading = false;
   String? _errorMessage;
+  String? _photoErrorMessage;
   int? _selectedCategoryId;
   int? _selectedUnitId;
   String _selectedStatus = 'active';
@@ -217,17 +229,12 @@ class _ProductFormPageState extends State<ProductFormPage> {
                 },
               ),
               const SizedBox(height: 16),
-              const Card(
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text(
-                    'Photo upload is deferred in this pass. The form submits the barcode product fields first.',
-                  ),
-                ),
-              ),
+              _buildPhotoSection(context),
               const SizedBox(height: 24),
               FilledButton(
-                onPressed: _isSubmitting ? null : _submit,
+                onPressed: _isSubmitting || _hasPendingCompression
+                    ? null
+                    : _submit,
                 child: _isSubmitting
                     ? const SizedBox(
                         width: 18,
@@ -324,16 +331,25 @@ class _ProductFormPageState extends State<ProductFormPage> {
     setState(() {
       _isSubmitting = true;
       _errorMessage = null;
+      _photoErrorMessage = null;
     });
 
     try {
       final repository = Get.find<InventoryManagerRepository>();
+      final readyPhotos = _selectedPhotos
+          .where((photo) => photo.isReady && photo.uploadFile != null)
+          .map((photo) => photo.uploadFile!)
+          .toList();
       final product = _args.mode == ProductFormMode.edit
           ? await repository.updateProductByBarcode(
               _args.barcode ?? '',
               request,
+              photos: readyPhotos,
             )
-          : await repository.createProductFromBarcode(request);
+          : await repository.createProductFromBarcode(
+              request,
+              photos: readyPhotos,
+            );
 
       if (!mounted) {
         return;
@@ -349,6 +365,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
     } on ApiException catch (error) {
       setState(() {
         _errorMessage = error.message;
+        _photoErrorMessage = _extractPhotoError(error);
       });
     } catch (_) {
       setState(() {
@@ -378,6 +395,362 @@ class _ProductFormPageState extends State<ProductFormPage> {
       return 'Enter a valid number.';
     }
     return null;
+  }
+
+  Widget _buildPhotoSection(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Photos (max 200 KB each)',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'JPEG and PNG inputs are accepted. Larger files are compressed to JPEG before upload.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _isSubmitting ? null : _pickFromCamera,
+                  icon: const Icon(Icons.photo_camera_outlined),
+                  label: const Text('Camera'),
+                ),
+                const SizedBox(width: 12),
+                OutlinedButton.icon(
+                  onPressed: _isSubmitting ? null : _pickFromGallery,
+                  icon: const Icon(Icons.photo_library_outlined),
+                  label: const Text('Gallery'),
+                ),
+              ],
+            ),
+            if (_hasPendingCompression) ...[
+              const SizedBox(height: 12),
+              const LinearProgressIndicator(),
+            ],
+            if (_photoErrorMessage != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _photoErrorMessage!,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.error,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+            if (_selectedPhotos.isEmpty) ...[
+              const SizedBox(height: 12),
+              Text(
+                'No photos selected yet.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ] else ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: _selectedPhotos
+                    .map((photo) => _buildPhotoCard(context, photo))
+                    .toList(),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhotoCard(BuildContext context, SelectedProductPhoto photo) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final status = _photoStatusLabel(photo.status);
+    final statusColor = switch (photo.status) {
+      SelectedProductPhotoStatus.ready => Colors.green,
+      SelectedProductPhotoStatus.compressing => colorScheme.primary,
+      SelectedProductPhotoStatus.tooLarge => colorScheme.error,
+      SelectedProductPhotoStatus.failed => colorScheme.error,
+    };
+
+    return SizedBox(
+      width: 168,
+      child: Card(
+        margin: EdgeInsets.zero,
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              children: [
+                SizedBox(
+                  height: 120,
+                  width: double.infinity,
+                  child: Image.file(
+                    File(photo.path),
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => const ColoredBox(
+                      color: Color(0xFFE0E0E0),
+                      child: Center(child: Icon(Icons.broken_image_outlined)),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 4,
+                  top: 4,
+                  child: IconButton.filledTonal(
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => _removePhoto(photo.id),
+                    icon: const Icon(Icons.close),
+                  ),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    photo.fileName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      status,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: statusColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Source: ${photo.source == ProductPhotoSource.camera ? 'Camera' : 'Gallery'}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Original: ${_formatBytes(photo.originalBytes)}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  if (photo.compressedBytes != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Compressed: ${_formatBytes(photo.compressedBytes!)}',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                  if (photo.errorMessage != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      photo.errorMessage!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colorScheme.error,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  bool get _hasPendingCompression =>
+      _selectedPhotos.any((photo) => photo.isCompressing);
+
+  Future<void> _pickFromGallery() async {
+    try {
+      final files = await _imagePicker.pickMultiImage();
+      if (files.isEmpty) {
+        return;
+      }
+      await _addPhotos(files, ProductPhotoSource.gallery);
+    } on PlatformException catch (error) {
+      _showPhotoPickerError(_mapPickerError(error));
+    } catch (_) {
+      _showPhotoPickerError('Unable to open the gallery right now.');
+    }
+  }
+
+  Future<void> _pickFromCamera() async {
+    try {
+      final file = await _imagePicker.pickImage(source: ImageSource.camera);
+      if (file == null) {
+        return;
+      }
+      await _addPhotos(<XFile>[file], ProductPhotoSource.camera);
+    } on PlatformException catch (error) {
+      _showPhotoPickerError(_mapPickerError(error));
+    } catch (_) {
+      _showPhotoPickerError('Unable to open the camera right now.');
+    }
+  }
+
+  Future<void> _addPhotos(List<XFile> files, ProductPhotoSource source) async {
+    final pendingPhotos = files
+        .map((file) => (file: file, id: _createPhotoId()))
+        .toList();
+
+    setState(() {
+      _photoErrorMessage = null;
+      for (final pendingPhoto in pendingPhotos) {
+        final file = pendingPhoto.file;
+        _selectedPhotos.add(
+          SelectedProductPhoto(
+            id: pendingPhoto.id,
+            path: file.path,
+            fileName: file.name,
+            source: source,
+            originalBytes: 0,
+            status: SelectedProductPhotoStatus.compressing,
+          ),
+        );
+      }
+    });
+
+    for (final pendingPhoto in pendingPhotos) {
+      final file = pendingPhoto.file;
+      final id = pendingPhoto.id;
+      try {
+        final originalBytes = await File(file.path).length();
+        _updatePhoto(
+          id,
+          (photo) => photo.copyWith(originalBytes: originalBytes),
+        );
+        final result = await _compressionService.compress(file);
+        _updatePhoto(
+          id,
+          (photo) => photo.copyWith(
+            compressedBytes: result.compressedBytes,
+            status: result.status,
+            uploadFile: result.file,
+            clearUploadFile: result.file == null,
+            errorMessage: result.errorMessage,
+            clearErrorMessage: result.errorMessage == null,
+          ),
+        );
+      } catch (_) {
+        _updatePhoto(
+          id,
+          (photo) => photo.copyWith(
+            status: SelectedProductPhotoStatus.failed,
+            clearUploadFile: true,
+            errorMessage: 'Compression failed for this image.',
+          ),
+        );
+      }
+    }
+  }
+
+  String _createPhotoId() => 'photo-${_nextPhotoId++}';
+
+  void _updatePhoto(
+    String id,
+    SelectedProductPhoto Function(SelectedProductPhoto photo) update,
+  ) {
+    if (!mounted) {
+      return;
+    }
+
+    final index = _selectedPhotos.indexWhere((photo) => photo.id == id);
+    if (index == -1) {
+      return;
+    }
+
+    setState(() {
+      _selectedPhotos[index] = update(_selectedPhotos[index]);
+    });
+  }
+
+  void _removePhoto(String id) {
+    setState(() {
+      _selectedPhotos.removeWhere((photo) => photo.id == id);
+    });
+  }
+
+  void _showPhotoPickerError(String message) {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _photoErrorMessage = message;
+    });
+  }
+
+  String _mapPickerError(PlatformException error) {
+    final code = error.code.toLowerCase();
+    if (code.contains('camera_access_denied') ||
+        code.contains('camera_access_restricted')) {
+      return 'Camera access is required to take product photos. Allow permission and try again.';
+    }
+    if (code.contains('photo_access_denied') ||
+        code.contains('photo_access_restricted')) {
+      return 'Gallery access is required to choose product photos. Allow permission and try again.';
+    }
+    return 'Photo access is unavailable right now. Please try again.';
+  }
+
+  String? _extractPhotoError(ApiException error) {
+    final errors = error.errors;
+    if (errors == null || errors.isEmpty) {
+      return null;
+    }
+
+    for (final entry in errors.entries) {
+      if (!entry.key.startsWith('photos')) {
+        continue;
+      }
+
+      final value = entry.value;
+      if (value is List && value.isNotEmpty) {
+        return value.first.toString();
+      }
+      if (value is String && value.isNotEmpty) {
+        return value;
+      }
+    }
+
+    return null;
+  }
+
+  String _photoStatusLabel(SelectedProductPhotoStatus status) {
+    return switch (status) {
+      SelectedProductPhotoStatus.ready => 'Ready',
+      SelectedProductPhotoStatus.compressing => 'Compressing',
+      SelectedProductPhotoStatus.tooLarge => 'Too large',
+      SelectedProductPhotoStatus.failed => 'Failed',
+    };
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) {
+      return '$bytes B';
+    }
+    final kiloBytes = bytes / 1024;
+    return '${kiloBytes.toStringAsFixed(kiloBytes >= 100 ? 0 : 1)} KB';
   }
 }
 

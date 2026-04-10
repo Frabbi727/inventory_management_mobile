@@ -34,4 +34,18 @@ class CreateOrUpdateBarcodeProductRequest {
       'status': status,
     };
   }
+
+  Map<String, String> toMultipartFields() {
+    return <String, String>{
+      'name': name,
+      'sku': sku,
+      'barcode': barcode,
+      'category_id': '$categoryId',
+      'unit_id': '$unitId',
+      'purchase_price': '$purchasePrice',
+      'selling_price': '$sellingPrice',
+      'minimum_stock_alert': '$minimumStockAlert',
+      'status': status,
+    };
+  }
 }
