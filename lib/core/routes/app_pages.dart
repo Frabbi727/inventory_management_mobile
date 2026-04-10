@@ -16,6 +16,7 @@ import '../../features/inventory_manager/presentation/pages/create_purchase_page
 import '../../features/inventory_manager/presentation/pages/inventory_home_screen.dart';
 import '../../features/inventory_manager/presentation/pages/low_stock_page.dart';
 import '../../features/inventory_manager/presentation/pages/product_form_page.dart';
+import '../../features/inventory_manager/presentation/pages/purchase_details_page.dart';
 import '../../features/cart_orders/presentation/bindings/new_order_binding.dart';
 import '../../features/cart_orders/presentation/pages/new_order_page.dart';
 import '../../features/cart_orders/presentation/pages/order_success_page.dart';
@@ -63,6 +64,11 @@ class AppPages {
     GetPage<CreatePurchasePage>(
       name: AppRoutes.inventoryPurchaseCreate,
       page: CreatePurchasePage.new,
+      binding: InventoryHomeBinding(),
+    ),
+    GetPage<PurchaseDetailsPage>(
+      name: AppRoutes.inventoryPurchaseDetails,
+      page: PurchaseDetailsPage.new,
       binding: InventoryHomeBinding(),
     ),
     GetPage<LowStockPage>(

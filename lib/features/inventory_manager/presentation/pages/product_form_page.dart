@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -582,7 +583,9 @@ class _ProductFormPageState extends State<ProductFormPage> {
 
   Future<void> _pickFromGallery() async {
     try {
-      final files = await _imagePicker.pickMultiImage();
+      final files = await _imagePicker.pickMultiImage(
+        requestFullMetadata: false,
+      );
       if (files.isEmpty) {
         return;
       }
@@ -596,7 +599,10 @@ class _ProductFormPageState extends State<ProductFormPage> {
 
   Future<void> _pickFromCamera() async {
     try {
-      final file = await _imagePicker.pickImage(source: ImageSource.camera);
+      final file = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        requestFullMetadata: false,
+      );
       if (file == null) {
         return;
       }
@@ -702,6 +708,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
 
   String _mapPickerError(PlatformException error) {
     final code = error.code.toLowerCase();
+    final message = (error.message ?? '').toLowerCase();
     if (code.contains('camera_access_denied') ||
         code.contains('camera_access_restricted')) {
       return 'Camera access is required to take product photos. Allow permission and try again.';
@@ -710,7 +717,30 @@ class _ProductFormPageState extends State<ProductFormPage> {
         code.contains('photo_access_restricted')) {
       return 'Gallery access is required to choose product photos. Allow permission and try again.';
     }
-    return 'Photo access is unavailable right now. Please try again.';
+    if (code.contains('no_available_camera')) {
+      return 'No camera is available on this device.';
+    }
+    if (code.contains('already_active') || code.contains('multiple_request')) {
+      return 'Another photo picker request is already in progress. Close it and try again.';
+    }
+    if (code.contains('invalid_image')) {
+      return 'The selected image could not be read. Try another photo.';
+    }
+    if (code.contains('permission') || message.contains('permission')) {
+      return 'Photo permission is blocked for this app. Enable camera or photo access in system settings and try again.';
+    }
+
+    final fallback = 'Unable to open photo access right now. Please try again.';
+    if (!kDebugMode) {
+      return fallback;
+    }
+
+    final details = <String>[
+      'code=${error.code}',
+      if (error.message != null && error.message!.trim().isNotEmpty)
+        'message=${error.message!.trim()}',
+    ].join(', ');
+    return '$fallback ($details)';
   }
 
   String? _extractPhotoError(ApiException error) {

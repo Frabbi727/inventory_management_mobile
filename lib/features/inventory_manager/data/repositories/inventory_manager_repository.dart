@@ -8,7 +8,10 @@ import '../../../products/data/models/product_unit_model.dart';
 import '../../../products/data/repositories/product_repository.dart';
 import '../models/barcode_resolve_response.dart';
 import '../models/create_or_update_barcode_product_request.dart';
+import '../models/create_or_update_purchase_request.dart';
 import '../models/product_photo_upload_file.dart';
+import '../models/purchase_response_model.dart';
+import '../models/purchase_response_wrapper_model.dart';
 import '../models/product_unit_list_response_model.dart';
 import '../models/purchase_barcode_lookup_response.dart';
 
@@ -135,6 +138,39 @@ class InventoryManagerRepository {
     final response = await _apiClient.get(ApiEndpoints.units, token: token);
     final parsed = ProductUnitListResponseModel.fromJson(response);
     return parsed.data ?? const <ProductUnitModel>[];
+  }
+
+  Future<PurchaseResponseModel> createPurchase(
+    CreateOrUpdatePurchaseRequest request,
+  ) async {
+    final token = await _requireToken();
+    final response = await _apiClient.post(
+      ApiEndpoints.purchases,
+      token: token,
+      body: request.toJson(),
+    );
+    final parsed = PurchaseResponseWrapperModel.fromJson(response);
+    if (parsed.data == null) {
+      throw ApiException(message: 'Purchase response was not returned.');
+    }
+    return parsed.data!;
+  }
+
+  Future<PurchaseResponseModel> updatePurchase(
+    int purchaseId,
+    CreateOrUpdatePurchaseRequest request,
+  ) async {
+    final token = await _requireToken();
+    final response = await _apiClient.put(
+      ApiEndpoints.purchaseDetails(purchaseId),
+      token: token,
+      body: request.toJson(),
+    );
+    final parsed = PurchaseResponseWrapperModel.fromJson(response);
+    if (parsed.data == null) {
+      throw ApiException(message: 'Purchase response was not returned.');
+    }
+    return parsed.data!;
   }
 
   Future<String> _requireToken() async {

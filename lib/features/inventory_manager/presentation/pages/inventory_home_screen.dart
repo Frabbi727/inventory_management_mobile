@@ -1,24 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/routes/app_routes.dart';
 import '../../../profile/presentation/pages/profile_page.dart';
 import '../controllers/inventory_home_controller.dart';
 import 'inventory_products_page.dart';
 import 'inventory_summary_page.dart';
-import 'purchase_list_page.dart';
 
 class InventoryHomeScreen extends GetView<InventoryHomeController> {
   const InventoryHomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Obx(
-      () => Scaffold(
+    return Obx(() {
+      final selectedIndex = controller.selectedIndex.value == 1
+          ? 0
+          : controller.selectedIndex.value;
+
+      return Scaffold(
         body: IndexedStack(
-          index: controller.selectedIndex.value,
+          index: selectedIndex,
           children: [
             const InventoryProductsPage(),
-            const PurchaseListPage(),
+            const SizedBox.shrink(),
             const InventorySummaryPage(),
             ProfilePage(
               name: controller.user.value?.name ?? '-',
@@ -31,8 +35,15 @@ class InventoryHomeScreen extends GetView<InventoryHomeController> {
           ],
         ),
         bottomNavigationBar: NavigationBar(
-          selectedIndex: controller.selectedIndex.value,
-          onDestinationSelected: controller.changeTab,
+          selectedIndex: selectedIndex,
+          onDestinationSelected: (index) {
+            if (index == 1) {
+              Get.toNamed(AppRoutes.inventoryPurchaseCreate);
+              return;
+            }
+
+            controller.changeTab(index);
+          },
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
           destinations: const [
             NavigationDestination(
@@ -57,7 +68,7 @@ class InventoryHomeScreen extends GetView<InventoryHomeController> {
             ),
           ],
         ),
-      ),
-    );
+      );
+    });
   }
 }

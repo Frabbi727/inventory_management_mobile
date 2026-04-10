@@ -307,6 +307,341 @@ Before opening product create/edit:
 4. enter quantity and unit cost
 5. submit purchase using the normal purchase contract
 
+## Mobile Purchase API Design
+
+Current purchase business is `product_id`-based.
+Barcode is only a fast product lookup layer for mobile receiving flows.
+
+That means:
+
+- purchase items are saved with `product_id`
+- barcode is only used to resolve the product faster
+- stock is updated by purchase create/update business
+- barcode itself does not directly update stock
+
+### Purchase Business Rules
+
+Purchase create and update should keep the existing business behavior.
+
+Purchase request payloads should use:
+
+- `purchase_date`
+- `note`
+- `items[]`
+- `items.*.product_id`
+- `items.*.quantity`
+- `items.*.unit_cost`
+
+Each item represents a stock-in line for a real product row.
+
+### Recommended Mobile Purchase Endpoints
+
+The mobile app should expose purchase write APIs that reuse the current backend purchase services.
+
+#### Purchase list
+
+```http
+GET /api/inventory-manager/purchases
+```
+
+Use when:
+
+- showing purchase history on mobile
+- browsing recent receiving entries
+- opening a purchase to review or edit
+
+Suggested query parameters:
+
+- `page`
+- `per_page`
+- `search`
+- `date_from`
+- `date_to`
+
+Suggested response:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 101,
+      "purchase_date": "2026-04-10",
+      "note": "Warehouse stock receive",
+      "total_amount": 110,
+      "items_count": 2,
+      "created_at": "2026-04-10T09:30:00Z"
+    }
+  ],
+  "meta": {
+    "current_page": 1,
+    "last_page": 1,
+    "per_page": 15,
+    "total": 1
+  }
+}
+```
+
+#### Purchase details
+
+```http
+GET /api/inventory-manager/purchases/{purchase}
+```
+
+Use when:
+
+- opening purchase details
+- prefilling purchase edit screen
+
+Suggested response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": 101,
+    "purchase_date": "2026-04-10",
+    "note": "Warehouse stock receive",
+    "total_amount": 110,
+    "items": [
+      {
+        "id": 1,
+        "product_id": 12,
+        "quantity": 5,
+        "unit_cost": 10,
+        "line_total": 50,
+        "product": {
+          "id": 12,
+          "name": "Soft Drink 250ml",
+          "sku": "SD-250",
+          "barcode": "1234567890123",
+          "current_stock": 40,
+          "category": {
+            "id": 1,
+            "name": "Beverages"
+          },
+          "unit": {
+            "id": 2,
+            "name": "Piece",
+            "short_name": "pc"
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+#### Purchase create
+
+```http
+POST /api/inventory-manager/purchases
+```
+
+Use when:
+
+- saving a new purchase from mobile
+- completing barcode-assisted receiving
+
+Request:
+
+```json
+{
+  "purchase_date": "2026-04-10",
+  "note": "Warehouse stock receive",
+  "items": [
+    {
+      "product_id": 12,
+      "quantity": 5,
+      "unit_cost": 10
+    },
+    {
+      "product_id": 15,
+      "quantity": 3,
+      "unit_cost": 20
+    }
+  ]
+}
+```
+
+Business behavior:
+
+1. find each product by `product_id`
+2. create purchase item rows
+3. find or create stock row for each product
+4. add purchased quantity to stock
+5. create `stock_movements` rows with purchase type
+6. calculate and save purchase total amount
+
+Suggested success response:
+
+```json
+{
+  "success": true,
+  "message": "Purchase created successfully.",
+  "data": {
+    "id": 101,
+    "purchase_date": "2026-04-10",
+    "note": "Warehouse stock receive",
+    "total_amount": 110
+  }
+}
+```
+
+#### Purchase update
+
+```http
+PUT /api/inventory-manager/purchases/{purchase}
+```
+
+Use when:
+
+- editing an existing purchase from mobile
+- correcting quantity or unit cost after receiving
+
+Request:
+
+```json
+{
+  "purchase_date": "2026-04-10",
+  "note": "Updated warehouse stock receive",
+  "items": [
+    {
+      "product_id": 12,
+      "quantity": 4,
+      "unit_cost": 10
+    },
+    {
+      "product_id": 15,
+      "quantity": 6,
+      "unit_cost": 20
+    }
+  ]
+}
+```
+
+Business behavior:
+
+1. load old purchase items
+2. load new request items
+3. collect all affected product IDs
+4. lock related stock rows
+5. reverse old purchase effect from stock
+6. validate that reversal does not make stock negative
+7. block update if stock integrity would break
+8. apply new purchase quantities
+9. create audit trail in `stock_movements`
+10. replace stored purchase items
+11. recalculate and save total amount
+
+Suggested failure response when reversal is unsafe:
+
+```json
+{
+  "success": false,
+  "message": "Purchase update would make stock negative for one or more products.",
+  "errors": {
+    "items": [
+      "Stock integrity check failed during purchase update."
+    ]
+  }
+}
+```
+
+### Purchase Validation Rules
+
+Mobile purchase APIs should validate at least:
+
+- `purchase_date` is required and valid
+- `items` is required and must not be empty
+- `items.*.product_id` must exist
+- `items.*.quantity` must be greater than 0
+- `items.*.unit_cost` must be 0 or greater
+
+Suggested validation error response:
+
+```json
+{
+  "success": false,
+  "message": "The given data was invalid.",
+  "errors": {
+    "items.0.quantity": [
+      "The quantity field must be greater than 0."
+    ]
+  }
+}
+```
+
+### Barcode-Assisted Purchase Item Flow
+
+Barcode should be used for product selection, not as the saved purchase key.
+
+Use:
+
+```http
+GET /api/inventory-manager/barcode/purchase-products/{barcode}
+```
+
+Response should give mobile app the product details needed to build a purchase line item, especially:
+
+- `id`
+- `name`
+- `sku`
+- `barcode`
+- `current_stock`
+- `purchase_price`
+- `selling_price`
+- `category`
+- `unit`
+
+Then mobile app should convert the barcode lookup result into a purchase item like:
+
+```json
+{
+  "product_id": 12,
+  "quantity": 5,
+  "unit_cost": 10
+}
+```
+
+Correct mobile purchase flow:
+
+1. user scans barcode
+2. app calls purchase barcode lookup API
+3. app receives product details and `data.id`
+4. app adds item to local purchase form using `product_id`
+5. user enters quantity and unit cost
+6. app submits purchase using the normal purchase contract
+7. backend updates stock through purchase business
+
+### Stock Update Behavior
+
+Stock should continue to be updated only through purchase business.
+
+#### During purchase create
+
+- stock quantity increases
+- stock movement type is purchase
+- total amount is recalculated
+
+#### During purchase update
+
+- old purchase stock effect is reversed
+- new purchase stock effect is applied
+- unsafe reversal is rejected
+- stock movements keep the audit trail
+
+This preserves stock integrity and keeps purchase as the source of stock-in.
+
+### Mobile Purchase Scope
+
+For mobile product listing and barcode-assisted receiving preparation, the current APIs are already enough:
+
+- `GET /api/products`
+- `GET /api/inventory-manager/barcode/purchase-products/{barcode}`
+
+For full mobile purchase save and edit, dedicated mobile purchase APIs should be exposed using the existing backend purchase services.
+
 ## Conclusion
 
 For the inventory manager mobile app, these features are enough for v1:
@@ -317,3 +652,4 @@ For the inventory manager mobile app, these features are enough for v1:
 - Barcode scanner
 - Categories master data
 - Units master data
+- Mobile purchase list/details/create/update APIs built on the existing purchase business

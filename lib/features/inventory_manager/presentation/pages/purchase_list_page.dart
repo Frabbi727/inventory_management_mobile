@@ -17,7 +17,7 @@ class PurchaseListPage extends StatelessWidget {
             AppPageHeader(
               title: 'Purchases',
               subtitle:
-                  'Prepare stock receiving and build purchase drafts from scanned products.',
+                  'Prepare receiving items from product search, category filters, and barcode scan. Final purchase save is still web-only.',
               trailing: FilledButton.icon(
                 onPressed: () => Get.toNamed(AppRoutes.inventoryPurchaseCreate),
                 icon: const Icon(Icons.add),
@@ -32,14 +32,14 @@ class PurchaseListPage extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Purchase receiving flow',
+                      'Receiving preparation',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Scan a product barcode, convert the result into a product selection, then capture quantity and unit cost in a receiving draft.',
+                      'Use the live product APIs to search by name, filter by category, review stock, and scan barcodes. Build a local purchase draft on mobile, then complete final save in web until the backend exposes purchase write APIs.',
                     ),
                     const SizedBox(height: 16),
                     FilledButton.icon(
@@ -57,7 +57,7 @@ class PurchaseListPage extends StatelessWidget {
               child: Padding(
                 padding: EdgeInsets.all(20),
                 child: Text(
-                  'Saved purchase history is not yet exposed in this mobile build. This tab is focused on a clean receiving entry point for inventory staff.',
+                  'Backend limitation: /api/inventory-manager/purchases does not exist yet. This tab only supports purchase preparation using product list and barcode lookup APIs.',
                 ),
               ),
             ),
