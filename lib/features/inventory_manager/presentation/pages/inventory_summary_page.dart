@@ -7,47 +7,15 @@ import '../../../products/data/models/product_model.dart';
 import '../../../products/data/models/product_stock_status.dart';
 import '../controllers/inventory_summary_controller.dart';
 
-class InventorySummaryPage extends StatefulWidget {
+class InventorySummaryPage extends GetView<InventorySummaryController> {
   const InventorySummaryPage({super.key});
 
   @override
-  State<InventorySummaryPage> createState() => _InventorySummaryPageState();
-}
-
-class _InventorySummaryPageState extends State<InventorySummaryPage> {
-  final InventorySummaryController controller = Get.find();
-  InventoryStatusFilter selectedFilter = InventoryStatusFilter.all;
-
-  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
     return SafeArea(
       child: Obx(() {
-        final allProducts = controller.products.toList(growable: false);
-        final inStockProducts = _filterByStatus(
-          allProducts,
-          ProductStockStatus.inStock,
-        );
-        final lowStockProducts = _filterByStatus(
-          allProducts,
-          ProductStockStatus.lowStock,
-        );
-        final outOfStockProducts = _filterByStatus(
-          allProducts,
-          ProductStockStatus.outOfStock,
-        );
-        final needsAttentionProducts = [
-          ...outOfStockProducts,
-          ...lowStockProducts,
-        ];
-        final filteredProducts = switch (selectedFilter) {
-          InventoryStatusFilter.all => allProducts,
-          InventoryStatusFilter.inStock => inStockProducts,
-          InventoryStatusFilter.low => lowStockProducts,
-          InventoryStatusFilter.out => outOfStockProducts,
-        };
+        final selectedFilter = controller.selectedFilter.value;
+        final filteredProducts = controller.filteredProducts;
 
         return RefreshIndicator(
           onRefresh: controller.retry,
@@ -56,15 +24,9 @@ class _InventorySummaryPageState extends State<InventorySummaryPage> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
             children: [
               AppPageHeader(
-                title: 'Inventory',
-                subtitle:
-                    'Watch stock health, low-stock exposure, and the products that need attention.',
-              ),
+                title: 'Inventory'),
               const SizedBox(height: 20),
-              _InventoryOverviewBanner(
-                attentionCount: needsAttentionProducts.length,
-              ),
-              const SizedBox(height: 18),
+
               GridView.count(
                 crossAxisCount: 2,
                 shrinkWrap: true,
@@ -74,102 +36,49 @@ class _InventorySummaryPageState extends State<InventorySummaryPage> {
                 childAspectRatio: 1.35,
                 children: [
                   _SummaryCard(
+                    isSelected: selectedFilter == InventoryStatusFilter.all,
+                    onTap: () =>
+                        controller.selectFilter(InventoryStatusFilter.all),
                     label: 'Total',
-                    value: '${allProducts.length}',
+                    value: '${controller.allProducts.length}',
                     icon: Icons.inventory_2_outlined,
                     accentColor: const Color(0xFF0F766E),
                     backgroundColor: const Color(0xFFF3FBFA),
                   ),
                   _SummaryCard(
+                    isSelected: selectedFilter == InventoryStatusFilter.inStock,
+                    onTap: () =>
+                        controller.selectFilter(InventoryStatusFilter.inStock),
                     label: 'In Stock',
-                    value: '${inStockProducts.length}',
+                    value: '${controller.inStockProducts.length}',
                     icon: ProductStockStatus.inStock.icon,
                     accentColor: ProductStockStatus.inStock.accentColor,
                     backgroundColor:
                         ProductStockStatus.inStock.surfaceTintColor,
                   ),
                   _SummaryCard(
+                    isSelected: selectedFilter == InventoryStatusFilter.low,
+                    onTap: () =>
+                        controller.selectFilter(InventoryStatusFilter.low),
                     label: 'Low Stock',
-                    value: '${lowStockProducts.length}',
+                    value: '${controller.lowStockProducts.length}',
                     icon: ProductStockStatus.lowStock.icon,
                     accentColor: ProductStockStatus.lowStock.accentColor,
                     backgroundColor:
                         ProductStockStatus.lowStock.surfaceTintColor,
                   ),
                   _SummaryCard(
+                    isSelected: selectedFilter == InventoryStatusFilter.out,
+                    onTap: () =>
+                        controller.selectFilter(InventoryStatusFilter.out),
                     label: 'Out of Stock',
-                    value: '${outOfStockProducts.length}',
+                    value: '${controller.outOfStockProducts.length}',
                     icon: ProductStockStatus.outOfStock.icon,
                     accentColor: ProductStockStatus.outOfStock.accentColor,
                     backgroundColor:
                         ProductStockStatus.outOfStock.surfaceTintColor,
                   ),
                 ],
-              ),
-              const SizedBox(height: 24),
-              _SectionHeader(
-                title: 'Status',
-                subtitle: 'Filter the product list by stock health.',
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: InventoryStatusFilter.values
-                    .map((filter) {
-                      final isSelected = selectedFilter == filter;
-                      final status = filter.status;
-                      final accentColor =
-                          status?.accentColor ?? colorScheme.primary;
-                      final backgroundColor = isSelected
-                          ? accentColor.withValues(alpha: 0.12)
-                          : Colors.white;
-
-                      return FilterChip(
-                        selected: isSelected,
-                        onSelected: (_) {
-                          setState(() {
-                            selectedFilter = filter;
-                          });
-                        },
-                        label: Text(filter.label),
-                        avatar: Icon(
-                          filter.icon,
-                          size: 18,
-                          color: isSelected
-                              ? accentColor
-                              : colorScheme.onSurfaceVariant,
-                        ),
-                        backgroundColor: backgroundColor,
-                        selectedColor: backgroundColor,
-                        side: BorderSide(
-                          color: isSelected
-                              ? accentColor.withValues(alpha: 0.28)
-                              : colorScheme.outlineVariant,
-                        ),
-                        labelStyle: theme.textTheme.labelLarge?.copyWith(
-                          color: isSelected
-                              ? accentColor
-                              : colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        showCheckmark: false,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 10,
-                        ),
-                      );
-                    })
-                    .toList(growable: false),
-              ),
-              const SizedBox(height: 24),
-              _NeedsAttentionSection(
-                products: needsAttentionProducts,
-                onProductTap: controller.openDetails,
               ),
               const SizedBox(height: 24),
               _SectionHeader(
@@ -195,111 +104,9 @@ class _InventorySummaryPageState extends State<InventorySummaryPage> {
       }),
     );
   }
-
-  List<ProductModel> _filterByStatus(
-    List<ProductModel> products,
-    ProductStockStatus status,
-  ) {
-    return products
-        .where((product) => _statusOf(product) == status)
-        .toList(growable: false);
-  }
-
-  ProductStockStatus _statusOf(ProductModel product) {
-    return product.effectiveStockStatus;
-  }
 }
 
-enum InventoryStatusFilter {
-  all('All', Icons.grid_view_rounded),
-  inStock('In Stock', Icons.check_circle_rounded, ProductStockStatus.inStock),
-  low('Low', Icons.warning_amber_rounded, ProductStockStatus.lowStock),
-  out('Out', Icons.cancel_rounded, ProductStockStatus.outOfStock);
 
-  const InventoryStatusFilter(this.label, this.icon, [this.status]);
-
-  final String label;
-  final IconData icon;
-  final ProductStockStatus? status;
-
-  String get sectionTitle => switch (this) {
-    InventoryStatusFilter.all => 'All Products',
-    InventoryStatusFilter.inStock => 'In-Stock Products',
-    InventoryStatusFilter.low => 'Low-Stock Products',
-    InventoryStatusFilter.out => 'Out-of-Stock Products',
-  };
-}
-
-class _InventoryOverviewBanner extends StatelessWidget {
-  const _InventoryOverviewBanner({required this.attentionCount});
-
-  final int attentionCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0F766E), Color(0xFF129990)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x1F0F766E),
-            blurRadius: 28,
-            offset: Offset(0, 16),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            height: 52,
-            width: 52,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.16),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(
-              Icons.auto_graph_rounded,
-              color: Colors.white,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Inventory at a glance',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  attentionCount == 0
-                      ? 'Everything looks healthy right now.'
-                      : '$attentionCount product(s) need attention today.',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.88),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _SummaryCard extends StatelessWidget {
   const _SummaryCard({
@@ -308,6 +115,8 @@ class _SummaryCard extends StatelessWidget {
     required this.icon,
     required this.accentColor,
     required this.backgroundColor,
+    required this.isSelected,
+    required this.onTap,
   });
 
   final String label;
@@ -315,53 +124,83 @@ class _SummaryCard extends StatelessWidget {
   final IconData icon;
   final Color accentColor;
   final Color backgroundColor;
+  final bool isSelected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final selectedBackground = isSelected ? backgroundColor : Colors.white;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x120F172A),
-            blurRadius: 24,
-            offset: Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: 42,
-            width: 42,
-            decoration: BoxDecoration(
-              color: backgroundColor,
-              borderRadius: BorderRadius.circular(14),
+        child: Ink(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: selectedBackground,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: isSelected
+                  ? accentColor.withValues(alpha: 0.45)
+                  : const Color(0xFFE6EAF0),
+              width: isSelected ? 1.6 : 1,
             ),
-            child: Icon(icon, color: accentColor),
+            boxShadow: [
+              BoxShadow(
+                color: isSelected
+                    ? accentColor.withValues(alpha: 0.18)
+                    : const Color(0x120F172A),
+                blurRadius: isSelected ? 28 : 24,
+                offset: Offset(0, isSelected ? 14 : 10),
+              ),
+            ],
           ),
-          const Spacer(),
-          Text(
-            value,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: theme.colorScheme.onSurface,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    height: 42,
+                    width: 42,
+                    decoration: BoxDecoration(
+                      color: backgroundColor,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(icon, color: accentColor),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    Icons.touch_app_rounded,
+                    size: 18,
+                    color: isSelected
+                        ? accentColor
+                        : theme.colorScheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Text(
+                value,
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -398,107 +237,18 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _NeedsAttentionSection extends StatelessWidget {
-  const _NeedsAttentionSection({
-    required this.products,
-    required this.onProductTap,
-  });
-
-  final List<ProductModel> products;
-  final ValueChanged<ProductModel> onProductTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFBF4),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFF8D89A)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                height: 42,
-                width: 42,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF4DB),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(
-                  Icons.warning_amber_rounded,
-                  color: Color(0xFF9A6700),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Needs Attention',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      products.isEmpty
-                          ? 'No low-stock or out-of-stock products right now.'
-                          : 'Prioritize these products before they impact sales.',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          if (products.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            ...products
-                .take(4)
-                .map(
-                  (product) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _InventoryProductTile(
-                      product: product,
-                      onTap: () => onProductTap(product),
-                      emphasizeStatus: true,
-                    ),
-                  ),
-                ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
 class _InventoryProductTile extends StatelessWidget {
-  const _InventoryProductTile({
-    required this.product,
-    required this.onTap,
-    this.emphasizeStatus = false,
-  });
+  const _InventoryProductTile({required this.product, required this.onTap});
 
   final ProductModel product;
   final VoidCallback onTap;
-  final bool emphasizeStatus;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final status = product.effectiveStockStatus;
     final accentColor = status.accentColor;
-    final backgroundColor =
-        emphasizeStatus || status != ProductStockStatus.inStock
+    final backgroundColor = status != ProductStockStatus.inStock
         ? status.surfaceTintColor
         : Colors.white;
 
