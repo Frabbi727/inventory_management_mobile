@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 
 import '../../../../core/routes/app_routes.dart';
 import '../../../products/data/models/product_model.dart';
+import '../../../products/data/models/product_stock_status.dart';
 import 'inventory_product_catalog_controller.dart';
 
 class InventorySummaryController extends InventoryProductCatalogController {
@@ -17,16 +18,17 @@ class InventorySummaryController extends InventoryProductCatalogController {
       products.where(isLowStock).toList(growable: false);
 
   List<ProductModel> get outOfStockProducts => products
-      .where((product) => (product.currentStock ?? 0) <= 0)
+      .where(
+        (product) =>
+            product.effectiveStockStatus == ProductStockStatus.outOfStock,
+      )
       .toList(growable: false);
 
   int get categoryCount =>
       products.map((e) => e.category?.id).whereType<int>().toSet().length;
 
   bool isLowStock(ProductModel product) {
-    final currentStock = product.currentStock ?? 0;
-    final minimumStockAlert = product.minimumStockAlert ?? 0;
-    return currentStock <= minimumStockAlert;
+    return product.effectiveStockStatus == ProductStockStatus.lowStock;
   }
 
   @override

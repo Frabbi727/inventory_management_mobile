@@ -314,7 +314,7 @@ class _OverviewCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     ProductStockStatusBadge(
-                      status: product.resolvedStockStatus,
+                      status: product.effectiveStockStatus,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 10,
                         vertical: 6,

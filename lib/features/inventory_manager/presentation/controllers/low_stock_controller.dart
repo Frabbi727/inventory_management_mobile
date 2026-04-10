@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 
 import '../../../../core/routes/app_routes.dart';
 import '../../../products/data/models/product_model.dart';
+import '../../../products/data/models/product_stock_status.dart';
 import 'inventory_product_catalog_controller.dart';
 
 class LowStockController extends InventoryProductCatalogController {
@@ -26,8 +27,6 @@ class LowStockController extends InventoryProductCatalogController {
   }
 
   bool _isLowStock(ProductModel product) {
-    final currentStock = product.currentStock ?? 0;
-    final minimumStockAlert = product.minimumStockAlert ?? 0;
-    return currentStock <= minimumStockAlert;
+    return product.effectiveStockStatus == ProductStockStatus.lowStock;
   }
 }

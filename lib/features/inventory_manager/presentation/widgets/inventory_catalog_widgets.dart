@@ -148,7 +148,7 @@ class InventoryProductCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final stock = product.currentStock ?? 0;
-    final stockStatus = product.resolvedStockStatus;
+    final stockStatus = product.effectiveStockStatus;
     final accentColor = stockStatus.textColor;
     final primaryPhotoUrl = product.primaryPhotoUrl;
 

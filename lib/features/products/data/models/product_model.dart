@@ -79,11 +79,14 @@ class ProductModel {
 
   String? get primaryPhotoUrl => primaryPhoto?.fileUrl;
 
-  ProductStockStatus get resolvedStockStatus => ProductStockStatus.resolve(
-    apiStatus: stockStatus,
-    currentStock: currentStock,
-    minimumStockAlert: minimumStockAlert,
-  );
+  ProductStockStatus get effectiveStockStatus =>
+      stockStatus ??
+      ProductStockStatus.resolve(
+        currentStock: currentStock,
+        minimumStockAlert: minimumStockAlert,
+      );
+
+  ProductStockStatus get resolvedStockStatus => effectiveStockStatus;
 
   List<ProductPhotoModel> get galleryPhotos {
     final resolvedPhotos = photos ?? const <ProductPhotoModel>[];

@@ -64,4 +64,28 @@ enum ProductStockStatus {
     ProductStockStatus.lowStock => const Color(0xFF9A6700),
     ProductStockStatus.outOfStock => const Color(0xFFB42318),
   };
+
+  Color get accentColor => switch (this) {
+    ProductStockStatus.inStock => const Color(0xFF16A34A),
+    ProductStockStatus.lowStock => const Color(0xFFF59E0B),
+    ProductStockStatus.outOfStock => const Color(0xFFDC2626),
+  };
+
+  Color get surfaceTintColor => switch (this) {
+    ProductStockStatus.inStock => const Color(0xFFF1FCF5),
+    ProductStockStatus.lowStock => const Color(0xFFFFF9ED),
+    ProductStockStatus.outOfStock => const Color(0xFFFFF1F1),
+  };
+
+  Color get borderColor => switch (this) {
+    ProductStockStatus.inStock => const Color(0xFFB7E4C7),
+    ProductStockStatus.lowStock => const Color(0xFFF8D89A),
+    ProductStockStatus.outOfStock => const Color(0xFFF2B8B5),
+  };
+
+  IconData get icon => switch (this) {
+    ProductStockStatus.inStock => Icons.check_circle_rounded,
+    ProductStockStatus.lowStock => Icons.warning_amber_rounded,
+    ProductStockStatus.outOfStock => Icons.cancel_rounded,
+  };
 }
