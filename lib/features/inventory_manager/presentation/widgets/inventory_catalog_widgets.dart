@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../shared/widgets/app_remote_media.dart';
 import '../../../products/data/models/product_model.dart';
 
 class InventorySearchPanel extends StatelessWidget {
@@ -149,12 +150,7 @@ class InventoryProductCard extends StatelessWidget {
     final minimumStock = product.minimumStockAlert ?? 0;
     final isLowStock = minimumStock > 0 && stock <= minimumStock;
     final accentColor = isLowStock ? colorScheme.error : colorScheme.primary;
-    final details = <String>[
-      'Cost ৳${product.purchasePrice ?? 0}',
-      if ((product.unit?.shortName ?? product.unit?.name ?? '').isNotEmpty)
-        'Unit ${product.unit?.shortName ?? product.unit?.name}',
-      if (minimumStock > 0) 'Min $minimumStock',
-    ];
+    final primaryPhotoUrl = product.primaryPhotoUrl;
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -175,11 +171,19 @@ class InventoryProductCard extends StatelessWidget {
                       color: accentColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(14),
                     ),
-                    child: Icon(
-                      Icons.inventory_2_rounded,
-                      color: accentColor,
-                      size: 22,
-                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: primaryPhotoUrl != null && primaryPhotoUrl.isNotEmpty
+                        ? AppCachedNetworkImage(
+                            imageUrl: primaryPhotoUrl,
+                            fit: BoxFit.cover,
+                            placeholder: _ProductCardThumbFallback(
+                              accentColor: accentColor,
+                            ),
+                            errorWidget: _ProductCardThumbFallback(
+                              accentColor: accentColor,
+                            ),
+                          )
+                        : _ProductCardThumbFallback(accentColor: accentColor),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -448,6 +452,22 @@ class _InventoryStatusBadge extends StatelessWidget {
           color: color,
           fontWeight: FontWeight.w800,
         ),
+      ),
+    );
+  }
+}
+
+class _ProductCardThumbFallback extends StatelessWidget {
+  const _ProductCardThumbFallback({required this.accentColor});
+
+  final Color accentColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: accentColor.withValues(alpha: 0.12),
+      child: Center(
+        child: Icon(Icons.inventory_2_rounded, color: accentColor, size: 22),
       ),
     );
   }
