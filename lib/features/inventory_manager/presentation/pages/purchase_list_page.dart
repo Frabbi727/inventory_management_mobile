@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../shared/widgets/app_message_state.dart';
-import '../../../../shared/widgets/app_page_header.dart';
 import '../../data/models/inventory_purchase_model.dart';
 import '../controllers/purchase_list_controller.dart';
 
@@ -13,23 +12,13 @@ class PurchaseListPage extends GetView<PurchaseListController> {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
         child: Column(
           children: [
-            AppPageHeader(
-              title: 'Purchases',
-              subtitle: controller.hasAnyQueryApplied
-                  ? 'Search and date filters stay applied while refreshing the list.'
-                  : 'Review recent purchases and open any purchase to edit it.',
-              trailing: FilledButton.icon(
-                onPressed: controller.openNewPurchase,
-                icon: const Icon(Icons.add),
-                label: const Text('New Purchase'),
-              ),
-            ),
-            const SizedBox(height: 16),
+            _PurchasePageHeader(controller: controller),
+            const SizedBox(height: 14),
             _PurchaseToolbar(controller: controller),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Obx(
               () => AnimatedSwitcher(
                 duration: const Duration(milliseconds: 180),
@@ -43,24 +32,20 @@ class PurchaseListPage extends GetView<PurchaseListController> {
                           children: [
                             if (controller.hasActiveSearch)
                               _FilterChip(
+                                icon: Icons.search_rounded,
                                 label: 'Search: ${controller.searchQuery.value}',
                               ),
                             if (controller.hasActiveDateFilter)
-                              _FilterChip(label: controller.dateRangeLabel),
-                            ActionChip(
-                              label: const Text('Reset'),
-                              avatar: const Icon(
-                                Icons.restart_alt,
-                                size: 18,
+                              _FilterChip(
+                                icon: Icons.date_range_outlined,
+                                label: controller.dateRangeLabel,
                               ),
-                              onPressed: controller.clearAllCriteria,
-                            ),
                           ],
                         ),
                       ),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Expanded(
               child: Obx(() {
                 if (controller.isInitialLoading.value &&
@@ -134,7 +119,7 @@ class PurchaseListPage extends GetView<PurchaseListController> {
                                   ),
                                 ],
                               )
-                            : ListView.separated(
+                            : ListView.builder(
                                 controller: controller.scrollController,
                                 physics: const AlwaysScrollableScrollPhysics(
                                   parent: BouncingScrollPhysics(),
@@ -146,8 +131,6 @@ class PurchaseListPage extends GetView<PurchaseListController> {
                                 itemCount:
                                     controller.purchases.length +
                                     (controller.isLoadingMore.value ? 1 : 0),
-                                separatorBuilder: (_, _) =>
-                                    const SizedBox(height: 12),
                                 itemBuilder: (context, index) {
                                   if (index >= controller.purchases.length) {
                                     return const Padding(
@@ -161,15 +144,23 @@ class PurchaseListPage extends GetView<PurchaseListController> {
                                   }
 
                                   final purchase = controller.purchases[index];
-                                  return _PurchaseCard(
-                                    purchase: purchase,
-                                    formatDate: controller.formatDate,
-                                    formatCurrency:
-                                        controller.formatCurrency,
-                                    onOpen: () =>
-                                        controller.openPurchaseDetails(purchase),
-                                    onEdit: () =>
-                                        controller.openPurchaseEditor(purchase),
+                                  return Padding(
+                                    padding: EdgeInsets.only(
+                                      bottom:
+                                          index == controller.purchases.length - 1
+                                          ? 0
+                                          : 14,
+                                    ),
+                                    child: _PurchaseCard(
+                                      purchase: purchase,
+                                      formatDate: controller.formatDate,
+                                      formatCurrency:
+                                          controller.formatCurrency,
+                                      onOpen: () => controller
+                                          .openPurchaseDetails(purchase),
+                                      onEdit: () => controller
+                                          .openPurchaseEditor(purchase),
+                                    ),
                                   );
                                 },
                               ),
@@ -186,6 +177,59 @@ class PurchaseListPage extends GetView<PurchaseListController> {
   }
 }
 
+class _PurchasePageHeader extends StatelessWidget {
+  const _PurchasePageHeader({required this.controller});
+
+  final PurchaseListController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Purchases',
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.4,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                controller.hasAnyQueryApplied
+                    ? 'Filtered purchase records'
+                    : 'Review and manage recent purchase entries.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        FilledButton.icon(
+          onPressed: controller.openNewPurchase,
+          style: FilledButton.styleFrom(
+            minimumSize: const Size(0, 50),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+          ),
+          icon: const Icon(Icons.add, size: 18),
+          label: const Text('New Purchase'),
+        ),
+      ],
+    );
+  }
+}
+
 class _PurchaseToolbar extends StatelessWidget {
   const _PurchaseToolbar({required this.controller});
 
@@ -195,82 +239,282 @@ class _PurchaseToolbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Card(
-      elevation: 0,
-      color: theme.colorScheme.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
           children: [
-            TextField(
-              controller: controller.searchTextController,
-              onChanged: controller.onSearchChanged,
-              textInputAction: TextInputAction.search,
-              decoration: InputDecoration(
-                hintText: 'Search purchase no or note',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: Obx(
-                  () => controller.isSearching.value
-                      ? const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        )
-                      : controller.searchTextController.text.isEmpty
-                      ? const SizedBox.shrink()
-                      : IconButton(
-                          onPressed: controller.clearSearch,
-                          icon: const Icon(Icons.close),
-                        ),
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(18),
-                ),
-              ),
-            ),
+            _PurchaseSearchBar(controller: controller),
             const SizedBox(height: 12),
-            Obx(
-              () => Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => controller.pickDateRange(context),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 14,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                      ),
-                      icon: const Icon(Icons.date_range_outlined),
-                      label: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          controller.dateRangeLabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
+            _PurchaseDateFilterRow(controller: controller),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PurchaseSearchBar extends StatelessWidget {
+  const _PurchaseSearchBar({required this.controller});
+
+  final PurchaseListController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return TextField(
+      controller: controller.searchTextController,
+      onChanged: controller.onSearchChanged,
+      textInputAction: TextInputAction.search,
+      decoration: InputDecoration(
+        hintText: 'Search purchase no or note',
+        hintStyle: theme.textTheme.bodyMedium?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.82),
+        ),
+        prefixIcon: Icon(
+          Icons.search_rounded,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+        suffixIcon: Obx(
+          () => controller.isSearching.value
+              ? const Padding(
+                  padding: EdgeInsets.all(13),
+                  child: SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              : controller.searchTextController.text.isEmpty
+              ? const SizedBox.shrink()
+              : IconButton(
+                  tooltip: 'Clear search',
+                  onPressed: controller.clearSearch,
+                  splashRadius: 20,
+                  icon: const Icon(Icons.close_rounded),
+                ),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 15,
+        ),
+        filled: true,
+        fillColor: Colors.white,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(18),
+          borderSide: BorderSide(
+            color: theme.colorScheme.primary,
+            width: 1.5,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PurchaseDateFilterRow extends StatelessWidget {
+  const _PurchaseDateFilterRow({required this.controller});
+
+  final PurchaseListController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Obx(() {
+      final hasDateFilter = controller.hasActiveDateFilter;
+      final hasAnyFilter = controller.hasAnyQueryApplied;
+
+      return Row(
+        children: [
+          Expanded(
+            child: SizedBox(
+              height: 68,
+              child: InkWell(
+                onTap: () => controller.pickDateRange(context),
+                borderRadius: BorderRadius.circular(20),
+                child: Ink(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 13,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: hasDateFilter
+                          ? [
+                              theme.colorScheme.primaryContainer.withValues(
+                                alpha: 0.82,
+                              ),
+                              Colors.white,
+                            ]
+                          : [
+                              Colors.white,
+                              theme.colorScheme.surface.withValues(alpha: 0.98),
+                            ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: hasDateFilter
+                          ? theme.colorScheme.primary.withValues(alpha: 0.24)
+                          : theme.colorScheme.outlineVariant,
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  IconButton.outlined(
-                    tooltip: 'Clear filters',
-                    onPressed: controller.hasAnyQueryApplied
-                        ? controller.clearAllCriteria
-                        : null,
-                    icon: const Icon(Icons.restart_alt),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: hasDateFilter
+                              ? theme.colorScheme.primary.withValues(alpha: 0.12)
+                              : theme.colorScheme.surfaceContainerHighest
+                                    .withValues(alpha: 0.76),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(
+                          Icons.date_range_outlined,
+                          size: 20,
+                          color: hasDateFilter
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Date range',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              controller.dateRangeLabel,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        color: hasDateFilter
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
-          ],
+          ),
+          const SizedBox(width: 10),
+          _ResetFiltersButton(
+            enabled: hasAnyFilter,
+            onPressed: controller.clearAllCriteria,
+          ),
+        ],
+      );
+    });
+  }
+}
+
+class _ResetFiltersButton extends StatelessWidget {
+  const _ResetFiltersButton({
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  final bool enabled;
+  final Future<void> Function() onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return SizedBox(
+      width: 76,
+      height: 68,
+      child: Material(
+        color: enabled
+            ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.92)
+            : Colors.white.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          onTap: enabled ? onPressed : null,
+          borderRadius: BorderRadius.circular(20),
+          splashColor: enabled
+              ? theme.colorScheme.primary.withValues(alpha: 0.08)
+              : Colors.transparent,
+          highlightColor: enabled
+              ? theme.colorScheme.primary.withValues(alpha: 0.05)
+              : Colors.transparent,
+          child: Ink(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: enabled
+                    ? theme.colorScheme.primary.withValues(alpha: 0.18)
+                    : theme.colorScheme.outlineVariant.withValues(alpha: 0.8),
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.restart_alt_rounded,
+                  size: 20,
+                  color: enabled
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.5,
+                        ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Reset',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: enabled
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.55,
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -296,87 +540,180 @@ class _PurchaseCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final note = purchase.note?.trim();
+    final purchaseLabel = purchase.purchaseNo?.isNotEmpty == true
+        ? purchase.purchaseNo!
+        : 'Purchase #${purchase.id ?? '-'}';
 
-    return Card(
-      elevation: 0,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: InkWell(
-        onTap: onOpen,
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          purchase.purchaseNo?.isNotEmpty == true
-                              ? purchase.purchaseNo!
-                              : 'Purchase #${purchase.id ?? '-'}',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          formatDate(purchase.purchaseDate),
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.98),
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.92),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0x140F172A),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(26),
+        child: InkWell(
+          onTap: onOpen,
+          borderRadius: BorderRadius.circular(26),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 56,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(999),
                   ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      FilledButton.tonal(
-                        onPressed: onOpen,
-                        child: const Text('Open'),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            purchaseLabel,
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.35,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 7,
+                            ),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerHighest
+                                  .withValues(alpha: 0.38),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: _MetaLine(
+                              icon: Icons.calendar_today_outlined,
+                              text: formatDate(purchase.purchaseDate),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  _InfoPill(
-                    label: 'Total',
-                    value: formatCurrency(purchase.totalAmount),
-                  ),
-                  _InfoPill(
-                    label: 'Items',
-                    value: '${purchase.itemsCount ?? 0}',
-                  ),
-                  _InfoPill(
-                    label: 'Creator',
-                    value: purchase.creator?.name ?? '-',
-                  ),
-                ],
-              ),
-              if (note != null && note.isNotEmpty) ...[
-                const SizedBox(height: 14),
+                    ),
+                    const SizedBox(width: 12),
+                    FilledButton.tonalIcon(
+                      onPressed: onOpen,
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(0, 42),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 9,
+                        ),
+                        backgroundColor: theme.colorScheme.primary.withValues(
+                          alpha: 0.1,
+                        ),
+                        foregroundColor: theme.colorScheme.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                      label: const Text('Open'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest
-                        .withValues(alpha: 0.55),
-                    borderRadius: BorderRadius.circular(16),
+                    color: theme.colorScheme.surface.withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: theme.colorScheme.outlineVariant.withValues(
+                        alpha: 0.72,
+                      ),
+                    ),
                   ),
-                  child: Text(note, style: theme.textTheme.bodyMedium),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _MetricColumn(
+                          label: 'Total Amount',
+                          value: formatCurrency(purchase.totalAmount),
+                          emphasize: true,
+                        ),
+                      ),
+                      Container(
+                        width: 1,
+                        height: 42,
+                        color: theme.colorScheme.outlineVariant.withValues(
+                          alpha: 0.7,
+                        ),
+                      ),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 14),
+                          child: _MetricColumn(
+                            label: 'Items',
+                            value: '${purchase.itemsCount ?? 0}',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(height: 12),
+                _DetailStrip(
+                  icon: Icons.person_outline_rounded,
+                  label: 'Created by',
+                  value: purchase.creator?.name ?? '-',
+                ),
+                if (note != null && note.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.42),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: theme.colorScheme.outlineVariant.withValues(
+                          alpha: 0.7,
+                        ),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Note',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(note, style: theme.textTheme.bodyMedium),
+                      ],
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),
@@ -384,9 +721,55 @@ class _PurchaseCard extends StatelessWidget {
   }
 }
 
-class _InfoPill extends StatelessWidget {
-  const _InfoPill({required this.label, required this.value});
+class _MetricColumn extends StatelessWidget {
+  const _MetricColumn({
+    required this.label,
+    required this.value,
+    this.emphasize = false,
+  });
 
+  final String label;
+  final String value;
+  final bool emphasize;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: (emphasize
+                  ? theme.textTheme.titleLarge
+                  : theme.textTheme.titleMedium)
+              ?.copyWith(
+                fontWeight: FontWeight.w800,
+                letterSpacing: emphasize ? -0.3 : 0,
+              ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DetailStrip extends StatelessWidget {
+  const _DetailStrip({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
   final String label;
   final String value;
 
@@ -395,26 +778,44 @@ class _InfoPill extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(16),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.36),
+        borderRadius: BorderRadius.circular(18),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
+      child: Row(
         children: [
-          Text(
-            label,
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.82),
+              borderRadius: BorderRadius.circular(12),
             ),
+            child: Icon(icon, size: 18, color: theme.colorScheme.primary),
           ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: theme.textTheme.labelLarge?.copyWith(
-              fontWeight: FontWeight.w800,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -423,9 +824,39 @@ class _InfoPill extends StatelessWidget {
   }
 }
 
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({required this.label});
+class _MetaLine extends StatelessWidget {
+  const _MetaLine({required this.icon, required this.text});
 
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            text,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({required this.icon, required this.label});
+
+  final IconData icon;
   final String label;
 
   @override
@@ -435,14 +866,22 @@ class _FilterChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: theme.colorScheme.outlineVariant),
       ),
-      child: Text(
-        label,
-        style: theme.textTheme.labelLarge?.copyWith(
-          fontWeight: FontWeight.w700,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
