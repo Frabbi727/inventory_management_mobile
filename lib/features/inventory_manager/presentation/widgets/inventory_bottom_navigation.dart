@@ -129,36 +129,36 @@ class _InventoryNavItem extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(14),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 220),
-        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected
-              ? colorScheme.primaryContainer.withValues(alpha: 0.65)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(18),
-        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              width: 22,
+              height: 3,
+              decoration: BoxDecoration(
+                color: selected ? colorScheme.primary : Colors.transparent,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+            const SizedBox(height: 6),
             Icon(
               selected ? selectedIcon : icon,
-              color: selected
-                  ? colorScheme.primary
-                  : colorScheme.onSurfaceVariant,
+              color: colorScheme.onSurfaceVariant,
               size: 20,
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 3),
             Text(
               label,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.labelSmall?.copyWith(
-                color: selected
-                    ? colorScheme.primary
-                    : colorScheme.onSurfaceVariant,
+                color: colorScheme.onSurfaceVariant,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
               ),
             ),
