@@ -6,6 +6,7 @@ import '../../../products/presentation/controllers/product_list_controller.dart'
 import '../../data/repositories/inventory_manager_repository.dart';
 import '../controllers/inventory_home_controller.dart';
 import '../controllers/purchase_draft_controller.dart';
+import '../controllers/purchase_flow_controller.dart';
 
 class InventoryHomeBinding extends Bindings {
   @override
@@ -43,6 +44,15 @@ class InventoryHomeBinding extends Bindings {
 
     if (!Get.isRegistered<PurchaseDraftController>()) {
       Get.put(PurchaseDraftController(), permanent: true);
+    }
+
+    if (!Get.isRegistered<PurchaseFlowController>()) {
+      Get.lazyPut(
+        () => PurchaseFlowController(
+          inventoryManagerRepository: Get.find<InventoryManagerRepository>(),
+        ),
+        fenix: true,
+      );
     }
   }
 }

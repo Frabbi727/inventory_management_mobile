@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../products/data/models/product_model.dart';
-import '../controllers/purchase_draft_controller.dart';
+import '../controllers/purchase_flow_controller.dart';
 
 class PurchaseDetailsPage extends StatefulWidget {
   const PurchaseDetailsPage({super.key});
@@ -13,15 +13,15 @@ class PurchaseDetailsPage extends StatefulWidget {
 
 class _PurchaseDetailsPageState extends State<PurchaseDetailsPage> {
   late final ProductModel _product;
-  late final PurchaseDraftController _draftController;
+  late final PurchaseFlowController _purchaseFlowController;
   late final TextEditingController _quantityController;
   late final TextEditingController _unitCostController;
+  late final TextEditingController _noteController;
 
+  late DateTime _purchaseDate;
   String? _quantityError;
   String? _unitCostError;
-
-  bool get _isExistingItem =>
-      _product.id != null && _draftController.hasItem(_product.id!);
+  String? _submitError;
 
   int? get _quantity => int.tryParse(_quantityController.text.trim());
   double? get _unitCost => double.tryParse(_unitCostController.text.trim());
@@ -44,20 +44,18 @@ class _PurchaseDetailsPageState extends State<PurchaseDetailsPage> {
         'PurchaseDetailsPage requires a ProductModel argument.',
       );
     }
+
     _product = argument;
-    _draftController = Get.find<PurchaseDraftController>();
-    final existingItem = _product.id == null
-        ? null
-        : _draftController.findDraftItem(_product.id!);
-    _quantityController = TextEditingController(
-      text: '${existingItem?.quantity ?? 1}',
-    );
+    _purchaseFlowController = Get.find<PurchaseFlowController>();
+    _purchaseDate = DateTime.now();
+    _quantityController = TextEditingController(text: '1');
     _unitCostController = TextEditingController(
-      text: (existingItem?.unitCost ?? (_product.purchasePrice ?? 0))
-          .toStringAsFixed(2),
+      text: ((_product.purchasePrice ?? 0).toDouble()).toStringAsFixed(2),
     );
+    _noteController = TextEditingController();
     _quantityController.addListener(_handleInputChange);
     _unitCostController.addListener(_handleInputChange);
+    _noteController.addListener(_handleInputChange);
   }
 
   @override
@@ -66,6 +64,9 @@ class _PurchaseDetailsPageState extends State<PurchaseDetailsPage> {
       ..removeListener(_handleInputChange)
       ..dispose();
     _unitCostController
+      ..removeListener(_handleInputChange)
+      ..dispose();
+    _noteController
       ..removeListener(_handleInputChange)
       ..dispose();
     super.dispose();
@@ -82,6 +83,17 @@ class _PurchaseDetailsPageState extends State<PurchaseDetailsPage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            if (_submitError != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  _submitError!,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.error,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(20),
@@ -99,18 +111,14 @@ class _PurchaseDetailsPageState extends State<PurchaseDetailsPage> {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
+                        _InfoChip(label: 'SKU', value: _product.sku ?? '-'),
                         _InfoChip(
                           label: 'Barcode',
                           value: _product.barcode ?? '-',
                         ),
-                        _InfoChip(label: 'SKU', value: _product.sku ?? '-'),
                         _InfoChip(
                           label: 'Stock',
                           value: '${_product.currentStock ?? 0}',
-                        ),
-                        _InfoChip(
-                          label: 'Category',
-                          value: _product.category?.name ?? '-',
                         ),
                       ],
                     ),
@@ -126,9 +134,34 @@ class _PurchaseDetailsPageState extends State<PurchaseDetailsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Purchase Item',
+                      'Receiving Details',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    InkWell(
+                      onTap: _pickDate,
+                      borderRadius: BorderRadius.circular(12),
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Purchase Date',
+                          prefixIcon: Icon(Icons.calendar_today_outlined),
+                          border: OutlineInputBorder(),
+                        ),
+                        child: Text(
+                          _purchaseFlowController.formatDate(_purchaseDate),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _noteController,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Note',
+                        alignLabelWithHint: true,
+                        border: OutlineInputBorder(),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -212,9 +245,19 @@ class _PurchaseDetailsPageState extends State<PurchaseDetailsPage> {
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: FilledButton(
-            onPressed: _savePurchaseItem,
-            child: Text(_isExistingItem ? 'Update Item' : 'Add To Purchase'),
+          child: Obx(
+            () => FilledButton(
+              onPressed: _purchaseFlowController.isSubmitting.value
+                  ? null
+                  : _submitPurchase,
+              child: _purchaseFlowController.isSubmitting.value
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Submit Purchase'),
+            ),
           ),
         ),
       ),
@@ -225,9 +268,11 @@ class _PurchaseDetailsPageState extends State<PurchaseDetailsPage> {
     if (!mounted) {
       return;
     }
+
     setState(() {
       _quantityError = null;
       _unitCostError = null;
+      _submitError = null;
     });
   }
 
@@ -244,35 +289,55 @@ class _PurchaseDetailsPageState extends State<PurchaseDetailsPage> {
     _quantityController.text = '${quantity + 1}';
   }
 
-  void _savePurchaseItem() {
-    final quantity = _quantity;
-    final unitCost = _unitCost;
+  Future<void> _pickDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _purchaseDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
 
-    setState(() {
-      _quantityError = quantity == null || quantity <= 0
-          ? 'Quantity must be greater than 0.'
-          : null;
-      _unitCostError = unitCost == null || unitCost <= 0
-          ? 'Unit cost must be greater than 0.'
-          : null;
-    });
-
-    if (_quantityError != null || _unitCostError != null) {
+    if (picked == null || !mounted) {
       return;
     }
 
-    _draftController.addOrUpdateItem(
+    setState(() {
+      _purchaseDate = picked;
+    });
+  }
+
+  Future<void> _submitPurchase() async {
+    final result = await _purchaseFlowController.submitPurchase(
       product: _product,
-      quantity: quantity!,
-      unitCost: unitCost!,
+      purchaseDate: _purchaseDate,
+      note: _noteController.text,
+      quantityText: _quantityController.text,
+      unitCostText: _unitCostController.text,
     );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (result.validation != null) {
+      setState(() {
+        _quantityError = result.validation!.quantityError;
+        _unitCostError = result.validation!.unitCostError;
+      });
+      return;
+    }
+
+    if (!result.isSuccess) {
+      setState(() {
+        _submitError = result.errorMessage;
+      });
+      return;
+    }
 
     Get.back();
     Get.snackbar(
-      'Purchase updated',
-      _isExistingItem
-          ? 'The existing purchase item was updated.'
-          : 'The product was added to the purchase draft.',
+      'Purchase created',
+      _purchaseFlowController.buildPurchaseSavedMessage(result.response!),
     );
   }
 }

@@ -1,15 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../../../core/errors/api_exception.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../products/data/models/product_model.dart';
 import '../../../products/presentation/controllers/product_list_controller.dart';
-import '../../data/models/create_or_update_purchase_request.dart';
-import '../../data/models/inventory_purchase_item_request.dart';
-import '../../data/models/purchase_response_model.dart';
-import '../../data/repositories/inventory_manager_repository.dart';
-import '../controllers/purchase_draft_controller.dart';
+import '../controllers/purchase_flow_controller.dart';
 import '../models/barcode_scan_models.dart';
 import 'product_form_page.dart';
 
@@ -22,32 +17,20 @@ class CreatePurchasePage extends StatefulWidget {
 
 class _CreatePurchasePageState extends State<CreatePurchasePage> {
   late final ProductListController _productListController;
-  late final PurchaseDraftController _purchaseDraftController;
+  late final PurchaseFlowController _purchaseFlowController;
   final TextEditingController _searchController = TextEditingController();
-  final TextEditingController _noteController = TextEditingController();
-  bool _isResolvingBarcode = false;
-  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
     _productListController = Get.find<ProductListController>();
-    _purchaseDraftController = Get.find<PurchaseDraftController>();
+    _purchaseFlowController = Get.find<PurchaseFlowController>();
     _productListController.ensureLoaded();
-    final argument = Get.arguments;
-    if (argument is PurchaseResponseModel) {
-      _purchaseDraftController.loadFromPurchaseResponse(argument);
-    }
-    _noteController.text = _purchaseDraftController.note.value;
-    _noteController.addListener(_syncDraftHeader);
   }
 
   @override
   void dispose() {
     _searchController.dispose();
-    _noteController
-      ..removeListener(_syncDraftHeader)
-      ..dispose();
     super.dispose();
   }
 
@@ -59,8 +42,7 @@ class _CreatePurchasePageState extends State<CreatePurchasePage> {
       appBar: AppBar(title: const Text('Purchases')),
       body: SafeArea(
         child: Obx(() {
-          final products = _productListController.products.toList();
-          final draftItems = _purchaseDraftController.items.toList(
+          final products = _productListController.products.toList(
             growable: false,
           );
 
@@ -70,26 +52,9 @@ class _CreatePurchasePageState extends State<CreatePurchasePage> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
               children: [
-                if (_errorMessage != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      _errorMessage!,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.error,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
                 Text(
-                  'Search products, filter by category, or scan a barcode to open purchase details for one product at a time.',
+                  'Search products, filter by category, or scan a barcode to start receiving for one product at a time.',
                   style: theme.textTheme.bodyLarge,
-                ),
-                const SizedBox(height: 16),
-                _PurchaseHeaderCard(
-                  controller: _purchaseDraftController,
-                  noteController: _noteController,
-                  onPickDate: _pickDate,
                 ),
                 const SizedBox(height: 16),
                 Row(
@@ -116,8 +81,11 @@ class _CreatePurchasePageState extends State<CreatePurchasePage> {
                     ),
                     const SizedBox(width: 12),
                     FilledButton.icon(
-                      onPressed: _isResolvingBarcode ? null : _openScanner,
-                      icon: _isResolvingBarcode
+                      onPressed:
+                          _purchaseFlowController.isResolvingBarcode.value
+                          ? null
+                          : _openScanner,
+                      icon: _purchaseFlowController.isResolvingBarcode.value
                           ? const SizedBox(
                               width: 18,
                               height: 18,
@@ -133,14 +101,6 @@ class _CreatePurchasePageState extends State<CreatePurchasePage> {
                   controller: _productListController,
                 ),
                 const SizedBox(height: 20),
-                if (draftItems.isNotEmpty) ...[
-                  _DraftSummaryCard(
-                    controller: _purchaseDraftController,
-                    onReset: _resetDraft,
-                    onSubmit: _submitPurchase,
-                  ),
-                  const SizedBox(height: 20),
-                ],
                 Text(
                   'Products',
                   style: theme.textTheme.titleMedium?.copyWith(
@@ -193,9 +153,6 @@ class _CreatePurchasePageState extends State<CreatePurchasePage> {
                       padding: const EdgeInsets.only(bottom: 12),
                       child: _PurchaseProductCard(
                         product: product,
-                        alreadyAdded:
-                            product.id != null &&
-                            _purchaseDraftController.hasItem(product.id!),
                         onTap: () => _openPurchaseDetails(product),
                       ),
                     ),
@@ -208,52 +165,22 @@ class _CreatePurchasePageState extends State<CreatePurchasePage> {
     );
   }
 
-  void _syncDraftHeader() {
-    _purchaseDraftController.setPurchaseHeader(
-      purchaseDateValue: _purchaseDraftController.purchaseDate.value,
-      noteValue: _noteController.text,
-    );
-  }
-
-  Future<void> _pickDate() async {
-    final current = _purchaseDraftController.purchaseDate.value;
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: current,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
+  Future<void> _openScanner() async {
+    final result = await Get.toNamed(
+      AppRoutes.inventoryBarcodeScan,
+      arguments: const BarcodeScanArgs(
+        context: BarcodeScanContext.purchaseLookup,
+      ),
     );
 
-    if (picked == null) {
+    if (result is! BarcodeScanResult) {
       return;
     }
 
-    _purchaseDraftController.setPurchaseHeader(
-      purchaseDateValue: picked,
-      noteValue: _noteController.text,
-    );
-  }
-
-  Future<void> _openScanner() async {
-    setState(() {
-      _isResolvingBarcode = true;
-    });
-
     try {
-      final result = await Get.toNamed(
-        AppRoutes.inventoryBarcodeScan,
-        arguments: const BarcodeScanArgs(
-          context: BarcodeScanContext.purchaseLookup,
-        ),
+      final product = await _purchaseFlowController.getPurchaseProductByBarcode(
+        result.barcode,
       );
-
-      if (result is! BarcodeScanResult) {
-        return;
-      }
-
-      final response = await Get.find<InventoryManagerRepository>()
-          .getPurchaseProductByBarcode(result.barcode);
-      final product = response.data;
       if (product?.id == null) {
         _showProductNotFoundDialog(result.barcode);
         return;
@@ -265,120 +192,11 @@ class _CreatePurchasePageState extends State<CreatePurchasePage> {
         'Unable to resolve barcode',
         'The barcode could not be matched right now. Please try again.',
       );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isResolvingBarcode = false;
-        });
-      }
     }
   }
 
   void _openPurchaseDetails(ProductModel product) {
     Get.toNamed(AppRoutes.inventoryPurchaseDetails, arguments: product);
-  }
-
-  Future<void> _submitPurchase() async {
-    final draftItems = _purchaseDraftController.items.toList(growable: false);
-    if (draftItems.isEmpty) {
-      setState(() {
-        _errorMessage = 'Add at least one item before submitting the purchase.';
-      });
-      return;
-    }
-
-    final request = CreateOrUpdatePurchaseRequest(
-      purchaseDate: _formatDate(_purchaseDraftController.purchaseDate.value),
-      note: _noteController.text.trim().isEmpty
-          ? null
-          : _noteController.text.trim(),
-      items: draftItems
-          .map(
-            (item) => InventoryPurchaseItemRequest(
-              productId: item.productId,
-              quantity: item.quantity,
-              unitCost: item.unitCost,
-            ),
-          )
-          .toList(),
-    );
-
-    setState(() {
-      _errorMessage = null;
-    });
-    _purchaseDraftController.beginSubmit();
-    final wasEditing = _purchaseDraftController.isEditingPurchase;
-
-    try {
-      final repository = Get.find<InventoryManagerRepository>();
-      final response = wasEditing
-          ? await repository.updatePurchase(
-              _purchaseDraftController.purchaseId.value!,
-              request,
-            )
-          : await repository.createPurchase(request);
-
-      if (!mounted) {
-        return;
-      }
-
-      _purchaseDraftController.resetDraft();
-      _noteController.clear();
-      Get.snackbar(
-        wasEditing ? 'Purchase updated' : 'Purchase created',
-        response.purchaseNo == null
-            ? 'Purchase saved successfully.'
-            : 'Purchase ${response.purchaseNo} saved successfully.',
-      );
-    } on ApiException catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _errorMessage = _buildPurchaseError(error);
-      });
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _errorMessage = 'Unable to save the purchase right now.';
-      });
-    } finally {
-      _purchaseDraftController.endSubmit();
-    }
-  }
-
-  void _resetDraft() {
-    _purchaseDraftController.resetDraft();
-    _noteController.clear();
-    setState(() {
-      _errorMessage = null;
-    });
-  }
-
-  String _buildPurchaseError(ApiException error) {
-    final errors = error.errors;
-    if (errors == null || errors.isEmpty) {
-      return error.message;
-    }
-
-    final itemsError = errors['items'];
-    if (itemsError is List && itemsError.isNotEmpty) {
-      return itemsError.first.toString();
-    }
-
-    for (final entry in errors.entries) {
-      final value = entry.value;
-      if (value is List && value.isNotEmpty) {
-        return value.first.toString();
-      }
-      if (value is String && value.isNotEmpty) {
-        return value;
-      }
-    }
-
-    return error.message;
   }
 
   void _showProductNotFoundDialog(String barcode) {
@@ -403,94 +221,6 @@ class _CreatePurchasePageState extends State<CreatePurchasePage> {
         ],
       ),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    final month = date.month.toString().padLeft(2, '0');
-    final day = date.day.toString().padLeft(2, '0');
-    return '${date.year}-$month-$day';
-  }
-}
-
-class _PurchaseHeaderCard extends StatelessWidget {
-  const _PurchaseHeaderCard({
-    required this.controller,
-    required this.noteController,
-    required this.onPickDate,
-  });
-
-  final PurchaseDraftController controller;
-  final TextEditingController noteController;
-  final VoidCallback onPickDate;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: onPickDate,
-                    borderRadius: BorderRadius.circular(12),
-                    child: InputDecorator(
-                      decoration: const InputDecoration(
-                        labelText: 'Purchase Date',
-                        prefixIcon: Icon(Icons.calendar_today_outlined),
-                        border: OutlineInputBorder(),
-                      ),
-                      child: Text(_formatDate(controller.purchaseDate.value)),
-                    ),
-                  ),
-                ),
-                if (controller.isEditingPurchase) ...[
-                  const SizedBox(width: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Text(
-                      controller.purchaseNo.value ?? 'Editing',
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: theme.colorScheme.onPrimaryContainer,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: noteController,
-              maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Note',
-                alignLabelWithHint: true,
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _formatDate(DateTime date) {
-    final month = date.month.toString().padLeft(2, '0');
-    final day = date.day.toString().padLeft(2, '0');
-    return '${date.year}-$month-$day';
   }
 }
 
@@ -533,14 +263,9 @@ class _PurchaseCategoryFilterSection extends StatelessWidget {
 }
 
 class _PurchaseProductCard extends StatelessWidget {
-  const _PurchaseProductCard({
-    required this.product,
-    required this.alreadyAdded,
-    required this.onTap,
-  });
+  const _PurchaseProductCard({required this.product, required this.onTap});
 
   final ProductModel product;
-  final bool alreadyAdded;
   final VoidCallback onTap;
 
   @override
@@ -607,30 +332,7 @@ class _PurchaseProductCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              Column(
-                children: [
-                  if (alreadyAdded)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFDDF4E6),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: const Text(
-                        'Added',
-                        style: TextStyle(
-                          color: Color(0xFF166534),
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: 12),
-                  const Icon(Icons.chevron_right),
-                ],
-              ),
+              const Icon(Icons.chevron_right),
             ],
           ),
         ),
@@ -658,80 +360,6 @@ class _MetaPill extends StatelessWidget {
         style: Theme.of(
           context,
         ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
-      ),
-    );
-  }
-}
-
-class _DraftSummaryCard extends StatelessWidget {
-  const _DraftSummaryCard({
-    required this.controller,
-    required this.onReset,
-    required this.onSubmit,
-  });
-
-  final PurchaseDraftController controller;
-  final VoidCallback onReset;
-  final VoidCallback onSubmit;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final itemCount = controller.items.length;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              controller.isEditingPurchase
-                  ? 'Editing Purchase'
-                  : 'Purchase Draft',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text('$itemCount item${itemCount == 1 ? '' : 's'} selected'),
-            const SizedBox(height: 4),
-            Text(
-              'Total ৳${controller.draftTotal.toStringAsFixed(2)}',
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: controller.isSubmitting.value ? null : onReset,
-                    child: const Text('Reset'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: controller.isSubmitting.value ? null : onSubmit,
-                    child: controller.isSubmitting.value
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(
-                            controller.isEditingPurchase
-                                ? 'Update Purchase'
-                                : 'Submit Purchase',
-                          ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
       ),
     );
   }
