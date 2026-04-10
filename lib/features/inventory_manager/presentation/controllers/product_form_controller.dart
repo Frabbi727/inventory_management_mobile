@@ -145,7 +145,7 @@ class ProductFormController extends GetxController {
 
     final request = CreateOrUpdateBarcodeProductRequest(
       name: nameController.text.trim(),
-      sku: _resolvedSku,
+      sku: "",
       barcode: barcodeController.text.trim(),
       categoryId: categoryId,
       unitId: unitId,
@@ -201,7 +201,7 @@ class ProductFormController extends GetxController {
 
     final barcode = barcodeController.text.trim();
     if (barcode.isNotEmpty) {
-      return barcode;
+      return 'SKU-$barcode';
     }
 
     return 'AUTO-${DateTime.now().millisecondsSinceEpoch}';

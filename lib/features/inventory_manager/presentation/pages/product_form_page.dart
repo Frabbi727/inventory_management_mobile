@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../products/data/models/category_response_model.dart';
 import '../controllers/product_form_controller.dart';
 import '../models/selected_product_photo.dart';
 
@@ -33,14 +34,11 @@ class ProductFormPage extends GetView<ProductFormController> {
                   ),
                 _FormSection(
                   title: 'Product Details',
-                  subtitle:
-                      'Add the basic information used to identify this product.',
                   child: Column(
                     children: [
                       _FormField(
                         controller: controller.nameController,
                         label: 'Product Name',
-                        hintText: 'Enter product name',
                         prefixIcon: Icons.inventory_2_outlined,
                         validator: controller.requiredField,
                       ),
@@ -51,8 +49,6 @@ class ProductFormPage extends GetView<ProductFormController> {
                         value: controller.barcodeController.text.trim().isEmpty
                             ? 'Barcode will be assigned from the scanner flow.'
                             : controller.barcodeController.text.trim(),
-                        helperText:
-                            'This value is system-generated and cannot be edited here.',
                         preview:
                             controller.barcodeController.text.trim().isEmpty
                             ? null
@@ -75,22 +71,15 @@ class ProductFormPage extends GetView<ProductFormController> {
                               ),
                       ),
                       const SizedBox(height: 14),
-                      _DropdownField<int>(
+                      _SearchableCategoryField(
                         value: controller.selectedCategoryId.value,
                         label: controller.isReferenceDataLoading.value
                             ? 'Category (loading...)'
                             : 'Category',
                         prefixIcon: Icons.category_outlined,
-                        items: controller.categories
-                            .map(
-                              (category) => DropdownMenuItem<int>(
-                                value: category.id,
-                                child: Text(
-                                  category.name ?? 'Category ${category.id}',
-                                ),
-                              ),
-                            )
-                            .toList(),
+                        categories: controller.categories.toList(
+                          growable: false,
+                        ),
                         onChanged: controller.isReferenceDataLoading.value
                             ? null
                             : controller.onCategoryChanged,
@@ -129,7 +118,6 @@ class ProductFormPage extends GetView<ProductFormController> {
                 const SizedBox(height: 16),
                 _FormSection(
                   title: 'Pricing & Stock',
-                  subtitle: 'Set pricing, thresholds, and availability status.',
                   child: Column(
                     children: [
                       Row(
@@ -138,7 +126,6 @@ class ProductFormPage extends GetView<ProductFormController> {
                             child: _FormField(
                               controller: controller.purchasePriceController,
                               label: 'Purchase Price',
-                              hintText: '0.00',
                               prefixIcon: Icons.payments_outlined,
                               keyboardType:
                                   const TextInputType.numberWithOptions(
@@ -152,7 +139,6 @@ class ProductFormPage extends GetView<ProductFormController> {
                             child: _FormField(
                               controller: controller.sellingPriceController,
                               label: 'Selling Price',
-                              hintText: '0.00',
                               prefixIcon: Icons.sell_outlined,
                               keyboardType:
                                   const TextInputType.numberWithOptions(
@@ -167,7 +153,6 @@ class ProductFormPage extends GetView<ProductFormController> {
                       _FormField(
                         controller: controller.minimumStockController,
                         label: 'Minimum Stock',
-                        hintText: 'Enter alert threshold',
                         prefixIcon: Icons.warning_amber_rounded,
                         keyboardType: TextInputType.number,
                         validator: controller.requiredNumberField,
@@ -228,14 +213,9 @@ class ProductFormPage extends GetView<ProductFormController> {
 }
 
 class _FormSection extends StatelessWidget {
-  const _FormSection({
-    required this.title,
-    required this.subtitle,
-    required this.child,
-  });
+  const _FormSection({required this.title, required this.child});
 
   final String title;
-  final String subtitle;
   final Widget child;
 
   @override
@@ -264,14 +244,7 @@ class _FormSection extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 16),
           child,
         ],
       ),
@@ -284,14 +257,12 @@ class _ReadOnlyInfoCard extends StatelessWidget {
     required this.label,
     required this.icon,
     required this.value,
-    required this.helperText,
     this.preview,
   });
 
   final String label;
   final IconData icon;
   final String value;
-  final String helperText;
   final Widget? preview;
 
   @override
@@ -300,53 +271,313 @@ class _ReadOnlyInfoCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: const Color(0xFFF7FBFB),
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFD8E8E7)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Container(
-                height: 40,
-                width: 40,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8F5F4),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, color: const Color(0xFF0F766E)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
+          Container(
+            height: 36,
+            width: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8F5F4),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: const Color(0xFF0F766E), size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
                   label,
-                  style: theme.textTheme.titleMedium?.copyWith(
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-              ),
-              preview ?? const SizedBox.shrink(),
-            ],
-          ),
-          const SizedBox(height: 14),
-          SelectableText(
-            value,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w800,
+                const SizedBox(height: 2),
+                SelectableText(
+                  value,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            helperText,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
+          if (preview != null) ...[const SizedBox(width: 12), preview!],
         ],
+      ),
+    );
+  }
+}
+
+class _SearchableCategoryField extends StatelessWidget {
+  const _SearchableCategoryField({
+    required this.value,
+    required this.label,
+    required this.prefixIcon,
+    required this.categories,
+    this.onChanged,
+    this.validator,
+  });
+
+  final int? value;
+  final String label;
+  final IconData prefixIcon;
+  final List<CategoryModel> categories;
+  final ValueChanged<int?>? onChanged;
+  final String? Function(int?)? validator;
+
+  @override
+  Widget build(BuildContext context) {
+    return FormField<int>(
+      initialValue: value,
+      validator: validator,
+      builder: (field) {
+        final effectiveValue = field.value ?? value;
+        final effectiveCategory = categories.firstWhereOrNull(
+          (category) => category.id == effectiveValue,
+        );
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onChanged == null
+                    ? null
+                    : () async {
+                        final selectedId = await showModalBottomSheet<int>(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (_) => _CategoryPickerSheet(
+                            categories: categories,
+                            selectedId: effectiveValue,
+                          ),
+                        );
+                        if (selectedId == null) {
+                          return;
+                        }
+                        field.didChange(selectedId);
+                        onChanged?.call(selectedId);
+                      },
+                borderRadius: BorderRadius.circular(20),
+                child: Ink(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFBFCFD),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: field.hasError
+                          ? Theme.of(context).colorScheme.error
+                          : const Color(0xFFD8E0E8),
+                      width: field.hasError ? 1.2 : 1,
+                    ),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 16,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        prefixIcon,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              label,
+                              style: Theme.of(context).textTheme.labelMedium
+                                  ?.copyWith(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              effectiveCategory?.name ?? 'Select category',
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: effectiveCategory == null
+                                        ? Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant
+                                        : Theme.of(
+                                            context,
+                                          ).colorScheme.onSurface,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.search_rounded, size: 20),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.keyboard_arrow_down_rounded),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            if (field.hasError) ...[
+              const SizedBox(height: 6),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  field.errorText!,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _CategoryPickerSheet extends StatefulWidget {
+  const _CategoryPickerSheet({
+    required this.categories,
+    required this.selectedId,
+  });
+
+  final List<CategoryModel> categories;
+  final int? selectedId;
+
+  @override
+  State<_CategoryPickerSheet> createState() => _CategoryPickerSheetState();
+}
+
+class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
+  late final TextEditingController searchController;
+  String query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final filteredCategories = widget.categories
+        .where((category) {
+          final name = (category.name ?? 'Category ${category.id}')
+              .toLowerCase();
+          return query.isEmpty || name.contains(query.toLowerCase());
+        })
+        .toList(growable: false);
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 12,
+          right: 12,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 12,
+          top: 12,
+        ),
+        child: Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(28),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 44,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFD8E0E8),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: searchController,
+                  onChanged: (value) {
+                    setState(() {
+                      query = value.trim();
+                    });
+                  },
+                  decoration: _inputDecoration(
+                    context,
+                    label: 'Search category',
+                    prefixIcon: Icons.search_rounded,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: filteredCategories.isEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 24),
+                          child: Text(
+                            'No categories found.',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: filteredCategories.length,
+                          separatorBuilder: (_, _) => const Divider(height: 1),
+                          itemBuilder: (context, index) {
+                            final category = filteredCategories[index];
+                            final isSelected = category.id == widget.selectedId;
+
+                            return ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              title: Text(
+                                category.name ?? 'Category ${category.id}',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: isSelected
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                ),
+                              ),
+                              trailing: isSelected
+                                  ? const Icon(Icons.check_circle_rounded)
+                                  : null,
+                              onTap: () =>
+                                  Navigator.of(context).pop(category.id),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -365,8 +596,6 @@ class _PhotoSection extends StatelessWidget {
     return Obx(
       () => _FormSection(
         title: 'Photos',
-        subtitle:
-            'Upload product photos. Max 200 KB per image after compression.',
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -391,25 +620,6 @@ class _PhotoSection extends StatelessWidget {
                     onTap: controller.isSubmitting.value
                         ? null
                         : controller.pickFromGallery,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Icon(
-                  Icons.info_outline_rounded,
-                  size: 18,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'JPEG and PNG files are accepted. Larger images are compressed automatically.',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
                   ),
                 ),
               ],
@@ -444,14 +654,6 @@ class _PhotoSection extends StatelessWidget {
                       'No photos added yet',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Add product images to make the listing easier to identify.',
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -756,7 +958,6 @@ class _FormField extends StatelessWidget {
     required this.controller,
     required this.label,
     required this.prefixIcon,
-    this.hintText,
     this.keyboardType,
     this.validator,
   });
@@ -764,7 +965,6 @@ class _FormField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
   final IconData prefixIcon;
-  final String? hintText;
   final TextInputType? keyboardType;
   final String? Function(String?)? validator;
 
@@ -778,7 +978,6 @@ class _FormField extends StatelessWidget {
         context,
         label: label,
         prefixIcon: prefixIcon,
-        hintText: hintText,
       ),
     );
   }
@@ -788,13 +987,11 @@ InputDecoration _inputDecoration(
   BuildContext context, {
   required String label,
   required IconData prefixIcon,
-  String? hintText,
 }) {
   final colorScheme = Theme.of(context).colorScheme;
 
   return InputDecoration(
     labelText: label,
-    hintText: hintText,
     filled: true,
     fillColor: const Color(0xFFFBFCFD),
     prefixIcon: Icon(prefixIcon),
