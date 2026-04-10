@@ -251,10 +251,10 @@ class EditPurchasePage extends GetView<EditPurchaseController> {
                           if (quantity == null ||
                               quantity <= 0 ||
                               unitCost == null ||
-                              unitCost <= 0) {
+                              unitCost < 0) {
                             setModalState(() {
                               errorText =
-                                  'Quantity and unit cost must be greater than 0.';
+                                  'Quantity must be greater than 0 and unit cost cannot be negative.';
                             });
                             return;
                           }

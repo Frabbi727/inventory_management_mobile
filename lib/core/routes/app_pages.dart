@@ -16,6 +16,7 @@ import '../../features/inventory_manager/presentation/bindings/create_purchase_b
 import '../../features/inventory_manager/presentation/bindings/edit_purchase_binding.dart';
 import '../../features/inventory_manager/presentation/bindings/low_stock_binding.dart';
 import '../../features/inventory_manager/presentation/bindings/purchase_records_binding.dart';
+import '../../features/inventory_manager/presentation/bindings/purchase_view_binding.dart';
 import '../../features/inventory_manager/presentation/bindings/product_form_binding.dart';
 import '../../features/inventory_manager/presentation/bindings/purchase_details_binding.dart';
 import '../../features/inventory_manager/presentation/pages/barcode_scan_page.dart';
@@ -26,6 +27,7 @@ import '../../features/inventory_manager/presentation/pages/low_stock_page.dart'
 import '../../features/inventory_manager/presentation/pages/product_form_page.dart';
 import '../../features/inventory_manager/presentation/pages/purchase_details_page.dart';
 import '../../features/inventory_manager/presentation/pages/purchase_records_page.dart';
+import '../../features/inventory_manager/presentation/pages/purchase_view_page.dart';
 import '../../features/cart_orders/presentation/bindings/new_order_binding.dart';
 import '../../features/cart_orders/presentation/pages/new_order_page.dart';
 import '../../features/cart_orders/presentation/pages/order_success_page.dart';
@@ -83,6 +85,11 @@ class AppPages {
       name: AppRoutes.inventoryPurchaseDetails,
       page: PurchaseDetailsPage.new,
       binding: PurchaseDetailsBinding(),
+    ),
+    GetPage<PurchaseViewPage>(
+      name: AppRoutes.inventoryPurchaseView,
+      page: PurchaseViewPage.new,
+      binding: PurchaseViewBinding(),
     ),
     GetPage<EditPurchasePage>(
       name: AppRoutes.inventoryPurchaseEdit,

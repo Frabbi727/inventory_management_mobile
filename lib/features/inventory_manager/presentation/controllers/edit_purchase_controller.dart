@@ -135,11 +135,11 @@ class EditPurchaseController extends GetxController {
     }
 
     final hasInvalidItem = draftItems.any(
-      (item) => item.quantity <= 0 || item.unitCost <= 0,
+      (item) => item.quantity <= 0 || item.unitCost < 0,
     );
     if (hasInvalidItem) {
       submitError.value =
-          'Each purchase item must have a quantity and unit cost greater than 0.';
+          'Each purchase item must have quantity greater than 0 and unit cost of 0 or more.';
       return;
     }
 
@@ -166,6 +166,28 @@ class EditPurchaseController extends GetxController {
         ),
       );
 
+      purchase.value = response;
+      draftItems.assignAll(
+        (response.items ?? const [])
+            .where((item) => item.productId != null)
+            .map(
+              (item) => PurchaseDraftItem(
+                productId: item.productId!,
+                name:
+                    item.product?.name ??
+                    item.productName ??
+                    'Unnamed product',
+                barcode:
+                    item.product?.barcode ?? item.productBarcode ?? 'No barcode',
+                quantity: (item.quantity ?? 0).toInt(),
+                unitCost: (item.unitCost ?? 0).toDouble(),
+                currentStock: item.product?.currentStock ?? 0,
+                categoryName:
+                    item.product?.category?.name ?? 'Uncategorized product',
+              ),
+            )
+            .toList(growable: false),
+      );
       Get.back(result: true);
       Get.snackbar('Purchase updated', _buildSavedMessage(response));
     } on ApiException catch (error) {
@@ -204,6 +226,13 @@ class EditPurchaseController extends GetxController {
     final itemsError = errors['items'];
     if (itemsError is List && itemsError.isNotEmpty) {
       return itemsError.first.toString();
+    }
+
+    for (final key in ['purchase_date', 'items.0.quantity', 'items.0.unit_cost']) {
+      final value = errors[key];
+      if (value is List && value.isNotEmpty) {
+        return value.first.toString();
+      }
     }
 
     for (final entry in errors.entries) {

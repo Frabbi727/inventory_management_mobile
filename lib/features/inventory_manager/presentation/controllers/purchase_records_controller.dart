@@ -295,6 +295,22 @@ class PurchaseRecordsController extends GetxController {
     }
   }
 
+  Future<void> openPurchaseDetails(InventoryPurchaseModel purchase) async {
+    final purchaseId = purchase.id;
+    if (purchaseId == null) {
+      return;
+    }
+
+    final result = await Get.toNamed(
+      AppRoutes.inventoryPurchaseView,
+      arguments: purchaseId,
+    );
+
+    if (result == true) {
+      await fetchPurchases(reset: true);
+    }
+  }
+
   Future<void> loadMoreIfNeeded(ScrollMetrics metrics) async {
     if (isInitialLoading.value ||
         isRefreshing.value ||

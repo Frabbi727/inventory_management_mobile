@@ -167,6 +167,8 @@ class PurchaseListPage extends GetView<PurchaseListController> {
                                     formatCurrency:
                                         controller.formatCurrency,
                                     onOpen: () =>
+                                        controller.openPurchaseDetails(purchase),
+                                    onEdit: () =>
                                         controller.openPurchaseEditor(purchase),
                                   );
                                 },
@@ -281,12 +283,14 @@ class _PurchaseCard extends StatelessWidget {
     required this.formatDate,
     required this.formatCurrency,
     required this.onOpen,
+    required this.onEdit,
   });
 
   final InventoryPurchaseModel purchase;
   final String Function(String? value) formatDate;
   final String Function(num? value) formatCurrency;
   final VoidCallback onOpen;
+  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -329,10 +333,14 @@ class _PurchaseCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  FilledButton.tonalIcon(
-                    onPressed: onOpen,
-                    icon: const Icon(Icons.edit_outlined),
-                    label: const Text('Open'),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      FilledButton.tonal(
+                        onPressed: onOpen,
+                        child: const Text('Open'),
+                      ),
+                    ],
                   ),
                 ],
               ),

@@ -28,17 +28,17 @@ class PurchaseResponseModel {
 
   factory PurchaseResponseModel.fromJson(Map<String, dynamic> json) {
     return PurchaseResponseModel(
-      id: json['id'] as int?,
+      id: _asInt(json['id']),
       purchaseNo: json['purchase_no'] as String?,
       purchaseDate: json['purchase_date'] as String?,
-      totalAmount: json['total_amount'] as num?,
+      totalAmount: _asNum(json['total_amount']),
       note: json['note'] as String?,
       creator: json['creator'] is Map<String, dynamic>
           ? PurchaseCreatorModel.fromJson(
               json['creator'] as Map<String, dynamic>,
             )
           : null,
-      itemsCount: json['items_count'] as int?,
+      itemsCount: _asInt(json['items_count']),
       items: json['items'] is List
           ? (json['items'] as List<dynamic>)
                 .whereType<Map<String, dynamic>>()
@@ -48,5 +48,28 @@ class PurchaseResponseModel {
       createdAt: json['created_at'] as String?,
       updatedAt: json['updated_at'] as String?,
     );
+  }
+
+  static int? _asInt(dynamic value) {
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    if (value is String) {
+      return int.tryParse(value);
+    }
+    return null;
+  }
+
+  static num? _asNum(dynamic value) {
+    if (value is num) {
+      return value;
+    }
+    if (value is String) {
+      return num.tryParse(value);
+    }
+    return null;
   }
 }
