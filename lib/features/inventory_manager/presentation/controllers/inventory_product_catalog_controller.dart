@@ -202,6 +202,28 @@ abstract class InventoryProductCatalogController extends GetxController {
     selectedStockStatus.value = status;
   }
 
+  Future<void> applyFilters({
+    int? categoryId,
+    int? subcategoryId,
+    ProductStockStatus? stockStatus,
+  }) async {
+    final categoryChanged = selectedCategoryId.value != categoryId;
+
+    selectedCategoryId.value = categoryId;
+    selectedStockStatus.value = stockStatus;
+
+    if (categoryChanged) {
+      if (categoryId == null) {
+        subcategories.clear();
+      } else {
+        await loadSubcategories(categoryId);
+      }
+    }
+
+    selectedSubcategoryId.value = subcategoryId;
+    await fetchProducts(reset: true);
+  }
+
   void clearFilters() {
     _searchDebounce?.cancel();
     final hadSearch =

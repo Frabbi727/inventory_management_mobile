@@ -51,11 +51,43 @@ class _InventoryProductsPageState extends State<InventoryProductsPage>
     controller.ensureLoaded(forceRefresh: true);
   }
 
+  Future<void> _openFiltersSheet() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Obx(
+        () => InventoryProductFilterSheet(
+          categories: controller.categories.toList(growable: false),
+          subcategories: controller.subcategories.toList(growable: false),
+          initialCategoryId: controller.selectedCategoryId.value,
+          initialSubcategoryId: controller.selectedSubcategoryId.value,
+          initialStockStatus: controller.selectedStockStatus.value,
+          isCategoriesLoading: controller.isCategoriesLoading.value,
+          isSubcategoriesLoading: controller.isSubcategoriesLoading.value,
+          onLoadSubcategories: controller.loadSubcategories,
+          onApply: (categoryId, subcategoryId, stockStatus) {
+            return controller.applyFilters(
+              categoryId: categoryId,
+              subcategoryId: subcategoryId,
+              stockStatus: stockStatus,
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Obx(
-        () => Column(
+      child: Obx(() {
+        final activeFilterCount =
+            (controller.hasActiveCategory ? 1 : 0) +
+            (controller.hasActiveSubcategory ? 1 : 0) +
+            (controller.hasActiveStockStatus ? 1 : 0);
+
+        return Column(
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
@@ -71,25 +103,16 @@ class _InventoryProductsPageState extends State<InventoryProductsPage>
                     isSearching: controller.isSearching.value,
                   ),
                   const SizedBox(height: 12),
-                  InventoryProductFilterPanel(
-                    categories: controller.categories.toList(growable: false),
-                    subcategories: controller.subcategories.toList(
-                      growable: false,
-                    ),
-                    selectedCategoryId: controller.selectedCategoryId.value,
-                    selectedSubcategoryId:
-                        controller.selectedSubcategoryId.value,
-                    selectedStockStatus: controller.selectedStockStatus.value,
-                    isCategoriesLoading: controller.isCategoriesLoading.value,
-                    isSubcategoriesLoading:
-                        controller.isSubcategoriesLoading.value,
-                    hasActiveFilter: controller.hasActiveFilter,
-                    onCategoryChanged: controller.onCategoryChanged,
-                    onSubcategoryChanged: controller.onSubcategoryChanged,
-                    onStockStatusChanged: controller.onStockStatusChanged,
-                    onReset: controller.clearFilters,
+                  Row(
+                    children: [
+                      InventoryProductFilterButton(
+                        hasActiveFilter: controller.hasActiveFilter,
+                        activeFilterCount: activeFilterCount,
+                        onTap: _openFiltersSheet,
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                 ],
               ),
             ),
@@ -180,8 +203,8 @@ class _InventoryProductsPageState extends State<InventoryProductsPage>
               ),
             ),
           ],
-        ),
-      ),
+        );
+      }),
     );
   }
 }
