@@ -8,6 +8,7 @@ import '../../../auth/data/repositories/auth_repository.dart';
 import '../models/barcode_scan_models.dart';
 import 'inventory_products_controller.dart';
 import 'inventory_summary_controller.dart';
+import 'purchase_list_controller.dart';
 
 class InventoryHomeController extends GetxController {
   InventoryHomeController({
@@ -68,10 +69,18 @@ class InventoryHomeController extends GetxController {
           Get.find<InventoryProductsController>().onTabActivated();
         }
         break;
+      case 1:
+        if (Get.isRegistered<PurchaseListController>()) {
+          Get.find<PurchaseListController>().onTabActivated();
+        }
+        break;
       case 2:
         if (Get.isRegistered<InventorySummaryController>()) {
           Get.find<InventorySummaryController>().onTabActivated();
         }
+        break;
+      case 3:
+        _loadUser();
         break;
     }
   }

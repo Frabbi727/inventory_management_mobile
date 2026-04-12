@@ -77,6 +77,8 @@ class PurchaseRecordsController extends GetxController {
     }
   }
 
+  Future<void> onTabActivated() => ensureLoaded(forceRefresh: true);
+
   Future<void> fetchPurchases({required bool reset}) async {
     final requestedQuery = searchQuery.value.trim();
     final hasExistingItems = purchases.isNotEmpty;
@@ -120,7 +122,8 @@ class PurchaseRecordsController extends GetxController {
         return;
       }
 
-      final fetchedPurchases = response.data ?? const <InventoryPurchaseModel>[];
+      final fetchedPurchases =
+          response.data ?? const <InventoryPurchaseModel>[];
       if (reset) {
         purchases.assignAll(_deduplicatePurchases(fetchedPurchases));
       } else {

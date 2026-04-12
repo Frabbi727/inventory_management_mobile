@@ -52,6 +52,9 @@ class InventorySummaryController extends InventoryProductCatalogController {
     ensureLoaded();
   }
 
+  @override
+  Future<void> onTabActivated() => ensureLoaded(forceRefresh: true);
+
   List<ProductModel> get allProducts => products.toList(growable: false);
 
   List<ProductModel> get inStockProducts => products
