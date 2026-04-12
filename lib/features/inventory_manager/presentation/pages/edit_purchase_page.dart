@@ -126,10 +126,10 @@ class EditPurchasePage extends GetView<EditPurchaseController> {
                   child: _EditablePurchaseItemCard(
                     item: item,
                     quantityController: controller.quantityControllerFor(
-                      item.productId,
+                      item.lineKey,
                     ),
                     unitCostController: controller.unitCostControllerFor(
-                      item.productId,
+                      item.lineKey,
                     ),
                     formatCurrency: controller.formatCurrency,
                     isSubmitting: controller.isSubmitting.value,
@@ -232,6 +232,16 @@ class _EditablePurchaseItemCard extends StatelessWidget {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
+            if ((item.variantLabel ?? '').isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Variant: ${item.variantLabel}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             Wrap(
               spacing: 10,

@@ -1,6 +1,9 @@
 class PurchaseDraftItem {
   const PurchaseDraftItem({
+    required this.lineKey,
     required this.productId,
+    this.productVariantId,
+    this.variantLabel,
     required this.name,
     required this.sku,
     required this.barcode,
@@ -10,7 +13,10 @@ class PurchaseDraftItem {
     required this.categoryName,
   });
 
+  final String lineKey;
   final int productId;
+  final int? productVariantId;
+  final String? variantLabel;
   final String name;
   final String sku;
   final String barcode;
@@ -22,7 +28,12 @@ class PurchaseDraftItem {
   double get totalAmount => quantity * unitCost;
 
   PurchaseDraftItem copyWith({
+    String? lineKey,
     int? productId,
+    int? productVariantId,
+    bool clearProductVariantId = false,
+    String? variantLabel,
+    bool clearVariantLabel = false,
     String? name,
     String? sku,
     String? barcode,
@@ -32,7 +43,12 @@ class PurchaseDraftItem {
     String? categoryName,
   }) {
     return PurchaseDraftItem(
+      lineKey: lineKey ?? this.lineKey,
       productId: productId ?? this.productId,
+      productVariantId: clearProductVariantId
+          ? null
+          : productVariantId ?? this.productVariantId,
+      variantLabel: clearVariantLabel ? null : variantLabel ?? this.variantLabel,
       name: name ?? this.name,
       sku: sku ?? this.sku,
       barcode: barcode ?? this.barcode,

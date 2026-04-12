@@ -9,11 +9,16 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/errors/api_exception.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../products/data/models/category_response_model.dart';
+import '../../../products/data/models/product_subcategory_model.dart';
 import '../../../products/data/models/product_unit_model.dart';
+import '../../../products/data/models/product_variant_attribute_model.dart';
+import '../../../products/data/models/product_variant_model.dart';
 import '../../data/models/create_or_update_barcode_product_request.dart';
 import '../../data/repositories/inventory_manager_repository.dart';
+import '../models/editable_variant_attribute.dart';
 import '../models/product_form_args.dart';
 import '../models/selected_product_photo.dart';
+import '../models/variant_combination_draft.dart';
 import '../services/product_photo_compression_service.dart';
 
 class ProductFormController extends GetxController {
@@ -35,21 +40,31 @@ class ProductFormController extends GetxController {
   late final TextEditingController minimumStockController;
 
   final categories = <CategoryModel>[].obs;
+  final subcategories = <ProductSubcategoryModel>[].obs;
   final units = <ProductUnitModel>[].obs;
   final selectedPhotos = <SelectedProductPhoto>[].obs;
+  final variantAttributes = <EditableVariantAttribute>[].obs;
+  final variantCombinations = <VariantCombinationDraft>[].obs;
   final isSubmitting = false.obs;
   final isReferenceDataLoading = false.obs;
+  final isSubcategoryLoading = false.obs;
+  final isVariantsEnabled = false.obs;
   final errorMessage = RxnString();
   final photoErrorMessage = RxnString();
+  final subcategoryErrorMessage = RxnString();
+  final variantErrorMessage = RxnString();
   final selectedCategoryId = RxnInt();
+  final selectedSubcategoryId = RxnInt();
   final selectedUnitId = RxnInt();
   final selectedStatus = 'active'.obs;
 
   int _nextPhotoId = 0;
+  int _nextAttributeId = 0;
 
   bool get isEdit => args.mode == ProductFormMode.edit;
   bool get hasPendingCompression =>
       selectedPhotos.any((photo) => photo.isCompressing);
+  bool get showVariantSection => isVariantsEnabled.value;
 
   @override
   void onInit() {
@@ -71,8 +86,11 @@ class ProductFormController extends GetxController {
       text: args.minimumStockAlert?.toString() ?? '',
     );
     selectedCategoryId.value = args.categoryId;
+    selectedSubcategoryId.value = args.subcategoryId;
     selectedUnitId.value = args.unitId;
     selectedStatus.value = args.status ?? 'active';
+    isVariantsEnabled.value = args.hasVariants ?? false;
+    _seedVariantDrafts();
     loadReferenceData();
   }
 
@@ -105,15 +123,53 @@ class ProductFormController extends GetxController {
           ? categories.first.id
           : null;
       selectedUnitId.value ??= units.isNotEmpty ? units.first.id : null;
+
+      await loadSubcategoriesForCategory(selectedCategoryId.value);
     } catch (_) {
-      errorMessage.value = 'Unable to load categories right now.';
+      errorMessage.value = 'Unable to load product form data right now.';
     } finally {
       isReferenceDataLoading.value = false;
     }
   }
 
-  void onCategoryChanged(int? value) {
+  Future<void> loadSubcategoriesForCategory(int? categoryId) async {
+    subcategories.clear();
+    subcategoryErrorMessage.value = null;
+    if (categoryId == null) {
+      selectedSubcategoryId.value = null;
+      return;
+    }
+
+    isSubcategoryLoading.value = true;
+    try {
+      final fetchedSubcategories = await _inventoryManagerRepository
+          .fetchSubcategories(categoryId: categoryId);
+      subcategories.assignAll(fetchedSubcategories);
+      final selectedId = selectedSubcategoryId.value;
+      if (selectedId != null &&
+          !fetchedSubcategories.any((item) => item.id == selectedId)) {
+        selectedSubcategoryId.value = null;
+      }
+    } catch (_) {
+      selectedSubcategoryId.value = null;
+      subcategoryErrorMessage.value =
+          'Unable to load subcategories for this category.';
+    } finally {
+      isSubcategoryLoading.value = false;
+    }
+  }
+
+  Future<void> onCategoryChanged(int? value) async {
+    if (selectedCategoryId.value == value) {
+      return;
+    }
     selectedCategoryId.value = value;
+    selectedSubcategoryId.value = null;
+    await loadSubcategoriesForCategory(value);
+  }
+
+  void onSubcategoryChanged(int? value) {
+    selectedSubcategoryId.value = value;
   }
 
   void onUnitChanged(int? value) {
@@ -124,6 +180,76 @@ class ProductFormController extends GetxController {
     if (value != null) {
       selectedStatus.value = value;
     }
+  }
+
+  void onVariantsToggled(bool value) {
+    isVariantsEnabled.value = value;
+    variantErrorMessage.value = null;
+    if (value) {
+      if (variantAttributes.isEmpty) {
+        addVariantAttribute();
+      }
+      _regenerateVariantCombinations();
+      return;
+    }
+
+    variantAttributes.clear();
+    variantCombinations.clear();
+  }
+
+  void addVariantAttribute() {
+    variantAttributes.add(
+      EditableVariantAttribute(id: 'attribute-${_nextAttributeId++}'),
+    );
+  }
+
+  void removeVariantAttribute(String id) {
+    variantAttributes.removeWhere((attribute) => attribute.id == id);
+    _regenerateVariantCombinations();
+  }
+
+  void updateVariantAttributeName(String id, String value) {
+    final index = variantAttributes.indexWhere((attribute) => attribute.id == id);
+    if (index == -1) {
+      return;
+    }
+    variantAttributes[index] = variantAttributes[index].copyWith(name: value);
+    variantAttributes.refresh();
+    _regenerateVariantCombinations();
+  }
+
+  void updateVariantAttributeValues(String id, String rawValue) {
+    final index = variantAttributes.indexWhere((attribute) => attribute.id == id);
+    if (index == -1) {
+      return;
+    }
+    final values = rawValue
+        .split(',')
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toList();
+    variantAttributes[index] = variantAttributes[index].copyWith(values: values);
+    variantAttributes.refresh();
+    _regenerateVariantCombinations();
+  }
+
+  String attributeValuesLabel(EditableVariantAttribute attribute) {
+    if (attribute.values.isEmpty) {
+      return '';
+    }
+    return attribute.values.join(', ');
+  }
+
+  void updateCombinationQuantity(String key, String rawValue) {
+    final index = variantCombinations.indexWhere((combination) => combination.key == key);
+    if (index == -1) {
+      return;
+    }
+    final quantity = int.tryParse(rawValue.trim()) ?? 0;
+    variantCombinations[index] = variantCombinations[index].copyWith(
+      quantity: quantity < 0 ? 0 : quantity,
+    );
+    variantCombinations.refresh();
   }
 
   Future<void> submit() async {
@@ -143,18 +269,26 @@ class ProductFormController extends GetxController {
       return;
     }
 
+    final variantPayload = _buildVariantPayload();
+    if (isVariantsEnabled.value && variantPayload == null) {
+      return;
+    }
+
     final request = CreateOrUpdateBarcodeProductRequest(
       name: nameController.text.trim(),
-      sku: isEdit ? args.sku?.trim() : null,
+      sku: skuController.text.trim().isEmpty ? null : skuController.text.trim(),
       barcode: barcodeController.text.trim(),
       categoryId: categoryId,
+      subcategoryId: selectedSubcategoryId.value,
       unitId: unitId,
       purchasePrice: num.parse(purchasePriceController.text.trim()),
       sellingPrice: num.parse(sellingPriceController.text.trim()),
       minimumStockAlert: int.parse(minimumStockController.text.trim()),
       status: selectedStatus.value,
+      hasVariants: isVariantsEnabled.value ? true : null,
+      variantAttributes: variantPayload?.$1,
+      variantQuantities: variantPayload?.$2,
     );
-
 
     isSubmitting.value = true;
     errorMessage.value = null;
@@ -329,6 +463,176 @@ class ProductFormController extends GetxController {
 
     selectedPhotos[index] = update(selectedPhotos[index]);
     selectedPhotos.refresh();
+  }
+
+  void _seedVariantDrafts() {
+    final attributes = args.variantAttributes ?? const <ProductVariantAttributeModel>[];
+    if (attributes.isNotEmpty) {
+      variantAttributes.assignAll(
+        attributes.map(
+          (attribute) => EditableVariantAttribute(
+            id: 'attribute-${_nextAttributeId++}',
+            serverId: attribute.id,
+            name: attribute.name ?? '',
+            values: attribute.values ?? const <String>[],
+          ),
+        ),
+      );
+    }
+
+    final variants = args.variants ?? const <ProductVariantModel>[];
+    if (variants.isNotEmpty) {
+      variantCombinations.assignAll(
+        variants.map(
+          (variant) => VariantCombinationDraft(
+            key: variant.combinationKey ?? _fallbackVariantKey(variant),
+            label: variant.combinationLabel ?? '',
+            optionValues: variant.optionValues ?? const <String, String>{},
+            quantity: variant.currentStock ?? 0,
+            variantId: variant.id,
+            isActive: variant.isActive ?? true,
+          ),
+        ),
+      );
+    }
+  }
+
+  (List<ProductVariantAttributePayload>, Map<String, int>)? _buildVariantPayload() {
+    variantErrorMessage.value = null;
+    if (!isVariantsEnabled.value) {
+      return null;
+    }
+
+    final sanitizedAttributes = variantAttributes
+        .map(
+          (attribute) => ProductVariantAttributePayload(
+            name: attribute.name.trim(),
+            values: attribute.values
+                .map((value) => value.trim())
+                .where((value) => value.isNotEmpty)
+                .toSet()
+                .toList(),
+          ),
+        )
+        .where(
+          (attribute) =>
+              attribute.name.isNotEmpty && attribute.values.isNotEmpty,
+        )
+        .toList();
+
+    if (sanitizedAttributes.isEmpty) {
+      variantErrorMessage.value =
+          'Add at least one variant attribute with values.';
+      return null;
+    }
+
+    final uniqueNames = sanitizedAttributes
+        .map((attribute) => attribute.name.trim().toLowerCase())
+        .toSet();
+    if (uniqueNames.length != sanitizedAttributes.length) {
+      variantErrorMessage.value =
+          'Variant attribute names must be unique.';
+      return null;
+    }
+
+    if (variantCombinations.isEmpty) {
+      variantErrorMessage.value =
+          'Add at least one valid variant combination.';
+      return null;
+    }
+
+    final quantities = <String, int>{};
+    for (final combination in variantCombinations) {
+      quantities[combination.key] = combination.quantity;
+    }
+
+    return (sanitizedAttributes, quantities);
+  }
+
+  void _regenerateVariantCombinations() {
+    if (!isVariantsEnabled.value) {
+      variantCombinations.clear();
+      return;
+    }
+
+    final sourceAttributes = variantAttributes
+        .map(
+          (attribute) => EditableVariantAttribute(
+            id: attribute.id,
+            serverId: attribute.serverId,
+            name: attribute.name.trim(),
+            values: attribute.values
+                .map((value) => value.trim())
+                .where((value) => value.isNotEmpty)
+                .toList(),
+          ),
+        )
+        .where((attribute) => attribute.name.isNotEmpty && attribute.values.isNotEmpty)
+        .toList();
+
+    if (sourceAttributes.isEmpty) {
+      variantCombinations.clear();
+      return;
+    }
+
+    final existingByKey = <String, VariantCombinationDraft>{
+      for (final combination in variantCombinations) combination.key: combination,
+    };
+    final generated = _cartesianCombinations(sourceAttributes)
+        .map((optionValues) {
+          final key = _buildCombinationKey(optionValues);
+          final existing = existingByKey[key];
+          return VariantCombinationDraft(
+            key: key,
+            label: optionValues.values.join(' / '),
+            optionValues: optionValues,
+            quantity: existing?.quantity ?? 0,
+            variantId: existing?.variantId,
+            isActive: existing?.isActive ?? true,
+          );
+        })
+        .toList();
+    variantCombinations.assignAll(generated);
+  }
+
+  List<Map<String, String>> _cartesianCombinations(
+    List<EditableVariantAttribute> attributes,
+  ) {
+    var combinations = <Map<String, String>>[<String, String>{}];
+
+    for (final attribute in attributes) {
+      final next = <Map<String, String>>[];
+      for (final combination in combinations) {
+        for (final value in attribute.values) {
+          next.add(<String, String>{...combination, attribute.name: value});
+        }
+      }
+      combinations = next;
+    }
+
+    return combinations;
+  }
+
+  String _buildCombinationKey(Map<String, String> optionValues) {
+    return optionValues.entries
+        .map((entry) => '${_slugify(entry.key)}-${_slugify(entry.value)}')
+        .join('__');
+  }
+
+  String _fallbackVariantKey(ProductVariantModel variant) {
+    final optionValues = variant.optionValues;
+    if (optionValues == null || optionValues.isEmpty) {
+      return variant.combinationKey ?? 'variant-${variant.id ?? 0}';
+    }
+    return _buildCombinationKey(optionValues);
+  }
+
+  String _slugify(String value) {
+    return value
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+        .replaceAll(RegExp(r'^-+|-+$'), '');
   }
 
   String _createPhotoId() => 'photo-${_nextPhotoId++}';

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../products/data/models/category_response_model.dart';
+import '../models/editable_variant_attribute.dart';
 import '../controllers/product_form_controller.dart';
 import '../models/selected_product_photo.dart';
 
@@ -82,10 +83,41 @@ class ProductFormPage extends GetView<ProductFormController> {
                         ),
                         onChanged: controller.isReferenceDataLoading.value
                             ? null
-                            : controller.onCategoryChanged,
+                            : (value) {
+                                controller.onCategoryChanged(value);
+                              },
                         validator: (value) =>
                             value == null ? 'Category is required.' : null,
                       ),
+                      const SizedBox(height: 14),
+                      _DropdownField<int>(
+                        value: controller.selectedSubcategoryId.value,
+                        label: controller.isSubcategoryLoading.value
+                            ? 'Subcategory (loading...)'
+                            : 'Subcategory',
+                        prefixIcon: Icons.account_tree_outlined,
+                        items: controller.subcategories
+                            .map(
+                              (subcategory) => DropdownMenuItem<int>(
+                                value: subcategory.id,
+                                child: Text(
+                                  subcategory.name ??
+                                      'Subcategory ${subcategory.id}',
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: controller.isSubcategoryLoading.value ||
+                                controller.selectedCategoryId.value == null
+                            ? null
+                            : controller.onSubcategoryChanged,
+                      ),
+                      if (controller.subcategoryErrorMessage.value != null) ...[
+                        const SizedBox(height: 10),
+                        _InlineErrorMessage(
+                          message: controller.subcategoryErrorMessage.value!,
+                        ),
+                      ],
                       const SizedBox(height: 14),
                       _DropdownField<int>(
                         value: controller.selectedUnitId.value,
@@ -174,9 +206,25 @@ class ProductFormPage extends GetView<ProductFormController> {
                         ],
                         onChanged: controller.onStatusChanged,
                       ),
+                      const SizedBox(height: 14),
+                      SwitchListTile.adaptive(
+                        contentPadding: EdgeInsets.zero,
+                        value: controller.isVariantsEnabled.value,
+                        onChanged: controller.isSubmitting.value
+                            ? null
+                            : controller.onVariantsToggled,
+                        title: const Text('This product has variants'),
+                        subtitle: const Text(
+                          'Enable if the product is sold or purchased by combinations like model, storage, size, or color.',
+                        ),
+                      ),
                     ],
                   ),
                 ),
+                if (controller.showVariantSection) ...[
+                  const SizedBox(height: 16),
+                  _VariantSection(controller: controller),
+                ],
                 const SizedBox(height: 16),
                 _PhotoSection(controller: controller),
                 const SizedBox(height: 24),
@@ -578,6 +626,203 @@ class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _VariantSection extends StatelessWidget {
+  const _VariantSection({required this.controller});
+
+  final ProductFormController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return _FormSection(
+      title: 'Variants',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Create attributes and values, then review the generated combinations and opening quantities.',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 16),
+          ...controller.variantAttributes.map(
+            (attribute) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _VariantAttributeCard(
+                attribute: attribute,
+                controller: controller,
+              ),
+            ),
+          ),
+          OutlinedButton.icon(
+            onPressed: controller.isSubmitting.value
+                ? null
+                : controller.addVariantAttribute,
+            icon: const Icon(Icons.add_rounded),
+            label: const Text('Add Attribute'),
+          ),
+          if (controller.variantErrorMessage.value != null) ...[
+            const SizedBox(height: 14),
+            _InlineErrorMessage(message: controller.variantErrorMessage.value!),
+          ],
+          if (controller.variantCombinations.isNotEmpty) ...[
+            const SizedBox(height: 18),
+            Text(
+              'Generated combinations',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...controller.variantCombinations.map(
+              (combination) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _VariantCombinationCard(
+                  combinationKey: combination.key,
+                  label: combination.label,
+                  quantity: combination.quantity,
+                  onQuantityChanged: controller.updateCombinationQuantity,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _VariantAttributeCard extends StatelessWidget {
+  const _VariantAttributeCard({
+    required this.attribute,
+    required this.controller,
+  });
+
+  final EditableVariantAttribute attribute;
+  final ProductFormController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  initialValue: attribute.name,
+                  onChanged: (value) =>
+                      controller.updateVariantAttributeName(attribute.id, value),
+                  decoration: _inputDecoration(
+                    context,
+                    label: 'Attribute Name',
+                    prefixIcon: Icons.tune_rounded,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              IconButton.outlined(
+                onPressed: controller.isSubmitting.value
+                    ? null
+                    : () => controller.removeVariantAttribute(attribute.id),
+                icon: const Icon(Icons.delete_outline_rounded),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            initialValue: controller.attributeValuesLabel(attribute),
+            onChanged: (value) =>
+                controller.updateVariantAttributeValues(attribute.id, value),
+            decoration: _inputDecoration(
+              context,
+              label: 'Values',
+              prefixIcon: Icons.list_alt_rounded,
+            ).copyWith(
+              helperText: 'Enter comma-separated values',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VariantCombinationCard extends StatelessWidget {
+  const _VariantCombinationCard({
+    required this.combinationKey,
+    required this.label,
+    required this.quantity,
+    required this.onQuantityChanged,
+  });
+
+  final String combinationKey;
+  final String label;
+  final int quantity;
+  final void Function(String key, String value) onQuantityChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label.isEmpty ? combinationKey : label,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  combinationKey,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 110,
+            child: TextFormField(
+              key: ValueKey('variant-$combinationKey-$quantity'),
+              initialValue: '$quantity',
+              keyboardType: TextInputType.number,
+              onChanged: (value) => onQuantityChanged(combinationKey, value),
+              decoration: _inputDecoration(
+                context,
+                label: 'Qty',
+                prefixIcon: Icons.inventory_2_outlined,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

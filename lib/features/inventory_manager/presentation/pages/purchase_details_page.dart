@@ -64,6 +64,11 @@ class PurchaseDetailsPage extends GetView<PurchaseDetailsController> {
                             label: 'Stock',
                             value: '${product.currentStock ?? 0}',
                           ),
+                          if (product.subcategory?.name != null)
+                            InventoryInfoChip(
+                              label: 'Subcategory',
+                              value: product.subcategory!.name!,
+                            ),
                         ],
                       ),
                     ],
@@ -110,6 +115,33 @@ class PurchaseDetailsPage extends GetView<PurchaseDetailsController> {
                           border: OutlineInputBorder(),
                         ),
                       ),
+                      if (controller.requiresVariantSelection) ...[
+                        const SizedBox(height: 16),
+                        if (controller.isVariantLoading.value)
+                          const LinearProgressIndicator()
+                        else
+                          DropdownButtonFormField<int>(
+                            initialValue: controller.selectedVariantId.value,
+                            items: controller.activeVariants
+                                .map(
+                                  (variant) => DropdownMenuItem<int>(
+                                    value: variant.id,
+                                    child: Text(
+                                      variant.combinationLabel ??
+                                          variant.combinationKey ??
+                                          'Variant ${variant.id ?? ''}',
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: controller.onVariantChanged,
+                            decoration: const InputDecoration(
+                              labelText: 'Variant',
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.tune_rounded),
+                            ),
+                          ),
+                      ],
                       const SizedBox(height: 16),
                       Row(
                         children: [
@@ -177,6 +209,16 @@ class PurchaseDetailsPage extends GetView<PurchaseDetailsController> {
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
+                            if ((controller.selectedVariantLabel ?? '').isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                controller.selectedVariantLabel!,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: colorScheme.onPrimaryContainer,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                       ),

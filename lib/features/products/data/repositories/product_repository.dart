@@ -26,6 +26,7 @@ class ProductRepository {
     int page = 1,
     String? query,
     int? categoryId,
+    int? subcategoryId,
     bool forceRefresh = false,
   }) async {
     final token = await _tokenStorage.getToken();
@@ -36,7 +37,8 @@ class ProductRepository {
       );
     }
 
-    final cacheKey = '$page|${query?.trim() ?? ''}|${categoryId ?? ''}';
+    final cacheKey =
+        '$page|${query?.trim() ?? ''}|${categoryId ?? ''}|${subcategoryId ?? ''}';
     if (!forceRefresh) {
       final cachedResponse = _responseCache[cacheKey];
       if (cachedResponse != null) {
@@ -60,6 +62,9 @@ class ProductRepository {
 
     if (categoryId != null) {
       queryParameters['category_id'] = categoryId.toString();
+    }
+    if (subcategoryId != null) {
+      queryParameters['sub_category_id'] = subcategoryId.toString();
     }
 
     final request = _apiClient

@@ -163,6 +163,17 @@ class PurchaseViewPage extends GetView<PurchaseViewController> {
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
                             ),
+                            if ((item.variantLabel ?? item.product?.variant?.label ?? '')
+                                .isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'Variant: ${item.variantLabel ?? item.product?.variant?.label}',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 12),
                             Wrap(
                               spacing: 10,

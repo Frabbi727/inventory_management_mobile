@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 
 import '../../../../core/errors/api_exception.dart';
 import '../../../products/data/models/product_model.dart';
+import '../../../products/data/models/product_variant_model.dart';
+import '../../../products/data/repositories/product_repository.dart';
 import '../../data/models/create_or_update_purchase_request.dart';
 import '../../data/models/inventory_purchase_item_request.dart';
 import '../../data/models/purchase_response_model.dart';
@@ -11,9 +13,12 @@ import '../../data/repositories/inventory_manager_repository.dart';
 class PurchaseDetailsController extends GetxController {
   PurchaseDetailsController({
     required InventoryManagerRepository inventoryManagerRepository,
-  }) : _inventoryManagerRepository = inventoryManagerRepository;
+    required ProductRepository productRepository,
+  }) : _inventoryManagerRepository = inventoryManagerRepository,
+       _productRepository = productRepository;
 
   final InventoryManagerRepository _inventoryManagerRepository;
+  final ProductRepository _productRepository;
 
   final quantityController = TextEditingController(text: '1');
   final unitCostController = TextEditingController();
@@ -25,9 +30,24 @@ class PurchaseDetailsController extends GetxController {
   final unitCostError = RxnString();
   final submitError = RxnString();
   final isSubmitting = false.obs;
+  final isVariantLoading = false.obs;
+  final selectedVariantId = RxnInt();
 
   int? get quantity => int.tryParse(quantityController.text.trim());
   double? get unitCost => double.tryParse(unitCostController.text.trim());
+  List<ProductVariantModel> get activeVariants => (product.value?.variants ?? const [])
+      .where((variant) => variant.isActive ?? true)
+      .toList(growable: false);
+  bool get requiresVariantSelection => product.value?.hasVariants == true;
+  String? get selectedVariantLabel {
+    final variantId = selectedVariantId.value;
+    if (variantId == null) {
+      return null;
+    }
+    return activeVariants
+        .firstWhereOrNull((variant) => variant.id == variantId)
+        ?.combinationLabel;
+  }
   double get totalAmount {
     final currentQuantity = quantity;
     final currentUnitCost = unitCost;
@@ -50,9 +70,11 @@ class PurchaseDetailsController extends GetxController {
     product.value = argument;
     unitCostController.text = ((argument.purchasePrice ?? 0).toDouble())
         .toStringAsFixed(2);
+    selectedVariantId.value = null;
     quantityController.addListener(_handleInputChange);
     unitCostController.addListener(_handleInputChange);
     noteController.addListener(_handleInputChange);
+    _ensureVariantDetailsLoaded();
   }
 
   @override
@@ -111,6 +133,7 @@ class PurchaseDetailsController extends GetxController {
     if (!validation.isValid) {
       quantityError.value = validation.quantityError;
       unitCostError.value = validation.unitCostError;
+      submitError.value = validation.variantError;
       return;
     }
 
@@ -127,6 +150,7 @@ class PurchaseDetailsController extends GetxController {
           items: [
             InventoryPurchaseItemRequest(
               productId: currentProduct.id!,
+              productVariantId: selectedVariantId.value,
               quantity: validation.quantity!,
               unitCost: validation.unitCost!,
             ),
@@ -165,8 +189,12 @@ class PurchaseDetailsController extends GetxController {
           : parsedQuantity == null || parsedQuantity <= 0
           ? 'Quantity must be greater than 0.'
           : null,
-      unitCostError: parsedUnitCost == null || parsedUnitCost <= 0
-          ? 'Unit cost must be greater than 0.'
+      unitCostError: parsedUnitCost == null || parsedUnitCost < 0
+          ? 'Unit cost must be 0 or more.'
+          : null,
+      variantError:
+          product.hasVariants == true && selectedVariantId.value == null
+          ? 'Select a variant before submitting this purchase.'
           : null,
     );
   }
@@ -200,6 +228,37 @@ class PurchaseDetailsController extends GetxController {
     unitCostError.value = null;
     submitError.value = null;
   }
+
+  void onVariantChanged(int? variantId) {
+    selectedVariantId.value = variantId;
+    submitError.value = null;
+  }
+
+  Future<void> _ensureVariantDetailsLoaded() async {
+    final currentProduct = product.value;
+    if (currentProduct?.id == null || currentProduct?.hasVariants != true) {
+      return;
+    }
+    if ((currentProduct?.variants ?? const []).isNotEmpty) {
+      return;
+    }
+
+    isVariantLoading.value = true;
+    try {
+      final response = await _productRepository.fetchProductDetails(
+        currentProduct!.id!,
+        forceRefresh: true,
+      );
+      if (response.data != null) {
+        product.value = response.data;
+      }
+    } catch (_) {
+      submitError.value =
+          'Unable to load product variants right now. Try again.';
+    } finally {
+      isVariantLoading.value = false;
+    }
+  }
 }
 
 class PurchaseSubmissionValidation {
@@ -208,12 +267,15 @@ class PurchaseSubmissionValidation {
     required this.unitCost,
     required this.quantityError,
     required this.unitCostError,
+    required this.variantError,
   });
 
   final int? quantity;
   final double? unitCost;
   final String? quantityError;
   final String? unitCostError;
+  final String? variantError;
 
-  bool get isValid => quantityError == null && unitCostError == null;
+  bool get isValid =>
+      quantityError == null && unitCostError == null && variantError == null;
 }

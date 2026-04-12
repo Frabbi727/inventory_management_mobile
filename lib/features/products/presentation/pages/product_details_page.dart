@@ -33,11 +33,15 @@ class ProductDetailsPage extends GetView<ProductDetailsController> {
                     sku: product.sku,
                     barcode: product.barcode,
                     categoryId: product.category?.id,
+                    subcategoryId: product.subcategory?.id,
                     unitId: product.unit?.id,
                     purchasePrice: product.purchasePrice,
                     sellingPrice: product.sellingPrice,
                     minimumStockAlert: product.minimumStockAlert,
                     status: product.status,
+                    hasVariants: product.hasVariants,
+                    variantAttributes: product.variantAttributes,
+                    variants: product.variants,
                   ),
                 );
               },
@@ -97,6 +101,11 @@ class ProductDetailsPage extends GetView<ProductDetailsController> {
                         icon: Icons.category_outlined,
                       ),
                       _InfoItem(
+                        label: 'Subcategory',
+                        value: product.subcategory?.name ?? '-',
+                        icon: Icons.account_tree_outlined,
+                      ),
+                      _InfoItem(
                         label: 'Unit',
                         value: product.unit?.name ?? '-',
                         icon: Icons.straighten_outlined,
@@ -105,6 +114,16 @@ class ProductDetailsPage extends GetView<ProductDetailsController> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                if (product.hasVariants == true) ...[
+                  _SectionShell(
+                    title: 'Variants',
+                    child: _VariantSection(
+                      product: product,
+                      controller: controller,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 _SectionShell(
                   title: 'Barcode',
                   child: _BarcodeCard(product: product),
@@ -285,6 +304,39 @@ class _OverviewCard extends StatelessWidget {
                           color: colorScheme.onSurfaceVariant,
                         ),
                       ),
+                      if (product.hasVariants == true) ...[
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            if (product.variantSummary?.totalVariants != null)
+                              _VariantSummaryPill(
+                                label: 'Total',
+                                value:
+                                    '${product.variantSummary?.totalVariants ?? 0}',
+                              ),
+                            if (product.variantSummary?.inStockCount != null)
+                              _VariantSummaryPill(
+                                label: 'In stock',
+                                value:
+                                    '${product.variantSummary?.inStockCount ?? 0}',
+                              ),
+                            if (product.variantSummary?.lowStockCount != null)
+                              _VariantSummaryPill(
+                                label: 'Low',
+                                value:
+                                    '${product.variantSummary?.lowStockCount ?? 0}',
+                              ),
+                            if (product.variantSummary?.outOfStockCount != null)
+                              _VariantSummaryPill(
+                                label: 'Out',
+                                value:
+                                    '${product.variantSummary?.outOfStockCount ?? 0}',
+                              ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -345,6 +397,129 @@ class _OverviewCard extends StatelessWidget {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _VariantSection extends StatelessWidget {
+  const _VariantSection({
+    required this.product,
+    required this.controller,
+  });
+
+  final ProductModel product;
+  final ProductDetailsController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final attributes = product.variantAttributes ?? const [];
+    final variants = product.variants ?? const [];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (attributes.isNotEmpty) ...[
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: attributes
+                .map(
+                  (attribute) => _VariantSummaryPill(
+                    label: attribute.name ?? 'Attribute',
+                    value: (attribute.values ?? const []).join(', '),
+                  ),
+                )
+                .toList(),
+          ),
+          const SizedBox(height: 14),
+        ],
+        ...variants.map(
+          (variant) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(
+                  alpha: 0.55,
+                ),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          variant.combinationLabel ?? variant.combinationKey ?? '-',
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        if ((variant.combinationKey ?? '').isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            variant.combinationKey!,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      ProductStockStatusBadge(
+                        status: variant.stockStatus ?? product.effectiveStockStatus,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${variant.currentStock ?? 0} ${product.unit?.shortName ?? product.unit?.name ?? ''}',
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _VariantSummaryPill extends StatelessWidget {
+  const _VariantSummaryPill({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '$label: $value',
+        style: theme.textTheme.labelMedium?.copyWith(
+          fontWeight: FontWeight.w700,
         ),
       ),
     );

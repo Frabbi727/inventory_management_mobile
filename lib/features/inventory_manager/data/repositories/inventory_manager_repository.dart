@@ -4,6 +4,7 @@ import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/storage/token_storage.dart';
 import '../../../products/data/models/category_response_model.dart';
 import '../../../products/data/models/product_model.dart';
+import '../../../products/data/models/product_subcategory_model.dart';
 import '../../../products/data/models/product_unit_model.dart';
 import '../../../products/data/repositories/product_repository.dart';
 import '../models/barcode_resolve_response.dart';
@@ -15,6 +16,7 @@ import '../models/purchase_response_model.dart';
 import '../models/purchase_response_wrapper_model.dart';
 import '../models/product_unit_list_response_model.dart';
 import '../models/purchase_barcode_lookup_response.dart';
+import '../models/subcategory_list_response_model.dart';
 
 class InventoryManagerRepository {
   InventoryManagerRepository({
@@ -139,6 +141,21 @@ class InventoryManagerRepository {
     final response = await _apiClient.get(ApiEndpoints.units, token: token);
     final parsed = ProductUnitListResponseModel.fromJson(response);
     return parsed.data ?? const <ProductUnitModel>[];
+  }
+
+  Future<List<ProductSubcategoryModel>> fetchSubcategories({
+    int? categoryId,
+  }) async {
+    final token = await _requireToken();
+    final response = await _apiClient.get(
+      ApiEndpoints.subcategories,
+      token: token,
+      queryParameters: categoryId == null
+          ? null
+          : <String, String>{'category_id': categoryId.toString()},
+    );
+    final parsed = SubcategoryListResponseModel.fromJson(response);
+    return parsed.data ?? const <ProductSubcategoryModel>[];
   }
 
   Future<PurchaseResponseModel> createPurchase(

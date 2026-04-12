@@ -21,8 +21,8 @@ class EditPurchaseController extends GetxController {
   final noteController = TextEditingController();
   final purchase = Rxn<PurchaseResponseModel>();
   final draftItems = <PurchaseDraftItem>[].obs;
-  final _quantityControllers = <int, TextEditingController>{};
-  final _unitCostControllers = <int, TextEditingController>{};
+  final _quantityControllers = <String, TextEditingController>{};
+  final _unitCostControllers = <String, TextEditingController>{};
   final isLoading = true.obs;
   final isSubmitting = false.obs;
   final errorMessage = RxnString();
@@ -101,17 +101,17 @@ class EditPurchaseController extends GetxController {
     required double unitCost,
   }) {
     _updateDraftItemValues(
-      productId: original.productId,
+      lineKey: original.lineKey,
       quantity: quantity,
       unitCost: unitCost,
     );
   }
 
-  TextEditingController quantityControllerFor(int productId) =>
-      _quantityControllers[productId]!;
+  TextEditingController quantityControllerFor(String lineKey) =>
+      _quantityControllers[lineKey]!;
 
-  TextEditingController unitCostControllerFor(int productId) =>
-      _unitCostControllers[productId]!;
+  TextEditingController unitCostControllerFor(String lineKey) =>
+      _unitCostControllers[lineKey]!;
 
   Future<void> submitUpdate() async {
     if (draftItems.isEmpty) {
@@ -143,6 +143,7 @@ class EditPurchaseController extends GetxController {
               .map(
                 (item) => InventoryPurchaseItemRequest(
                   productId: item.productId,
+                  productVariantId: item.productVariantId,
                   quantity: item.quantity,
                   unitCost: item.unitCost,
                 ),
@@ -219,7 +220,10 @@ class EditPurchaseController extends GetxController {
         .where((item) => item.productId != null)
         .map(
           (item) => PurchaseDraftItem(
+            lineKey: _lineKeyFor(item.productId!, item.productVariantId),
             productId: item.productId!,
+            productVariantId: item.productVariantId,
+            variantLabel: item.variantLabel ?? item.product?.variant?.label,
             name: item.product?.name ?? item.productName ?? 'Unnamed product',
             sku: item.product?.sku ?? item.productBarcode ?? '-',
             barcode:
@@ -242,7 +246,7 @@ class EditPurchaseController extends GetxController {
       );
       quantityController.addListener(() {
         _updateDraftItemValues(
-          productId: item.productId,
+          lineKey: item.lineKey,
           quantity: int.tryParse(quantityController.text.trim()) ?? 0,
         );
       });
@@ -252,13 +256,13 @@ class EditPurchaseController extends GetxController {
       );
       unitCostController.addListener(() {
         _updateDraftItemValues(
-          productId: item.productId,
+          lineKey: item.lineKey,
           unitCost: double.tryParse(unitCostController.text.trim()) ?? 0,
         );
       });
 
-      _quantityControllers[item.productId] = quantityController;
-      _unitCostControllers[item.productId] = unitCostController;
+      _quantityControllers[item.lineKey] = quantityController;
+      _unitCostControllers[item.lineKey] = unitCostController;
     }
   }
 
@@ -274,11 +278,11 @@ class EditPurchaseController extends GetxController {
   }
 
   void _updateDraftItemValues({
-    required int productId,
+    required String lineKey,
     int? quantity,
     double? unitCost,
   }) {
-    final index = draftItems.indexWhere((item) => item.productId == productId);
+    final index = draftItems.indexWhere((item) => item.lineKey == lineKey);
     if (index == -1) {
       return;
     }
@@ -297,6 +301,10 @@ class EditPurchaseController extends GetxController {
     );
     draftItems.refresh();
     submitError.value = null;
+  }
+
+  String _lineKeyFor(int productId, int? productVariantId) {
+    return '$productId:${productVariantId ?? 'base'}';
   }
 
   Future<void> _refreshPurchaseLists() async {

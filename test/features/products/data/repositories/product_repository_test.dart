@@ -19,7 +19,9 @@ void main() {
     });
   });
 
-  test('fetchProducts sends page, status, and q query parameters', () async {
+  test(
+    'fetchProducts sends page, status, q, category, and subcategory query parameters',
+    () async {
     late http.Request capturedRequest;
     final repository = ProductRepository(
       apiClient: ApiClient(
@@ -39,7 +41,12 @@ void main() {
       tokenStorage: TokenStorage(),
     );
 
-    await repository.fetchProducts(page: 2, query: 'milk');
+    await repository.fetchProducts(
+      page: 2,
+      query: 'milk',
+      categoryId: 8,
+      subcategoryId: 11,
+    );
 
     expect(
       capturedRequest.headers['X-Authorization'],
@@ -49,6 +56,8 @@ void main() {
     expect(capturedRequest.url.queryParameters['page'], '2');
     expect(capturedRequest.url.queryParameters['status'], 'active');
     expect(capturedRequest.url.queryParameters['q'], 'milk');
+    expect(capturedRequest.url.queryParameters['category_id'], '8');
+    expect(capturedRequest.url.queryParameters['sub_category_id'], '11');
   });
 
   test('fetchProducts throws when token is missing', () async {
@@ -173,6 +182,64 @@ void main() {
     expect(response.data?.barcodeImageUrl, 'https://example.com/barcode.svg');
   });
 
+  test('fetchProductDetails parses optional variant and subcategory fields', () async {
+    final repository = ProductRepository(
+      apiClient: ApiClient(
+        httpClient: MockClient((request) async {
+          return http.Response(
+            jsonEncode({
+              'data': {
+                'id': 1,
+                'name': 'Samsung S28',
+                'has_variants': true,
+                'subcategory': {
+                  'id': 1,
+                  'name': 'Samsung',
+                  'category_id': 1,
+                },
+                'variant_summary': {
+                  'total_variants': 3,
+                  'in_stock_count': 0,
+                  'low_stock_count': 0,
+                  'out_of_stock_count': 3,
+                },
+                'variant_attributes': [
+                  {
+                    'id': 4,
+                    'name': 'Storage',
+                    'values': ['128', '256'],
+                  },
+                ],
+                'variants': [
+                  {
+                    'id': 9,
+                    'combination_key': 'storage-128',
+                    'combination_label': '128',
+                    'option_values': {'Storage': '128'},
+                    'is_active': true,
+                    'current_stock': 0,
+                    'stock_status': 'out_of_stock',
+                  },
+                ],
+              },
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+      ),
+      tokenStorage: TokenStorage(),
+    );
+
+    final response = await repository.fetchProductDetails(1);
+
+    expect(response.data?.hasVariants, isTrue);
+    expect(response.data?.subcategory?.name, 'Samsung');
+    expect(response.data?.variantSummary?.totalVariants, 3);
+    expect(response.data?.variantAttributes?.first.values, ['128', '256']);
+    expect(response.data?.variants?.first.combinationKey, 'storage-128');
+  });
+
   test('fetchProductDetails accepts direct product objects too', () async {
     final repository = ProductRepository(
       apiClient: ApiClient(
@@ -243,15 +310,15 @@ void main() {
 
     expect(
       response.data?.barcodeImageUrl,
-      'http://10.98.87.137:8000/storage/products/orimo-open-air/barcode/barcode.svg',
+      'http://192.168.0.129:8000/storage/products/orimo-open-air/barcode/barcode.svg',
     );
     expect(
       response.data?.primaryPhoto?.fileUrl,
-      'http://10.98.87.137:8000/storage/products/orimo-open-air/photos/01.png',
+      'http://192.168.0.129:8000/storage/products/orimo-open-air/photos/01.png',
     );
     expect(
       response.data?.photos?.first.fileUrl,
-      'http://10.98.87.137:8000/storage/products/orimo-open-air/photos/01.png',
+      'http://192.168.0.129:8000/storage/products/orimo-open-air/photos/01.png',
     );
   });
 }
