@@ -38,6 +38,9 @@ class ProductFormController extends GetxController {
   late final TextEditingController purchasePriceController;
   late final TextEditingController sellingPriceController;
   late final TextEditingController minimumStockController;
+  final _attributeNameControllers = <String, TextEditingController>{};
+  final _attributeValuesControllers = <String, TextEditingController>{};
+  final _combinationQuantityControllers = <String, TextEditingController>{};
 
   final categories = <CategoryModel>[].obs;
   final subcategories = <ProductSubcategoryModel>[].obs;
@@ -65,6 +68,22 @@ class ProductFormController extends GetxController {
   bool get hasPendingCompression =>
       selectedPhotos.any((photo) => photo.isCompressing);
   bool get showVariantSection => isVariantsEnabled.value;
+  bool get isSubcategoryEnabled =>
+      !isSubcategoryLoading.value && selectedCategoryId.value != null;
+  int get variantAttributeCount => variantAttributes.length;
+  int get variantCombinationCount => variantCombinations.length;
+  bool get hasIncompleteVariantRows => variantAttributes.any(
+    (attribute) =>
+        attribute.name.trim().isEmpty ||
+        attribute.values.every((value) => value.trim().isEmpty),
+  );
+  bool get hasDuplicateVariantNames {
+    final names = variantAttributes
+        .map((attribute) => attribute.name.trim().toLowerCase())
+        .where((value) => value.isNotEmpty)
+        .toList();
+    return names.toSet().length != names.length;
+  }
 
   @override
   void onInit() {
@@ -102,6 +121,7 @@ class ProductFormController extends GetxController {
     purchasePriceController.dispose();
     sellingPriceController.dispose();
     minimumStockController.dispose();
+    _disposeVariantControllers();
     super.onClose();
   }
 
@@ -193,17 +213,20 @@ class ProductFormController extends GetxController {
       return;
     }
 
+    _disposeVariantControllers();
     variantAttributes.clear();
     variantCombinations.clear();
   }
 
   void addVariantAttribute() {
-    variantAttributes.add(
-      EditableVariantAttribute(id: 'attribute-${_nextAttributeId++}'),
-    );
+    final attribute = EditableVariantAttribute(id: 'attribute-${_nextAttributeId++}');
+    variantAttributes.add(attribute);
+    _ensureAttributeControllers(attribute);
   }
 
   void removeVariantAttribute(String id) {
+    _attributeNameControllers.remove(id)?.dispose();
+    _attributeValuesControllers.remove(id)?.dispose();
     variantAttributes.removeWhere((attribute) => attribute.id == id);
     _regenerateVariantCombinations();
   }
@@ -215,6 +238,7 @@ class ProductFormController extends GetxController {
     }
     variantAttributes[index] = variantAttributes[index].copyWith(name: value);
     variantAttributes.refresh();
+    variantErrorMessage.value = null;
     _regenerateVariantCombinations();
   }
 
@@ -230,6 +254,7 @@ class ProductFormController extends GetxController {
         .toList();
     variantAttributes[index] = variantAttributes[index].copyWith(values: values);
     variantAttributes.refresh();
+    variantErrorMessage.value = null;
     _regenerateVariantCombinations();
   }
 
@@ -246,10 +271,45 @@ class ProductFormController extends GetxController {
       return;
     }
     final quantity = int.tryParse(rawValue.trim()) ?? 0;
+    if (variantCombinations[index].quantity == (quantity < 0 ? 0 : quantity)) {
+      return;
+    }
     variantCombinations[index] = variantCombinations[index].copyWith(
       quantity: quantity < 0 ? 0 : quantity,
     );
     variantCombinations.refresh();
+    variantErrorMessage.value = null;
+  }
+
+  TextEditingController attributeNameController(String id) {
+    final attribute = variantAttributes.firstWhereOrNull((item) => item.id == id);
+    if (attribute == null) {
+      return TextEditingController();
+    }
+    return _ensureAttributeControllers(attribute).$1;
+  }
+
+  TextEditingController attributeValuesController(String id) {
+    final attribute = variantAttributes.firstWhereOrNull((item) => item.id == id);
+    if (attribute == null) {
+      return TextEditingController();
+    }
+    return _ensureAttributeControllers(attribute).$2;
+  }
+
+  TextEditingController combinationQuantityController(String key) {
+    final existing = _combinationQuantityControllers[key];
+    if (existing != null) {
+      return existing;
+    }
+    final quantity = variantCombinations
+            .firstWhereOrNull((combination) => combination.key == key)
+            ?.quantity ??
+        0;
+    final controller = TextEditingController(text: '$quantity');
+    controller.addListener(() => updateCombinationQuantity(key, controller.text));
+    _combinationQuantityControllers[key] = controller;
+    return controller;
   }
 
   Future<void> submit() async {
@@ -311,7 +371,10 @@ class ProductFormController extends GetxController {
               photos: readyPhotos,
             );
 
-      Get.offNamed(AppRoutes.productDetails, arguments: product);
+      Get.offNamed(
+        AppRoutes.productDetails,
+        arguments: product.id ?? product,
+      );
       Get.snackbar(
         'Product saved',
         isEdit
@@ -478,6 +541,9 @@ class ProductFormController extends GetxController {
           ),
         ),
       );
+      for (final attribute in variantAttributes) {
+        _ensureAttributeControllers(attribute);
+      }
     }
 
     final variants = args.variants ?? const <ProductVariantModel>[];
@@ -494,6 +560,7 @@ class ProductFormController extends GetxController {
           ),
         ),
       );
+      _syncCombinationControllers();
     }
   }
 
@@ -593,6 +660,7 @@ class ProductFormController extends GetxController {
         })
         .toList();
     variantCombinations.assignAll(generated);
+    _syncCombinationControllers();
   }
 
   List<Map<String, String>> _cartesianCombinations(
@@ -636,6 +704,82 @@ class ProductFormController extends GetxController {
   }
 
   String _createPhotoId() => 'photo-${_nextPhotoId++}';
+
+  (TextEditingController, TextEditingController) _ensureAttributeControllers(
+    EditableVariantAttribute attribute,
+  ) {
+    final nameController =
+        _attributeNameControllers.putIfAbsent(
+          attribute.id,
+          () => TextEditingController(text: attribute.name),
+        );
+    final valuesController =
+        _attributeValuesControllers.putIfAbsent(
+          attribute.id,
+          () => TextEditingController(text: attributeValuesLabel(attribute)),
+        );
+
+    if (nameController.text != attribute.name) {
+      nameController.value = nameController.value.copyWith(
+        text: attribute.name,
+        selection: TextSelection.collapsed(offset: attribute.name.length),
+      );
+    }
+    final valuesText = attributeValuesLabel(attribute);
+    if (valuesController.text != valuesText) {
+      valuesController.value = valuesController.value.copyWith(
+        text: valuesText,
+        selection: TextSelection.collapsed(offset: valuesText.length),
+      );
+    }
+
+    return (nameController, valuesController);
+  }
+
+  void _syncCombinationControllers() {
+    final validKeys = variantCombinations.map((item) => item.key).toSet();
+    final staleKeys = _combinationQuantityControllers.keys
+        .where((key) => !validKeys.contains(key))
+        .toList();
+    for (final key in staleKeys) {
+      _combinationQuantityControllers.remove(key)?.dispose();
+    }
+
+    for (final combination in variantCombinations) {
+      final controller = _combinationQuantityControllers.putIfAbsent(
+        combination.key,
+        () {
+          final next = TextEditingController(text: '${combination.quantity}');
+          next.addListener(
+            () => updateCombinationQuantity(combination.key, next.text),
+          );
+          return next;
+        },
+      );
+      final nextText = '${combination.quantity}';
+      if (controller.text != nextText) {
+        controller.value = controller.value.copyWith(
+          text: nextText,
+          selection: TextSelection.collapsed(offset: nextText.length),
+        );
+      }
+    }
+  }
+
+  void _disposeVariantControllers() {
+    for (final controller in _attributeNameControllers.values) {
+      controller.dispose();
+    }
+    for (final controller in _attributeValuesControllers.values) {
+      controller.dispose();
+    }
+    for (final controller in _combinationQuantityControllers.values) {
+      controller.dispose();
+    }
+    _attributeNameControllers.clear();
+    _attributeValuesControllers.clear();
+    _combinationQuantityControllers.clear();
+  }
 
   void _showPhotoPickerError(String message) {
     photoErrorMessage.value = message;

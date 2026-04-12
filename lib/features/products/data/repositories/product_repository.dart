@@ -64,7 +64,7 @@ class ProductRepository {
       queryParameters['category_id'] = categoryId.toString();
     }
     if (subcategoryId != null) {
-      queryParameters['sub_category_id'] = subcategoryId.toString();
+      queryParameters['subcategory_id'] = subcategoryId.toString();
     }
 
     final request = _apiClient

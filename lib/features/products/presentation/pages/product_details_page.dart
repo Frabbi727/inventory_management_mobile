@@ -29,6 +29,7 @@ class ProductDetailsPage extends GetView<ProductDetailsController> {
                 Get.toNamed(
                   AppRoutes.inventoryProductForm,
                   arguments: ProductFormArgs.edit(
+                    productId: product.id,
                     name: product.name,
                     sku: product.sku,
                     barcode: product.barcode,

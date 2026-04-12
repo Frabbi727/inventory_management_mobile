@@ -119,27 +119,56 @@ class PurchaseDetailsPage extends GetView<PurchaseDetailsController> {
                         const SizedBox(height: 16),
                         if (controller.isVariantLoading.value)
                           const LinearProgressIndicator()
-                        else
-                          DropdownButtonFormField<int>(
-                            initialValue: controller.selectedVariantId.value,
-                            items: controller.activeVariants
-                                .map(
-                                  (variant) => DropdownMenuItem<int>(
-                                    value: variant.id,
-                                    child: Text(
-                                      variant.combinationLabel ??
-                                          variant.combinationKey ??
-                                          'Variant ${variant.id ?? ''}',
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: controller.onVariantChanged,
-                            decoration: const InputDecoration(
-                              labelText: 'Variant',
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.tune_rounded),
+                        else if (!controller.hasSelectableVariants)
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: colorScheme.errorContainer.withValues(
+                                alpha: 0.5,
+                              ),
+                              borderRadius: BorderRadius.circular(16),
                             ),
+                            child: Text(
+                              'This product has variants, but no active variant is available for receiving.',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: colorScheme.onErrorContainer,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          )
+                        else
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Select Variant',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              ...controller.activeVariants.map(
+                                (variant) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 10),
+                                  child: _VariantChoiceCard(
+                                    label:
+                                        variant.combinationLabel ??
+                                        variant.combinationKey ??
+                                        'Variant ${variant.id ?? ''}',
+                                    stock: variant.currentStock ?? 0,
+                                    optionValues:
+                                        variant.optionValues ??
+                                        const <String, String>{},
+                                    isSelected:
+                                        controller.selectedVariantId.value ==
+                                        variant.id,
+                                    onTap: () =>
+                                        controller.onVariantChanged(variant.id),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                       ],
                       const SizedBox(height: 16),
@@ -247,6 +276,104 @@ class PurchaseDetailsPage extends GetView<PurchaseDetailsController> {
                     )
                   : const Text('Submit Purchase'),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _VariantChoiceCard extends StatelessWidget {
+  const _VariantChoiceCard({
+    required this.label,
+    required this.stock,
+    required this.optionValues,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final int stock;
+  final Map<String, String> optionValues;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? colorScheme.primaryContainer.withValues(alpha: 0.55)
+                : colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: isSelected
+                  ? colorScheme.primary
+                  : colorScheme.outlineVariant,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                isSelected
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_off_rounded,
+                color: isSelected
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    if (optionValues.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        optionValues.entries
+                            .map((entry) => '${entry.key}: ${entry.value}')
+                            .join('  •  '),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: colorScheme.surface,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  'Stock $stock',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

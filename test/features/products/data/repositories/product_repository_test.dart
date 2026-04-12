@@ -57,7 +57,7 @@ void main() {
     expect(capturedRequest.url.queryParameters['status'], 'active');
     expect(capturedRequest.url.queryParameters['q'], 'milk');
     expect(capturedRequest.url.queryParameters['category_id'], '8');
-    expect(capturedRequest.url.queryParameters['sub_category_id'], '11');
+    expect(capturedRequest.url.queryParameters['subcategory_id'], '11');
   });
 
   test('fetchProducts throws when token is missing', () async {

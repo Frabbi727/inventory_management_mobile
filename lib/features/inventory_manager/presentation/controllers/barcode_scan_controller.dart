@@ -112,14 +112,63 @@ class BarcodeScanController extends GetxController {
   Future<void> _handleProductLookupResponse(
     BarcodeResolveResponse response,
   ) async {
-    if (response.exists && response.data != null) {
-      Get.offNamed(AppRoutes.productDetails, arguments: response.data);
+    final action = response.action.trim().toLowerCase();
+    final shouldCreate = action == 'create' || !response.exists;
+    final shouldOpenExisting =
+        action == 'view_or_update' || response.exists;
+
+    if (shouldCreate) {
+      await _openExistingProductIfAvailable(response.barcode);
       return;
     }
 
-    Get.offNamed(
-      AppRoutes.inventoryProductForm,
-      arguments: ProductFormArgs.create(barcode: response.barcode),
+    if (!shouldOpenExisting) {
+      errorMessage.value =
+          'Unable to determine whether this barcode belongs to an existing product.';
+      return;
+    }
+
+    final product = response.data;
+    if (product?.id != null) {
+      Get.offNamed(AppRoutes.productDetails, arguments: product!.id);
+      return;
+    }
+
+    final opened = await _openExistingProductIfAvailable(
+      response.barcode,
+      showErrorOnFailure: true,
     );
+    if (!opened) {
+      errorMessage.value =
+          'Product exists but details could not be loaded. Try again.';
+    }
+  }
+
+  Future<bool> _openExistingProductIfAvailable(
+    String barcode, {
+    bool showErrorOnFailure = false,
+  }) async {
+    try {
+      final fullProduct = await _inventoryManagerRepository.getProductByBarcode(
+        barcode,
+      );
+      Get.offNamed(
+        AppRoutes.productDetails,
+        arguments: fullProduct.id ?? fullProduct,
+      );
+      return true;
+    } catch (_) {
+      if (showErrorOnFailure) {
+        return false;
+      }
+    }
+
+    if (!showErrorOnFailure) {
+      Get.offNamed(
+        AppRoutes.inventoryProductForm,
+        arguments: ProductFormArgs.create(barcode: barcode),
+      );
+    }
+    return false;
   }
 }

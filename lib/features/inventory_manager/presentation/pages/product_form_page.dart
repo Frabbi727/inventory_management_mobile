@@ -107,10 +107,15 @@ class ProductFormPage extends GetView<ProductFormController> {
                               ),
                             )
                             .toList(),
-                        onChanged: controller.isSubcategoryLoading.value ||
-                                controller.selectedCategoryId.value == null
+                        onChanged: !controller.isSubcategoryEnabled
                             ? null
                             : controller.onSubcategoryChanged,
+                        helperText: controller.selectedCategoryId.value == null
+                            ? 'Select a category first'
+                            : controller.subcategories.isEmpty &&
+                                  !controller.isSubcategoryLoading.value
+                            ? 'No subcategories available for this category'
+                            : 'Optional',
                       ),
                       if (controller.subcategoryErrorMessage.value != null) ...[
                         const SizedBox(height: 10),
@@ -651,6 +656,29 @@ class _VariantSection extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _VariantMetaPill(
+                label: 'Attributes',
+                value: '${controller.variantAttributeCount}',
+              ),
+              _VariantMetaPill(
+                label: 'Combinations',
+                value: '${controller.variantCombinationCount}',
+              ),
+              _VariantMetaPill(
+                label: 'State',
+                value: controller.hasIncompleteVariantRows
+                    ? 'Needs input'
+                    : controller.hasDuplicateVariantNames
+                    ? 'Duplicate names'
+                    : 'Ready',
+              ),
+            ],
+          ),
           const SizedBox(height: 16),
           ...controller.variantAttributes.map(
             (attribute) => Padding(
@@ -688,6 +716,9 @@ class _VariantSection extends StatelessWidget {
                   combinationKey: combination.key,
                   label: combination.label,
                   quantity: combination.quantity,
+                  quantityController: controller.combinationQuantityController(
+                    combination.key,
+                  ),
                   onQuantityChanged: controller.updateCombinationQuantity,
                 ),
               ),
@@ -723,13 +754,15 @@ class _VariantAttributeCard extends StatelessWidget {
             children: [
               Expanded(
                 child: TextFormField(
-                  initialValue: attribute.name,
+                  controller: controller.attributeNameController(attribute.id),
                   onChanged: (value) =>
                       controller.updateVariantAttributeName(attribute.id, value),
                   decoration: _inputDecoration(
                     context,
                     label: 'Attribute Name',
                     prefixIcon: Icons.tune_rounded,
+                  ).copyWith(
+                    helperText: 'Example: Color, Size, Storage',
                   ),
                 ),
               ),
@@ -744,7 +777,7 @@ class _VariantAttributeCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           TextFormField(
-            initialValue: controller.attributeValuesLabel(attribute),
+            controller: controller.attributeValuesController(attribute.id),
             onChanged: (value) =>
                 controller.updateVariantAttributeValues(attribute.id, value),
             decoration: _inputDecoration(
@@ -766,12 +799,14 @@ class _VariantCombinationCard extends StatelessWidget {
     required this.combinationKey,
     required this.label,
     required this.quantity,
+    required this.quantityController,
     required this.onQuantityChanged,
   });
 
   final String combinationKey;
   final String label;
   final int quantity;
+  final TextEditingController quantityController;
   final void Function(String key, String value) onQuantityChanged;
 
   @override
@@ -811,8 +846,8 @@ class _VariantCombinationCard extends StatelessWidget {
           SizedBox(
             width: 110,
             child: TextFormField(
-              key: ValueKey('variant-$combinationKey-$quantity'),
-              initialValue: '$quantity',
+              controller: quantityController,
+              key: ValueKey('variant-$combinationKey'),
               keyboardType: TextInputType.number,
               onChanged: (value) => onQuantityChanged(combinationKey, value),
               decoration: _inputDecoration(
@@ -823,6 +858,35 @@ class _VariantCombinationCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _VariantMetaPill extends StatelessWidget {
+  const _VariantMetaPill({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        '$label: $value',
+        style: theme.textTheme.labelMedium?.copyWith(
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -1170,6 +1234,7 @@ class _DropdownField<T> extends StatelessWidget {
     required this.items,
     this.onChanged,
     this.validator,
+    this.helperText,
   });
 
   final T? value;
@@ -1178,6 +1243,7 @@ class _DropdownField<T> extends StatelessWidget {
   final List<DropdownMenuItem<T>> items;
   final ValueChanged<T?>? onChanged;
   final String? Function(T?)? validator;
+  final String? helperText;
 
   @override
   Widget build(BuildContext context) {
@@ -1191,7 +1257,7 @@ class _DropdownField<T> extends StatelessWidget {
         context,
         label: label,
         prefixIcon: prefixIcon,
-      ),
+      ).copyWith(helperText: helperText),
       borderRadius: BorderRadius.circular(18),
       icon: const Icon(Icons.keyboard_arrow_down_rounded),
     );
