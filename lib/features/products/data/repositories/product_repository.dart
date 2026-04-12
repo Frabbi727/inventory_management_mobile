@@ -4,8 +4,10 @@ import '../../../../core/errors/api_exception.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/storage/token_storage.dart';
+import '../../../inventory_manager/data/models/subcategory_list_response_model.dart';
 import '../models/product_details_response_model.dart';
 import '../models/product_list_response_model.dart';
+import '../models/product_subcategory_model.dart';
 
 class ProductRepository {
   ProductRepository({
@@ -147,5 +149,29 @@ class ProductRepository {
     );
 
     return CategoryResponseModel.fromJson(response);
+  }
+
+  Future<List<ProductSubcategoryModel>> fetchSubcategories({
+    int? categoryId,
+  }) async {
+    final token = await _tokenStorage.getToken();
+
+    if (token == null || token.isEmpty) {
+      throw ApiException(
+        message: 'Authentication token not found.',
+        statusCode: 401,
+      );
+    }
+
+    final response = await _apiClient.get(
+      ApiEndpoints.subcategories,
+      token: token,
+      queryParameters: categoryId == null
+          ? null
+          : <String, String>{'category_id': categoryId.toString()},
+    );
+
+    final parsed = SubcategoryListResponseModel.fromJson(response);
+    return parsed.data ?? const <ProductSubcategoryModel>[];
   }
 }

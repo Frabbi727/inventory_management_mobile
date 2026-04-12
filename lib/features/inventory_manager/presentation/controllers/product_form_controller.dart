@@ -219,7 +219,9 @@ class ProductFormController extends GetxController {
   }
 
   void addVariantAttribute() {
-    final attribute = EditableVariantAttribute(id: 'attribute-${_nextAttributeId++}');
+    final attribute = EditableVariantAttribute(
+      id: 'attribute-${_nextAttributeId++}',
+    );
     variantAttributes.add(attribute);
     _ensureAttributeControllers(attribute);
   }
@@ -232,7 +234,9 @@ class ProductFormController extends GetxController {
   }
 
   void updateVariantAttributeName(String id, String value) {
-    final index = variantAttributes.indexWhere((attribute) => attribute.id == id);
+    final index = variantAttributes.indexWhere(
+      (attribute) => attribute.id == id,
+    );
     if (index == -1) {
       return;
     }
@@ -243,7 +247,9 @@ class ProductFormController extends GetxController {
   }
 
   void updateVariantAttributeValues(String id, String rawValue) {
-    final index = variantAttributes.indexWhere((attribute) => attribute.id == id);
+    final index = variantAttributes.indexWhere(
+      (attribute) => attribute.id == id,
+    );
     if (index == -1) {
       return;
     }
@@ -252,7 +258,9 @@ class ProductFormController extends GetxController {
         .map((value) => value.trim())
         .where((value) => value.isNotEmpty)
         .toList();
-    variantAttributes[index] = variantAttributes[index].copyWith(values: values);
+    variantAttributes[index] = variantAttributes[index].copyWith(
+      values: values,
+    );
     variantAttributes.refresh();
     variantErrorMessage.value = null;
     _regenerateVariantCombinations();
@@ -266,7 +274,9 @@ class ProductFormController extends GetxController {
   }
 
   void updateCombinationQuantity(String key, String rawValue) {
-    final index = variantCombinations.indexWhere((combination) => combination.key == key);
+    final index = variantCombinations.indexWhere(
+      (combination) => combination.key == key,
+    );
     if (index == -1) {
       return;
     }
@@ -282,7 +292,9 @@ class ProductFormController extends GetxController {
   }
 
   TextEditingController attributeNameController(String id) {
-    final attribute = variantAttributes.firstWhereOrNull((item) => item.id == id);
+    final attribute = variantAttributes.firstWhereOrNull(
+      (item) => item.id == id,
+    );
     if (attribute == null) {
       return TextEditingController();
     }
@@ -290,7 +302,9 @@ class ProductFormController extends GetxController {
   }
 
   TextEditingController attributeValuesController(String id) {
-    final attribute = variantAttributes.firstWhereOrNull((item) => item.id == id);
+    final attribute = variantAttributes.firstWhereOrNull(
+      (item) => item.id == id,
+    );
     if (attribute == null) {
       return TextEditingController();
     }
@@ -302,12 +316,15 @@ class ProductFormController extends GetxController {
     if (existing != null) {
       return existing;
     }
-    final quantity = variantCombinations
+    final quantity =
+        variantCombinations
             .firstWhereOrNull((combination) => combination.key == key)
             ?.quantity ??
         0;
     final controller = TextEditingController(text: '$quantity');
-    controller.addListener(() => updateCombinationQuantity(key, controller.text));
+    controller.addListener(
+      () => updateCombinationQuantity(key, controller.text),
+    );
     _combinationQuantityControllers[key] = controller;
     return controller;
   }
@@ -371,10 +388,7 @@ class ProductFormController extends GetxController {
               photos: readyPhotos,
             );
 
-      Get.offNamed(
-        AppRoutes.productDetails,
-        arguments: product.id ?? product,
-      );
+      Get.offNamed(AppRoutes.productDetails, arguments: product);
       Get.snackbar(
         'Product saved',
         isEdit
@@ -529,7 +543,8 @@ class ProductFormController extends GetxController {
   }
 
   void _seedVariantDrafts() {
-    final attributes = args.variantAttributes ?? const <ProductVariantAttributeModel>[];
+    final attributes =
+        args.variantAttributes ?? const <ProductVariantAttributeModel>[];
     if (attributes.isNotEmpty) {
       variantAttributes.assignAll(
         attributes.map(
@@ -564,7 +579,8 @@ class ProductFormController extends GetxController {
     }
   }
 
-  (List<ProductVariantAttributePayload>, Map<String, int>)? _buildVariantPayload() {
+  (List<ProductVariantAttributePayload>, Map<String, int>)?
+  _buildVariantPayload() {
     variantErrorMessage.value = null;
     if (!isVariantsEnabled.value) {
       return null;
@@ -597,14 +613,12 @@ class ProductFormController extends GetxController {
         .map((attribute) => attribute.name.trim().toLowerCase())
         .toSet();
     if (uniqueNames.length != sanitizedAttributes.length) {
-      variantErrorMessage.value =
-          'Variant attribute names must be unique.';
+      variantErrorMessage.value = 'Variant attribute names must be unique.';
       return null;
     }
 
     if (variantCombinations.isEmpty) {
-      variantErrorMessage.value =
-          'Add at least one valid variant combination.';
+      variantErrorMessage.value = 'Add at least one valid variant combination.';
       return null;
     }
 
@@ -634,7 +648,10 @@ class ProductFormController extends GetxController {
                 .toList(),
           ),
         )
-        .where((attribute) => attribute.name.isNotEmpty && attribute.values.isNotEmpty)
+        .where(
+          (attribute) =>
+              attribute.name.isNotEmpty && attribute.values.isNotEmpty,
+        )
         .toList();
 
     if (sourceAttributes.isEmpty) {
@@ -643,22 +660,23 @@ class ProductFormController extends GetxController {
     }
 
     final existingByKey = <String, VariantCombinationDraft>{
-      for (final combination in variantCombinations) combination.key: combination,
+      for (final combination in variantCombinations)
+        combination.key: combination,
     };
-    final generated = _cartesianCombinations(sourceAttributes)
-        .map((optionValues) {
-          final key = _buildCombinationKey(optionValues);
-          final existing = existingByKey[key];
-          return VariantCombinationDraft(
-            key: key,
-            label: optionValues.values.join(' / '),
-            optionValues: optionValues,
-            quantity: existing?.quantity ?? 0,
-            variantId: existing?.variantId,
-            isActive: existing?.isActive ?? true,
-          );
-        })
-        .toList();
+    final generated = _cartesianCombinations(sourceAttributes).map((
+      optionValues,
+    ) {
+      final key = _buildCombinationKey(optionValues);
+      final existing = existingByKey[key];
+      return VariantCombinationDraft(
+        key: key,
+        label: optionValues.values.join(' / '),
+        optionValues: optionValues,
+        quantity: existing?.quantity ?? 0,
+        variantId: existing?.variantId,
+        isActive: existing?.isActive ?? true,
+      );
+    }).toList();
     variantCombinations.assignAll(generated);
     _syncCombinationControllers();
   }
@@ -708,16 +726,14 @@ class ProductFormController extends GetxController {
   (TextEditingController, TextEditingController) _ensureAttributeControllers(
     EditableVariantAttribute attribute,
   ) {
-    final nameController =
-        _attributeNameControllers.putIfAbsent(
-          attribute.id,
-          () => TextEditingController(text: attribute.name),
-        );
-    final valuesController =
-        _attributeValuesControllers.putIfAbsent(
-          attribute.id,
-          () => TextEditingController(text: attributeValuesLabel(attribute)),
-        );
+    final nameController = _attributeNameControllers.putIfAbsent(
+      attribute.id,
+      () => TextEditingController(text: attribute.name),
+    );
+    final valuesController = _attributeValuesControllers.putIfAbsent(
+      attribute.id,
+      () => TextEditingController(text: attributeValuesLabel(attribute)),
+    );
 
     if (nameController.text != attribute.name) {
       nameController.value = nameController.value.copyWith(

@@ -34,7 +34,7 @@ class ProductDetailsController extends GetxController {
       product.value = argument;
       _productId = argument.id;
       if (_productId != null) {
-        fetchProductDetails();
+        fetchProductDetails(forceRefresh: true);
       }
     } else {
       errorMessage.value = 'Product details were not provided.';

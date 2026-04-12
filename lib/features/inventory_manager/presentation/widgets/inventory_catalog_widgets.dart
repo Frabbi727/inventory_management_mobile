@@ -72,6 +72,8 @@ class InventoryCatalogHeader extends StatelessWidget {
     required this.onClearFilters,
     this.searchQuery,
     this.selectedCategoryName,
+    this.selectedSubcategoryName,
+    this.selectedStockStatusLabel,
   });
 
   final int totalProducts;
@@ -79,6 +81,8 @@ class InventoryCatalogHeader extends StatelessWidget {
   final VoidCallback onClearFilters;
   final String? searchQuery;
   final String? selectedCategoryName;
+  final String? selectedSubcategoryName;
+  final String? selectedStockStatusLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -87,6 +91,10 @@ class InventoryCatalogHeader extends StatelessWidget {
       if ((searchQuery ?? '').isNotEmpty) 'Search: ${searchQuery!}',
       if ((selectedCategoryName ?? '').isNotEmpty)
         'Category: $selectedCategoryName',
+      if ((selectedSubcategoryName ?? '').isNotEmpty)
+        'Subcategory: $selectedSubcategoryName',
+      if ((selectedStockStatusLabel ?? '').isNotEmpty)
+        'Stock: $selectedStockStatusLabel',
     ];
 
     return Column(

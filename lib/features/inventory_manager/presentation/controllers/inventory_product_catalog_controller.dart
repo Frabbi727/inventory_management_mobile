@@ -6,6 +6,8 @@ import 'package:get/get.dart';
 import '../../../../core/errors/api_exception.dart';
 import '../../../products/data/models/category_response_model.dart';
 import '../../../products/data/models/product_model.dart';
+import '../../../products/data/models/product_stock_status.dart';
+import '../../../products/data/models/product_subcategory_model.dart';
 import '../../../products/data/repositories/product_repository.dart';
 
 abstract class InventoryProductCatalogController extends GetxController {
@@ -19,12 +21,16 @@ abstract class InventoryProductCatalogController extends GetxController {
   final searchTextController = TextEditingController();
   final products = <ProductModel>[].obs;
   final categories = <CategoryModel>[].obs;
+  final subcategories = <ProductSubcategoryModel>[].obs;
   final selectedCategoryId = Rxn<int>();
+  final selectedSubcategoryId = Rxn<int>();
+  final selectedStockStatus = Rxn<ProductStockStatus>();
   final isInitialLoading = false.obs;
   final isRefreshing = false.obs;
   final isLoadingMore = false.obs;
   final isSearching = false.obs;
   final isCategoriesLoading = false.obs;
+  final isSubcategoriesLoading = false.obs;
   final errorMessage = RxnString();
   final infoMessage = RxnString();
   final searchQuery = ''.obs;
@@ -41,15 +47,53 @@ abstract class InventoryProductCatalogController extends GetxController {
   bool get hasLoadedOnce => _hasLoadedOnce;
   bool get hasActiveSearch => searchQuery.value.isNotEmpty;
   bool get hasActiveCategory => selectedCategoryId.value != null;
-  bool get hasActiveFilter => hasActiveSearch || hasActiveCategory;
+  bool get hasActiveSubcategory => selectedSubcategoryId.value != null;
+  bool get hasActiveStockStatus => selectedStockStatus.value != null;
+  bool get hasActiveFilter =>
+      hasActiveSearch ||
+      hasActiveCategory ||
+      hasActiveSubcategory ||
+      hasActiveStockStatus;
   bool get showInlineLoader => isRefreshing.value && products.isNotEmpty;
   bool get hasErrorState =>
       errorMessage.value != null && products.isEmpty && !isInitialLoading.value;
   bool get hasEmptyState =>
-      products.isEmpty &&
+      visibleProducts.isEmpty &&
       errorMessage.value == null &&
       !isInitialLoading.value &&
       !isSearching.value;
+  bool get isSubcategoryEnabled =>
+      selectedCategoryId.value != null && !isSubcategoriesLoading.value;
+
+  List<ProductModel> get visibleProducts {
+    final selectedStatus = selectedStockStatus.value;
+    if (selectedStatus == null) {
+      return products;
+    }
+
+    return products
+        .where((product) => product.effectiveStockStatus == selectedStatus)
+        .toList(growable: false);
+  }
+
+  String get emptyStateMessage {
+    if (products.isEmpty) {
+      return infoMessage.value ??
+          buildEmptyMessage(
+            searchQuery.value.trim(),
+            selectedCategoryId.value,
+            selectedSubcategoryId.value,
+            selectedStockStatus.value,
+          );
+    }
+
+    final stockStatus = selectedStockStatus.value;
+    if (stockStatus != null) {
+      return 'No ${stockStatus.displayLabel.toLowerCase()} products found for the current filters.';
+    }
+
+    return 'No products found.';
+  }
 
   @override
   void onInit() {
@@ -98,7 +142,8 @@ abstract class InventoryProductCatalogController extends GetxController {
     }
 
     selectedCategoryId.value = id;
-    unawaited(fetchProducts(reset: true));
+    selectedSubcategoryId.value = null;
+    unawaited(_handleCategoryChange(id));
   }
 
   void clearCategory() {
@@ -107,7 +152,54 @@ abstract class InventoryProductCatalogController extends GetxController {
     }
 
     selectedCategoryId.value = null;
+    selectedSubcategoryId.value = null;
+    subcategories.clear();
     unawaited(fetchProducts(reset: true));
+  }
+
+  Future<void> loadSubcategories(int? categoryId) async {
+    subcategories.clear();
+    if (categoryId == null) {
+      return;
+    }
+
+    isSubcategoriesLoading.value = true;
+    try {
+      final fetched = await _productRepository.fetchSubcategories(
+        categoryId: categoryId,
+      );
+      subcategories.assignAll(fetched);
+    } catch (_) {
+      subcategories.clear();
+    } finally {
+      isSubcategoriesLoading.value = false;
+    }
+  }
+
+  void onSubcategoryChanged(int? id) {
+    if (selectedSubcategoryId.value == id) {
+      return;
+    }
+
+    selectedSubcategoryId.value = id;
+    unawaited(fetchProducts(reset: true));
+  }
+
+  void clearSubcategory() {
+    if (selectedSubcategoryId.value == null) {
+      return;
+    }
+
+    selectedSubcategoryId.value = null;
+    unawaited(fetchProducts(reset: true));
+  }
+
+  void onStockStatusChanged(ProductStockStatus? status) {
+    if (selectedStockStatus.value == status) {
+      return;
+    }
+
+    selectedStockStatus.value = status;
   }
 
   void clearFilters() {
@@ -115,6 +207,8 @@ abstract class InventoryProductCatalogController extends GetxController {
     final hadSearch =
         searchQuery.value.isNotEmpty || _lastExecutedQuery.isNotEmpty;
     final hadCategory = selectedCategoryId.value != null;
+    final hadSubcategory = selectedSubcategoryId.value != null;
+    final hadStockStatus = selectedStockStatus.value != null;
     searchQuery.value = '';
     if (searchTextController.text.isNotEmpty) {
       searchTextController.clear();
@@ -123,9 +217,14 @@ abstract class InventoryProductCatalogController extends GetxController {
     isSearching.value = false;
     _lastExecutedQuery = '';
     selectedCategoryId.value = null;
+    selectedSubcategoryId.value = null;
+    selectedStockStatus.value = null;
+    subcategories.clear();
 
-    if (hadSearch || hadCategory || products.isEmpty) {
+    if (hadSearch || hadCategory || hadSubcategory || products.isEmpty) {
       unawaited(fetchProducts(reset: true));
+    } else if (hadStockStatus) {
+      products.refresh();
     }
   }
 
@@ -137,6 +236,7 @@ abstract class InventoryProductCatalogController extends GetxController {
   }) async {
     final requestedQuery = searchQuery.value.trim();
     final requestedCategory = selectedCategoryId.value;
+    final requestedSubcategory = selectedSubcategoryId.value;
     final hasExistingItems = products.isNotEmpty;
 
     if (reset) {
@@ -172,6 +272,7 @@ abstract class InventoryProductCatalogController extends GetxController {
         page: pageToLoad,
         query: requestedQuery.isEmpty ? null : requestedQuery,
         categoryId: requestedCategory,
+        subcategoryId: requestedSubcategory,
         forceRefresh: forceRefresh,
       );
 
@@ -194,7 +295,12 @@ abstract class InventoryProductCatalogController extends GetxController {
       _hasNextPage = (response.links?.next != null) || (currentPage < lastPage);
       _currentPage = currentPage + 1;
       infoMessage.value = products.isEmpty
-          ? buildEmptyMessage(requestedQuery, requestedCategory)
+          ? buildEmptyMessage(
+              requestedQuery,
+              requestedCategory,
+              requestedSubcategory,
+              selectedStockStatus.value,
+            )
           : null;
     } on ApiException catch (error) {
       if (requestGeneration != _requestGeneration) {
@@ -304,7 +410,17 @@ abstract class InventoryProductCatalogController extends GetxController {
     }
   }
 
-  String buildEmptyMessage(String query, int? categoryId);
+  String buildEmptyMessage(
+    String query,
+    int? categoryId,
+    int? subcategoryId,
+    ProductStockStatus? stockStatus,
+  );
+
+  Future<void> _handleCategoryChange(int? id) async {
+    await loadSubcategories(id);
+    await fetchProducts(reset: true);
+  }
 
   void _onScroll() {
     if (!scrollController.hasClients) {

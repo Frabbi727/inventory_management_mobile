@@ -86,7 +86,12 @@ class InventorySummaryController extends InventoryProductCatalogController {
   }
 
   @override
-  String buildEmptyMessage(String query, int? categoryId) {
+  String buildEmptyMessage(
+    String query,
+    int? categoryId,
+    int? subcategoryId,
+    ProductStockStatus? stockStatus,
+  ) {
     return 'No inventory summary is available right now.';
   }
 

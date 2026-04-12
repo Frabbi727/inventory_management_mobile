@@ -1,13 +1,55 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/navigation/app_route_observer.dart';
 import '../../../../shared/widgets/app_page_header.dart';
 import '../controllers/inventory_products_controller.dart';
 import '../widgets/inventory_catalog_widgets.dart';
 import '../widgets/inventory_cetaogry_filter.dart';
 
-class InventoryProductsPage extends GetView<InventoryProductsController> {
+class InventoryProductsPage extends StatefulWidget {
   const InventoryProductsPage({super.key});
+
+  @override
+  State<InventoryProductsPage> createState() => _InventoryProductsPageState();
+}
+
+class _InventoryProductsPageState extends State<InventoryProductsPage>
+    with RouteAware {
+  late final InventoryProductsController controller;
+  ModalRoute<dynamic>? _subscribedRoute;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.find<InventoryProductsController>();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route is PageRoute && route != _subscribedRoute) {
+      if (_subscribedRoute is PageRoute) {
+        appRouteObserver.unsubscribe(this);
+      }
+      _subscribedRoute = route;
+      appRouteObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_subscribedRoute is PageRoute) {
+      appRouteObserver.unsubscribe(this);
+    }
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    controller.ensureLoaded(forceRefresh: true);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,15 +70,24 @@ class InventoryProductsPage extends GetView<InventoryProductsController> {
                     hasActiveSearch: controller.hasActiveSearch,
                     isSearching: controller.isSearching.value,
                   ),
-                  const SizedBox(height: 10),
-                  InventoryCategoryFilterSection(
+                  const SizedBox(height: 12),
+                  InventoryProductFilterPanel(
                     categories: controller.categories.toList(growable: false),
+                    subcategories: controller.subcategories.toList(
+                      growable: false,
+                    ),
                     selectedCategoryId: controller.selectedCategoryId.value,
-                    isLoading: controller.isCategoriesLoading.value,
-                    hasActiveCategory: controller.hasActiveCategory,
-                    onReset: controller.clearCategory,
-                    onSelectCategory: controller.onCategoryChanged,
-                    compact: true,
+                    selectedSubcategoryId:
+                        controller.selectedSubcategoryId.value,
+                    selectedStockStatus: controller.selectedStockStatus.value,
+                    isCategoriesLoading: controller.isCategoriesLoading.value,
+                    isSubcategoriesLoading:
+                        controller.isSubcategoriesLoading.value,
+                    hasActiveFilter: controller.hasActiveFilter,
+                    onCategoryChanged: controller.onCategoryChanged,
+                    onSubcategoryChanged: controller.onSubcategoryChanged,
+                    onStockStatusChanged: controller.onStockStatusChanged,
+                    onReset: controller.clearFilters,
                   ),
                   const SizedBox(height: 12),
                 ],
@@ -51,7 +102,7 @@ class InventoryProductsPage extends GetView<InventoryProductsController> {
                   physics: const AlwaysScrollableScrollPhysics(),
                   children: [
                     InventoryCatalogHeader(
-                      totalProducts: controller.products.length,
+                      totalProducts: controller.visibleProducts.length,
                       hasActiveFilter: controller.hasActiveFilter,
                       selectedCategoryName:
                           controller.selectedCategoryId.value == null
@@ -63,6 +114,18 @@ class InventoryProductsPage extends GetView<InventoryProductsController> {
                                       controller.selectedCategoryId.value,
                                 )
                                 ?.name,
+                      selectedSubcategoryName:
+                          controller.selectedSubcategoryId.value == null
+                          ? null
+                          : controller.subcategories
+                                .firstWhereOrNull(
+                                  (subcategory) =>
+                                      subcategory.id ==
+                                      controller.selectedSubcategoryId.value,
+                                )
+                                ?.name,
+                      selectedStockStatusLabel:
+                          controller.selectedStockStatus.value?.displayLabel,
                       searchQuery: controller.searchQuery.value,
                       onClearFilters: controller.clearFilters,
                     ),
@@ -94,13 +157,11 @@ class InventoryProductsPage extends GetView<InventoryProductsController> {
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         child: InventoryPageState(
                           icon: Icons.inventory_2_outlined,
-                          message:
-                              controller.infoMessage.value ??
-                              'No products found.',
+                          message: controller.emptyStateMessage,
                         ),
                       )
                     else
-                      ...controller.products.map(
+                      ...controller.visibleProducts.map(
                         (product) => Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: InventoryProductCard(

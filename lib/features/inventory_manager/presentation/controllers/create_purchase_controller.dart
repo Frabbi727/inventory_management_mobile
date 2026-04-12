@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../../../core/routes/app_routes.dart';
 import '../../../products/data/models/product_model.dart';
+import '../../../products/data/models/product_stock_status.dart';
 import '../../data/models/purchase_response_model.dart';
 import '../../data/repositories/inventory_manager_repository.dart';
 import '../models/barcode_scan_models.dart';
@@ -30,7 +31,12 @@ class CreatePurchaseController extends InventoryProductCatalogController {
   }
 
   @override
-  String buildEmptyMessage(String query, int? categoryId) {
+  String buildEmptyMessage(
+    String query,
+    int? categoryId,
+    int? subcategoryId,
+    ProductStockStatus? stockStatus,
+  ) {
     return 'No products found for the current search and category filters.';
   }
 
