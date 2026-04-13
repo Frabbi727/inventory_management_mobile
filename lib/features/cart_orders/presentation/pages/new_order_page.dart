@@ -657,21 +657,16 @@ class _ProductsStepState extends State<_ProductsStep> {
                                   return _CategoryChip(
                                     label: 'All',
                                     isSelected: selectedCategoryId == null,
-                                    onTap: () =>
-                                        productController.onCategoryChanged(
-                                          null,
-                                        ),
+                                    onTap: () => productController
+                                        .onCategoryChanged(null),
                                   );
                                 }
                                 final category = categories[index - 1];
                                 return _CategoryChip(
                                   label: category.name ?? 'Category',
-                                  isSelected:
-                                      selectedCategoryId == category.id,
-                                  onTap: () =>
-                                      productController.onCategoryChanged(
-                                        category.id,
-                                      ),
+                                  isSelected: selectedCategoryId == category.id,
+                                  onTap: () => productController
+                                      .onCategoryChanged(category.id),
                                 );
                               },
                             ),
@@ -705,7 +700,10 @@ class _ProductsStepState extends State<_ProductsStep> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: theme.colorScheme.surface,
                           borderRadius: BorderRadius.circular(14),
@@ -754,10 +752,11 @@ class _ProductsStepState extends State<_ProductsStep> {
                                       const SizedBox(width: 6),
                                       Text(
                                         'Clear',
-                                        style: theme.textTheme.labelSmall?.copyWith(
-                                          color: Colors.red,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                        style: theme.textTheme.labelSmall
+                                            ?.copyWith(
+                                              color: Colors.red,
+                                              fontWeight: FontWeight.w600,
+                                            ),
                                       ),
                                     ],
                                   ),
@@ -766,7 +765,7 @@ class _ProductsStepState extends State<_ProductsStep> {
                             ],
                           ],
                         ),
-                      )
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -815,27 +814,47 @@ class _ProductsStepState extends State<_ProductsStep> {
                 separatorBuilder: (_, _) => const SizedBox(height: 12),
                 itemBuilder: (context, index) {
                   final product = products[index];
-                  final cartItem = cartController.itemByProductId(product.id);
+                  final selectedQuantity = cartController.quantityForProduct(
+                    product.id,
+                  );
                   final unitLabel =
                       product.unit?.shortName ?? product.unit?.name;
+                  final displayPrice = product.hasVariants == true
+                      ? product.lowestVariantSellingPrice
+                      : product.sellingPrice;
 
                   return ProductCard(
                     name: product.name ?? 'Unnamed product',
                     sku: product.sku ?? '-',
-                    price: productController.formatPrice(product.sellingPrice),
+                    price: product.hasVariants == true
+                        ? 'From ${productController.formatPrice(displayPrice)}'
+                        : productController.formatPrice(displayPrice),
                     stock: product.currentStock ?? 0,
-                    selectedQuantity: cartItem?.quantity ?? 0,
+                    selectedQuantity: selectedQuantity,
                     imageUrl: product.primaryPhotoUrl,
                     unitLabel: unitLabel == null ? null : 'Unit $unitLabel',
                     categoryLabel: product.category?.name,
+                    buttonLabel: product.hasVariants == true ? 'Choose' : 'Add',
+                    showQuantityControls: product.hasVariants != true,
                     onViewDetails: () {
                       Get.toNamed(AppRoutes.productDetails, arguments: product);
                     },
-                    onAdd: () => cartController.addProduct(product),
-                    onIncrement: () =>
-                        cartController.incrementQuantity(product.id),
-                    onDecrement: () =>
-                        cartController.decrementQuantity(product.id),
+                    onAdd: () => product.hasVariants == true
+                        ? Get.toNamed(
+                            AppRoutes.productDetails,
+                            arguments: product,
+                          )
+                        : cartController.addProduct(product),
+                    onIncrement: product.hasVariants == true
+                        ? null
+                        : () => cartController.incrementQuantity(
+                            '${product.id}:base',
+                          ),
+                    onDecrement: product.hasVariants == true
+                        ? null
+                        : () => cartController.decrementQuantity(
+                            '${product.id}:base',
+                          ),
                   );
                 },
               ),
@@ -902,7 +921,6 @@ class _CategoryChip extends StatelessWidget {
   }
 }
 
-
 class _CartStep extends StatelessWidget {
   const _CartStep({required this.controller});
 
@@ -946,14 +964,15 @@ class _CartStep extends StatelessWidget {
             CartItemWidget(
               title: item.product.name ?? 'Unnamed product',
               subtitle: item.product.sku ?? '-',
+              variantLabel: item.variantLabel,
               quantity: item.quantity,
               unitPrice: controller.formatCurrency(item.unitPrice),
               lineTotal: controller.formatCurrency(item.lineTotal),
-              availableStock: item.product.currentStock,
-              canIncrement: controller.canIncrementQuantity(item.productId),
-              onIncrement: () => controller.incrementQuantity(item.productId),
-              onDecrement: () => controller.decrementQuantity(item.productId),
-              onRemove: () => controller.removeItem(item.productId),
+              availableStock: item.availableStock,
+              canIncrement: controller.canIncrementQuantity(item.lineKey),
+              onIncrement: () => controller.incrementQuantity(item.lineKey),
+              onDecrement: () => controller.decrementQuantity(item.lineKey),
+              onRemove: () => controller.removeItem(item.lineKey),
             ),
             const SizedBox(height: 12),
           ],

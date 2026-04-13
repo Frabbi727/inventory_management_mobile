@@ -269,7 +269,9 @@ class InventoryProductCard extends StatelessWidget {
                   Expanded(
                     child: InventoryMetaPill(
                       label: 'Selling Price',
-                      value: '৳${product.sellingPrice ?? 0}',
+                      value: product.hasVariants == true
+                          ? 'From ৳${product.lowestVariantSellingPrice ?? 0}'
+                          : '৳${product.sellingPrice ?? 0}',
                     ),
                   ),
                 ],
@@ -280,7 +282,9 @@ class InventoryProductCard extends StatelessWidget {
                   Expanded(
                     child: InventoryMetaPill(
                       label: 'Purchase Price',
-                      value: '৳${product.purchasePrice ?? 0}',
+                      value: product.hasVariants == true
+                          ? 'From ৳${product.lowestVariantPurchasePrice ?? 0}'
+                          : '৳${product.purchasePrice ?? 0}',
                     ),
                   ),
                   const SizedBox(width: 8),

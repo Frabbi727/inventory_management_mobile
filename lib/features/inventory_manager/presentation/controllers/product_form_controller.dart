@@ -41,6 +41,9 @@ class ProductFormController extends GetxController {
   final _attributeNameControllers = <String, TextEditingController>{};
   final _attributeValuesControllers = <String, TextEditingController>{};
   final _combinationQuantityControllers = <String, TextEditingController>{};
+  final _combinationPurchasePriceControllers =
+      <String, TextEditingController>{};
+  final _combinationSellingPriceControllers = <String, TextEditingController>{};
 
   final categories = <CategoryModel>[].obs;
   final subcategories = <ProductSubcategoryModel>[].obs;
@@ -68,6 +71,7 @@ class ProductFormController extends GetxController {
   bool get hasPendingCompression =>
       selectedPhotos.any((photo) => photo.isCompressing);
   bool get showVariantSection => isVariantsEnabled.value;
+  bool get showBasePriceFields => !isVariantsEnabled.value;
   bool get isSubcategoryEnabled =>
       !isSubcategoryLoading.value && selectedCategoryId.value != null;
   int get variantAttributeCount => variantAttributes.length;
@@ -291,6 +295,42 @@ class ProductFormController extends GetxController {
     variantErrorMessage.value = null;
   }
 
+  void updateCombinationPurchasePrice(String key, String rawValue) {
+    final index = variantCombinations.indexWhere(
+      (combination) => combination.key == key,
+    );
+    if (index == -1) {
+      return;
+    }
+    final parsed = num.tryParse(rawValue.trim());
+    if (variantCombinations[index].purchasePrice == parsed) {
+      return;
+    }
+    variantCombinations[index] = variantCombinations[index].copyWith(
+      purchasePrice: parsed,
+    );
+    variantCombinations.refresh();
+    variantErrorMessage.value = null;
+  }
+
+  void updateCombinationSellingPrice(String key, String rawValue) {
+    final index = variantCombinations.indexWhere(
+      (combination) => combination.key == key,
+    );
+    if (index == -1) {
+      return;
+    }
+    final parsed = num.tryParse(rawValue.trim());
+    if (variantCombinations[index].sellingPrice == parsed) {
+      return;
+    }
+    variantCombinations[index] = variantCombinations[index].copyWith(
+      sellingPrice: parsed,
+    );
+    variantCombinations.refresh();
+    variantErrorMessage.value = null;
+  }
+
   TextEditingController attributeNameController(String id) {
     final attribute = variantAttributes.firstWhereOrNull(
       (item) => item.id == id,
@@ -329,6 +369,42 @@ class ProductFormController extends GetxController {
     return controller;
   }
 
+  TextEditingController combinationPurchasePriceController(String key) {
+    final existing = _combinationPurchasePriceControllers[key];
+    if (existing != null) {
+      return existing;
+    }
+    final price = variantCombinations
+        .firstWhereOrNull((combination) => combination.key == key)
+        ?.purchasePrice;
+    final controller = TextEditingController(
+      text: price == null ? '' : '$price',
+    );
+    controller.addListener(
+      () => updateCombinationPurchasePrice(key, controller.text),
+    );
+    _combinationPurchasePriceControllers[key] = controller;
+    return controller;
+  }
+
+  TextEditingController combinationSellingPriceController(String key) {
+    final existing = _combinationSellingPriceControllers[key];
+    if (existing != null) {
+      return existing;
+    }
+    final price = variantCombinations
+        .firstWhereOrNull((combination) => combination.key == key)
+        ?.sellingPrice;
+    final controller = TextEditingController(
+      text: price == null ? '' : '$price',
+    );
+    controller.addListener(
+      () => updateCombinationSellingPrice(key, controller.text),
+    );
+    _combinationSellingPriceControllers[key] = controller;
+    return controller;
+  }
+
   Future<void> submit() async {
     final currentState = formKey.currentState;
     if (currentState == null || !currentState.validate()) {
@@ -358,13 +434,19 @@ class ProductFormController extends GetxController {
       categoryId: categoryId,
       subcategoryId: selectedSubcategoryId.value,
       unitId: unitId,
-      purchasePrice: num.parse(purchasePriceController.text.trim()),
-      sellingPrice: num.parse(sellingPriceController.text.trim()),
+      purchasePrice: isVariantsEnabled.value
+          ? null
+          : num.parse(purchasePriceController.text.trim()),
+      sellingPrice: isVariantsEnabled.value
+          ? null
+          : num.parse(sellingPriceController.text.trim()),
       minimumStockAlert: int.parse(minimumStockController.text.trim()),
       status: selectedStatus.value,
       hasVariants: isVariantsEnabled.value ? true : null,
       variantAttributes: variantPayload?.$1,
       variantQuantities: variantPayload?.$2,
+      variantPurchasePrices: variantPayload?.$3,
+      variantSellingPrices: variantPayload?.$4,
     );
 
     isSubmitting.value = true;
@@ -570,6 +652,8 @@ class ProductFormController extends GetxController {
             label: variant.combinationLabel ?? '',
             optionValues: variant.optionValues ?? const <String, String>{},
             quantity: variant.currentStock ?? 0,
+            purchasePrice: variant.purchasePrice,
+            sellingPrice: variant.sellingPrice,
             variantId: variant.id,
             isActive: variant.isActive ?? true,
           ),
@@ -579,7 +663,12 @@ class ProductFormController extends GetxController {
     }
   }
 
-  (List<ProductVariantAttributePayload>, Map<String, int>)?
+  (
+    List<ProductVariantAttributePayload>,
+    Map<String, int>,
+    Map<String, num>,
+    Map<String, num>,
+  )?
   _buildVariantPayload() {
     variantErrorMessage.value = null;
     if (!isVariantsEnabled.value) {
@@ -623,11 +712,27 @@ class ProductFormController extends GetxController {
     }
 
     final quantities = <String, int>{};
+    final purchasePrices = <String, num>{};
+    final sellingPrices = <String, num>{};
     for (final combination in variantCombinations) {
       quantities[combination.key] = combination.quantity;
+      final purchasePrice = combination.purchasePrice;
+      if (purchasePrice == null || purchasePrice < 0) {
+        variantErrorMessage.value =
+            'Enter a valid purchase price for every variant combination.';
+        return null;
+      }
+      final sellingPrice = combination.sellingPrice;
+      if (sellingPrice == null || sellingPrice < 0) {
+        variantErrorMessage.value =
+            'Enter a valid selling price for every variant combination.';
+        return null;
+      }
+      purchasePrices[combination.key] = purchasePrice;
+      sellingPrices[combination.key] = sellingPrice;
     }
 
-    return (sanitizedAttributes, quantities);
+    return (sanitizedAttributes, quantities, purchasePrices, sellingPrices);
   }
 
   void _regenerateVariantCombinations() {
@@ -673,6 +778,8 @@ class ProductFormController extends GetxController {
         label: optionValues.values.join(' / '),
         optionValues: optionValues,
         quantity: existing?.quantity ?? 0,
+        purchasePrice: existing?.purchasePrice,
+        sellingPrice: existing?.sellingPrice,
         variantId: existing?.variantId,
         isActive: existing?.isActive ?? true,
       );
@@ -757,8 +864,20 @@ class ProductFormController extends GetxController {
     final staleKeys = _combinationQuantityControllers.keys
         .where((key) => !validKeys.contains(key))
         .toList();
+    final stalePurchasePriceKeys = _combinationPurchasePriceControllers.keys
+        .where((key) => !validKeys.contains(key))
+        .toList();
+    final staleSellingPriceKeys = _combinationSellingPriceControllers.keys
+        .where((key) => !validKeys.contains(key))
+        .toList();
     for (final key in staleKeys) {
       _combinationQuantityControllers.remove(key)?.dispose();
+    }
+    for (final key in stalePurchasePriceKeys) {
+      _combinationPurchasePriceControllers.remove(key)?.dispose();
+    }
+    for (final key in staleSellingPriceKeys) {
+      _combinationSellingPriceControllers.remove(key)?.dispose();
     }
 
     for (final combination in variantCombinations) {
@@ -779,6 +898,46 @@ class ProductFormController extends GetxController {
           selection: TextSelection.collapsed(offset: nextText.length),
         );
       }
+
+      final purchasePriceController = _combinationPurchasePriceControllers
+          .putIfAbsent(combination.key, () {
+            final next = TextEditingController(
+              text: combination.purchasePrice?.toString() ?? '',
+            );
+            next.addListener(
+              () => updateCombinationPurchasePrice(combination.key, next.text),
+            );
+            return next;
+          });
+      final nextPurchasePriceText = combination.purchasePrice?.toString() ?? '';
+      if (purchasePriceController.text != nextPurchasePriceText) {
+        purchasePriceController.value = purchasePriceController.value.copyWith(
+          text: nextPurchasePriceText,
+          selection: TextSelection.collapsed(
+            offset: nextPurchasePriceText.length,
+          ),
+        );
+      }
+
+      final sellingPriceController = _combinationSellingPriceControllers
+          .putIfAbsent(combination.key, () {
+            final next = TextEditingController(
+              text: combination.sellingPrice?.toString() ?? '',
+            );
+            next.addListener(
+              () => updateCombinationSellingPrice(combination.key, next.text),
+            );
+            return next;
+          });
+      final nextSellingPriceText = combination.sellingPrice?.toString() ?? '';
+      if (sellingPriceController.text != nextSellingPriceText) {
+        sellingPriceController.value = sellingPriceController.value.copyWith(
+          text: nextSellingPriceText,
+          selection: TextSelection.collapsed(
+            offset: nextSellingPriceText.length,
+          ),
+        );
+      }
     }
   }
 
@@ -792,9 +951,17 @@ class ProductFormController extends GetxController {
     for (final controller in _combinationQuantityControllers.values) {
       controller.dispose();
     }
+    for (final controller in _combinationPurchasePriceControllers.values) {
+      controller.dispose();
+    }
+    for (final controller in _combinationSellingPriceControllers.values) {
+      controller.dispose();
+    }
     _attributeNameControllers.clear();
     _attributeValuesControllers.clear();
     _combinationQuantityControllers.clear();
+    _combinationPurchasePriceControllers.clear();
+    _combinationSellingPriceControllers.clear();
   }
 
   void _showPhotoPickerError(String message) {

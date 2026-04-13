@@ -5,6 +5,7 @@ import '../../../../core/errors/api_exception.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../customers/data/models/customer_model.dart';
 import '../../../products/data/models/product_model.dart';
+import '../../../products/data/models/product_variant_model.dart';
 import '../../data/models/cart_item_model.dart';
 import '../../data/models/create_order_request_model.dart';
 import '../../data/models/create_order_response_model.dart';
@@ -41,28 +42,37 @@ class CartController extends GetxController {
     discountValueController.addListener(_syncDiscountValue);
   }
 
-  int _indexOfProduct(int? productId) {
+  int _indexOfLine(int? productId, int? productVariantId) {
     if (productId == null) {
       return -1;
     }
 
-    return items.indexWhere((item) => item.productId == productId);
+    return items.indexWhere(
+      (item) =>
+          item.productId == productId &&
+          item.productVariantId == productVariantId,
+    );
   }
 
-  bool addProduct(ProductModel product) {
+  bool addProduct(ProductModel product, {ProductVariantModel? variant}) {
     final productId = product.id;
     if (productId == null) {
       return false;
     }
 
-    final currentStock = product.currentStock;
+    if (product.hasVariants == true && variant == null) {
+      errorMessage.value = 'Select a variant before adding this product.';
+      return false;
+    }
+
+    final currentStock = variant?.currentStock ?? product.currentStock;
     if (currentStock != null && currentStock <= 0) {
       return false;
     }
 
-    final existingIndex = _indexOfProduct(productId);
+    final existingIndex = _indexOfLine(productId, variant?.id);
     if (existingIndex == -1) {
-      items.add(CartItemModel(product: product, quantity: 1));
+      items.add(CartItemModel(product: product, quantity: 1, variant: variant));
       errorMessage.value = null;
       return true;
     }
@@ -79,14 +89,14 @@ class CartController extends GetxController {
     return true;
   }
 
-  bool canIncrementQuantity(int? productId) {
-    final index = _indexOfProduct(productId);
+  bool canIncrementQuantity(String lineKey) {
+    final index = items.indexWhere((item) => item.lineKey == lineKey);
     if (index == -1) {
       return false;
     }
 
     final currentItem = items[index];
-    final currentStock = currentItem.product.currentStock;
+    final currentStock = currentItem.availableStock;
     if (currentStock == null) {
       return true;
     }
@@ -94,18 +104,18 @@ class CartController extends GetxController {
     return currentItem.quantity < currentStock;
   }
 
-  bool incrementQuantity(int? productId) {
-    final index = _indexOfProduct(productId);
+  bool incrementQuantity(String lineKey) {
+    final index = items.indexWhere((item) => item.lineKey == lineKey);
     if (index == -1) {
       return false;
     }
 
     final currentItem = items[index];
-    final currentStock = currentItem.product.currentStock;
+    final currentStock = currentItem.availableStock;
     final nextQuantity = currentItem.quantity + 1;
     if (currentStock != null && nextQuantity > currentStock) {
       errorMessage.value =
-          'Only ${currentStock.toInt()} unit(s) available for ${currentItem.product.name ?? 'this product'}.';
+          'Only ${currentStock.toInt()} unit(s) available for ${currentItem.variantLabel ?? currentItem.product.name ?? 'this product'}.';
       return false;
     }
 
@@ -115,8 +125,8 @@ class CartController extends GetxController {
     return true;
   }
 
-  void decrementQuantity(int? productId) {
-    final index = _indexOfProduct(productId);
+  void decrementQuantity(String lineKey) {
+    final index = items.indexWhere((item) => item.lineKey == lineKey);
     if (index == -1) {
       return;
     }
@@ -124,7 +134,7 @@ class CartController extends GetxController {
     final currentItem = items[index];
     final currentQuantity = currentItem.quantity;
     if (currentQuantity <= 1) {
-      removeItem(productId);
+      removeItem(lineKey);
       return;
     }
 
@@ -133,8 +143,8 @@ class CartController extends GetxController {
     errorMessage.value = null;
   }
 
-  void removeItem(int? productId) {
-    final index = _indexOfProduct(productId);
+  void removeItem(String lineKey) {
+    final index = items.indexWhere((item) => item.lineKey == lineKey);
     if (index == -1) {
       return;
     }
@@ -146,16 +156,16 @@ class CartController extends GetxController {
     }
   }
 
-  CartItemModel? itemByProductId(int? productId) {
-    final index = _indexOfProduct(productId);
-    if (index == -1) {
-      return null;
+  int quantityForProduct(int? productId) {
+    if (productId == null) {
+      return 0;
     }
-
-    return items[index];
+    return items
+        .where((item) => item.productId == productId)
+        .fold(0, (sum, item) => sum + item.quantity);
   }
 
-  bool containsProduct(int? productId) => _indexOfProduct(productId) != -1;
+  bool containsProduct(int? productId) => quantityForProduct(productId) > 0;
 
   bool get hasCustomerSelected => selectedCustomer.value?.id != null;
 
@@ -398,6 +408,7 @@ class CartController extends GetxController {
             .map(
               (item) => OrderItemRequestModel(
                 productId: item.productId,
+                productVariantId: item.productVariantId,
                 quantity: item.quantity,
               ),
             )

@@ -6,6 +6,8 @@ class ProductVariantModel {
     this.combinationKey,
     this.combinationLabel,
     this.optionValues,
+    this.purchasePrice,
+    this.sellingPrice,
     this.isActive,
     this.currentStock,
     this.stockStatus,
@@ -15,6 +17,8 @@ class ProductVariantModel {
   final String? combinationKey;
   final String? combinationLabel;
   final Map<String, String>? optionValues;
+  final num? purchasePrice;
+  final num? sellingPrice;
   final bool? isActive;
   final int? currentStock;
   final ProductStockStatus? stockStatus;
@@ -25,6 +29,8 @@ class ProductVariantModel {
       combinationKey: json['combination_key'] as String?,
       combinationLabel: json['combination_label'] as String?,
       optionValues: _asStringMap(json['option_values']),
+      purchasePrice: _asNum(json['purchase_price']),
+      sellingPrice: _asNum(json['selling_price']),
       isActive: _asBool(json['is_active']),
       currentStock: _asInt(json['current_stock']),
       stockStatus: ProductStockStatus.fromApiValue(
@@ -39,6 +45,8 @@ class ProductVariantModel {
       'combination_key': combinationKey,
       'combination_label': combinationLabel,
       'option_values': optionValues,
+      'purchase_price': purchasePrice,
+      'selling_price': sellingPrice,
       'is_active': isActive,
       'current_stock': currentStock,
       'stock_status': ProductStockStatus.toApiValue(stockStatus),
@@ -73,6 +81,16 @@ class ProductVariantModel {
       if (normalized == 'false' || normalized == '0') {
         return false;
       }
+    }
+    return null;
+  }
+
+  static num? _asNum(dynamic value) {
+    if (value is num) {
+      return value;
+    }
+    if (value is String) {
+      return num.tryParse(value);
     }
     return null;
   }

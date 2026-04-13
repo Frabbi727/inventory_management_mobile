@@ -157,6 +157,7 @@ class PurchaseDetailsPage extends GetView<PurchaseDetailsController> {
                                         variant.combinationKey ??
                                         'Variant ${variant.id ?? ''}',
                                     stock: variant.currentStock ?? 0,
+                                    purchasePrice: variant.purchasePrice,
                                     optionValues:
                                         variant.optionValues ??
                                         const <String, String>{},
@@ -238,7 +239,8 @@ class PurchaseDetailsPage extends GetView<PurchaseDetailsController> {
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
-                            if ((controller.selectedVariantLabel ?? '').isNotEmpty) ...[
+                            if ((controller.selectedVariantLabel ?? '')
+                                .isNotEmpty) ...[
                               const SizedBox(height: 6),
                               Text(
                                 controller.selectedVariantLabel!,
@@ -287,6 +289,7 @@ class _VariantChoiceCard extends StatelessWidget {
   const _VariantChoiceCard({
     required this.label,
     required this.stock,
+    this.purchasePrice,
     required this.optionValues,
     required this.isSelected,
     required this.onTap,
@@ -294,6 +297,7 @@ class _VariantChoiceCard extends StatelessWidget {
 
   final String label;
   final int stock;
+  final num? purchasePrice;
   final Map<String, String> optionValues;
   final bool isSelected;
   final VoidCallback onTap;
@@ -367,7 +371,9 @@ class _VariantChoiceCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
-                  'Stock $stock',
+                  purchasePrice == null
+                      ? 'Stock $stock'
+                      : 'Stock $stock • Buy ৳${_formatPrice(purchasePrice!)}',
                   style: theme.textTheme.labelMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -378,5 +384,12 @@ class _VariantChoiceCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _formatPrice(num value) {
+    if (value == value.roundToDouble()) {
+      return value.toInt().toString();
+    }
+    return value.toStringAsFixed(2);
   }
 }

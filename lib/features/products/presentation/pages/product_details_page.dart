@@ -5,6 +5,7 @@ import '../../../../core/routes/app_routes.dart';
 import '../../../../shared/widgets/app_message_state.dart';
 import '../../../../shared/widgets/app_remote_media.dart';
 import '../../../../shared/widgets/product_stock_status_badge.dart';
+import '../../../cart_orders/presentation/controllers/cart_controller.dart';
 import '../../data/models/product_model.dart';
 import '../../../inventory_manager/presentation/models/product_form_args.dart';
 import '../controllers/product_details_controller.dart';
@@ -81,6 +82,12 @@ class ProductDetailsPage extends GetView<ProductDetailsController> {
                 _ProductGalleryCard(product: product),
                 const SizedBox(height: 16),
                 _OverviewCard(product: product, controller: controller),
+                if (!controller.isInventoryManager.value &&
+                    Get.isRegistered<CartController>() &&
+                    product.hasVariants != true) ...[
+                  const SizedBox(height: 16),
+                  _SalesActionCard(product: product),
+                ],
                 const SizedBox(height: 16),
                 _SectionShell(
                   title: 'Inventory',
@@ -405,10 +412,7 @@ class _OverviewCard extends StatelessWidget {
 }
 
 class _VariantSection extends StatelessWidget {
-  const _VariantSection({
-    required this.product,
-    required this.controller,
-  });
+  const _VariantSection({required this.product, required this.controller});
 
   final ProductModel product;
   final ProductDetailsController controller;
@@ -418,6 +422,9 @@ class _VariantSection extends StatelessWidget {
     final theme = Theme.of(context);
     final attributes = product.variantAttributes ?? const [];
     final variants = product.variants ?? const [];
+    final canOrder =
+        !controller.isInventoryManager.value &&
+        Get.isRegistered<CartController>();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -455,9 +462,19 @@ class _VariantSection extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          variant.combinationLabel ?? variant.combinationKey ?? '-',
+                          variant.combinationLabel ??
+                              variant.combinationKey ??
+                              '-',
                           style: theme.textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Sell ${controller.formatPrice(variant.sellingPrice)} • Buy ${controller.formatPrice(variant.purchasePrice)}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         if ((variant.combinationKey ?? '').isNotEmpty) ...[
@@ -477,7 +494,8 @@ class _VariantSection extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       ProductStockStatusBadge(
-                        status: variant.stockStatus ?? product.effectiveStockStatus,
+                        status:
+                            variant.stockStatus ?? product.effectiveStockStatus,
                       ),
                       const SizedBox(height: 6),
                       Text(
@@ -486,6 +504,28 @@ class _VariantSection extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                         ),
                       ),
+                      if (canOrder) ...[
+                        const SizedBox(height: 10),
+                        FilledButton(
+                          onPressed: (variant.currentStock ?? 0) <= 0
+                              ? null
+                              : () {
+                                  final cartController =
+                                      Get.find<CartController>();
+                                  final added = cartController.addProduct(
+                                    product,
+                                    variant: variant,
+                                  );
+                                  if (added) {
+                                    Get.snackbar(
+                                      'Added to cart',
+                                      '${product.name ?? 'Product'}${variant.combinationLabel == null ? '' : ' • ${variant.combinationLabel}'} added.',
+                                    );
+                                  }
+                                },
+                          child: const Text('Add'),
+                        ),
+                      ],
                     ],
                   ),
                 ],
@@ -498,11 +538,47 @@ class _VariantSection extends StatelessWidget {
   }
 }
 
+class _SalesActionCard extends StatelessWidget {
+  const _SalesActionCard({required this.product});
+
+  final ProductModel product;
+
+  @override
+  Widget build(BuildContext context) {
+    final cartController = Get.find<CartController>();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text('Use the current selling price for simple products.'),
+            ),
+            const SizedBox(width: 12),
+            FilledButton(
+              onPressed: (product.currentStock ?? 0) <= 0
+                  ? null
+                  : () {
+                      final added = cartController.addProduct(product);
+                      if (added) {
+                        Get.snackbar(
+                          'Added to cart',
+                          '${product.name ?? 'Product'} added.',
+                        );
+                      }
+                    },
+              child: const Text('Add to Cart'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _VariantSummaryPill extends StatelessWidget {
-  const _VariantSummaryPill({
-    required this.label,
-    required this.value,
-  });
+  const _VariantSummaryPill({required this.label, required this.value});
 
   final String label;
   final String value;

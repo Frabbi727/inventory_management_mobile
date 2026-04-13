@@ -279,6 +279,8 @@ class ProductCard extends StatelessWidget {
     this.imageUrl,
     this.unitLabel,
     this.categoryLabel,
+    this.buttonLabel = 'Add',
+    this.showQuantityControls = true,
     this.onViewDetails,
     this.onIncrement,
     this.onDecrement,
@@ -293,6 +295,8 @@ class ProductCard extends StatelessWidget {
   final String? imageUrl;
   final String? unitLabel;
   final String? categoryLabel;
+  final String buttonLabel;
+  final bool showQuantityControls;
   final VoidCallback? onViewDetails;
   final VoidCallback? onIncrement;
   final VoidCallback? onDecrement;
@@ -359,7 +363,7 @@ class ProductCard extends StatelessWidget {
                         ? theme.colorScheme.primary
                         : theme.colorScheme.onPrimary,
                   ),
-                  child: Text(hasQuantity ? 'Added' : 'Add'),
+                  child: Text(hasQuantity ? 'Added' : buttonLabel),
                 ),
               ],
             ),
@@ -390,7 +394,7 @@ class ProductCard extends StatelessWidget {
                   ),
               ],
             ),
-            if (hasQuantity) ...[
+            if (hasQuantity && showQuantityControls) ...[
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -573,6 +577,7 @@ class CartItemWidget extends StatelessWidget {
     super.key,
     required this.title,
     required this.subtitle,
+    this.variantLabel,
     required this.quantity,
     required this.unitPrice,
     required this.lineTotal,
@@ -585,6 +590,7 @@ class CartItemWidget extends StatelessWidget {
 
   final String title;
   final String subtitle;
+  final String? variantLabel;
   final int quantity;
   final String unitPrice;
   final String lineTotal;
@@ -601,7 +607,7 @@ class CartItemWidget extends StatelessWidget {
     final isAtStockLimit = hasStockLimit && !canIncrement;
 
     return Container(
-      key: ValueKey('cart-item-$title'),
+      key: ValueKey('cart-item-$title-$subtitle-${variantLabel ?? 'base'}'),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
@@ -639,6 +645,16 @@ class CartItemWidget extends StatelessWidget {
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
+                    if ((variantLabel ?? '').isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Variant: $variantLabel',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

@@ -4,6 +4,8 @@ class VariantCombinationDraft {
     required this.label,
     required this.optionValues,
     required this.quantity,
+    this.purchasePrice,
+    this.sellingPrice,
     this.variantId,
     this.isActive = true,
   });
@@ -12,6 +14,8 @@ class VariantCombinationDraft {
   final String label;
   final Map<String, String> optionValues;
   final int quantity;
+  final num? purchasePrice;
+  final num? sellingPrice;
   final int? variantId;
   final bool isActive;
 
@@ -20,6 +24,8 @@ class VariantCombinationDraft {
     String? label,
     Map<String, String>? optionValues,
     int? quantity,
+    num? purchasePrice,
+    num? sellingPrice,
     int? variantId,
     bool clearVariantId = false,
     bool? isActive,
@@ -29,6 +35,8 @@ class VariantCombinationDraft {
       label: label ?? this.label,
       optionValues: optionValues ?? this.optionValues,
       quantity: quantity ?? this.quantity,
+      purchasePrice: purchasePrice ?? this.purchasePrice,
+      sellingPrice: sellingPrice ?? this.sellingPrice,
       variantId: clearVariantId ? null : variantId ?? this.variantId,
       isActive: isActive ?? this.isActive,
     );

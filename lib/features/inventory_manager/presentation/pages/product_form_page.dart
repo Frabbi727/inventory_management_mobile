@@ -157,35 +157,50 @@ class ProductFormPage extends GetView<ProductFormController> {
                   title: 'Pricing & Stock',
                   child: Column(
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _FormField(
-                              controller: controller.purchasePriceController,
-                              label: 'Purchase Price',
-                              prefixIcon: Icons.payments_outlined,
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
-                              validator: controller.requiredNumberField,
+                      if (controller.showBasePriceFields) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _FormField(
+                                controller: controller.purchasePriceController,
+                                label: 'Purchase Price',
+                                prefixIcon: Icons.payments_outlined,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                validator: controller.requiredNumberField,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _FormField(
-                              controller: controller.sellingPriceController,
-                              label: 'Selling Price',
-                              prefixIcon: Icons.sell_outlined,
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
-                              validator: controller.requiredNumberField,
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: _FormField(
+                                controller: controller.sellingPriceController,
+                                label: 'Selling Price',
+                                prefixIcon: Icons.sell_outlined,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                validator: controller.requiredNumberField,
+                              ),
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                      ] else
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
                           ),
-                        ],
-                      ),
+                          child: const Text(
+                            'Variant products use per-variant purchase and selling prices. Base product price fields are disabled.',
+                          ),
+                        ),
                       const SizedBox(height: 14),
                       _FormField(
                         controller: controller.minimumStockController,
@@ -719,7 +734,15 @@ class _VariantSection extends StatelessWidget {
                   quantityController: controller.combinationQuantityController(
                     combination.key,
                   ),
+                  purchasePriceController: controller
+                      .combinationPurchasePriceController(combination.key),
+                  sellingPriceController: controller
+                      .combinationSellingPriceController(combination.key),
                   onQuantityChanged: controller.updateCombinationQuantity,
+                  onPurchasePriceChanged:
+                      controller.updateCombinationPurchasePrice,
+                  onSellingPriceChanged:
+                      controller.updateCombinationSellingPrice,
                 ),
               ),
             ),
@@ -755,15 +778,15 @@ class _VariantAttributeCard extends StatelessWidget {
               Expanded(
                 child: TextFormField(
                   controller: controller.attributeNameController(attribute.id),
-                  onChanged: (value) =>
-                      controller.updateVariantAttributeName(attribute.id, value),
+                  onChanged: (value) => controller.updateVariantAttributeName(
+                    attribute.id,
+                    value,
+                  ),
                   decoration: _inputDecoration(
                     context,
                     label: 'Attribute Name',
                     prefixIcon: Icons.tune_rounded,
-                  ).copyWith(
-                    helperText: 'Example: Color, Size, Storage',
-                  ),
+                  ).copyWith(helperText: 'Example: Color, Size, Storage'),
                 ),
               ),
               const SizedBox(width: 10),
@@ -784,9 +807,7 @@ class _VariantAttributeCard extends StatelessWidget {
               context,
               label: 'Values',
               prefixIcon: Icons.list_alt_rounded,
-            ).copyWith(
-              helperText: 'Enter comma-separated values',
-            ),
+            ).copyWith(helperText: 'Enter comma-separated values'),
           ),
         ],
       ),
@@ -800,14 +821,22 @@ class _VariantCombinationCard extends StatelessWidget {
     required this.label,
     required this.quantity,
     required this.quantityController,
+    required this.purchasePriceController,
+    required this.sellingPriceController,
     required this.onQuantityChanged,
+    required this.onPurchasePriceChanged,
+    required this.onSellingPriceChanged,
   });
 
   final String combinationKey;
   final String label;
   final int quantity;
   final TextEditingController quantityController;
+  final TextEditingController purchasePriceController;
+  final TextEditingController sellingPriceController;
   final void Function(String key, String value) onQuantityChanged;
+  final void Function(String key, String value) onPurchasePriceChanged;
+  final void Function(String key, String value) onSellingPriceChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -820,42 +849,74 @@ class _VariantCombinationCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label.isEmpty ? combinationKey : label,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  combinationKey,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
+          Text(
+            label.isEmpty ? combinationKey : label,
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(width: 12),
-          SizedBox(
-            width: 110,
-            child: TextFormField(
-              controller: quantityController,
-              key: ValueKey('variant-$combinationKey'),
-              keyboardType: TextInputType.number,
-              onChanged: (value) => onQuantityChanged(combinationKey, value),
-              decoration: _inputDecoration(
-                context,
-                label: 'Qty',
-                prefixIcon: Icons.inventory_2_outlined,
-              ),
+          const SizedBox(height: 4),
+          Text(
+            combinationKey,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  controller: quantityController,
+                  key: ValueKey('variant-$combinationKey-qty'),
+                  keyboardType: TextInputType.number,
+                  onChanged: (value) =>
+                      onQuantityChanged(combinationKey, value),
+                  decoration: _inputDecoration(
+                    context,
+                    label: 'Qty',
+                    prefixIcon: Icons.inventory_2_outlined,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextFormField(
+                  controller: purchasePriceController,
+                  key: ValueKey('variant-$combinationKey-purchase-price'),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  onChanged: (value) =>
+                      onPurchasePriceChanged(combinationKey, value),
+                  decoration: _inputDecoration(
+                    context,
+                    label: 'Buy Price',
+                    prefixIcon: Icons.payments_outlined,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextFormField(
+                  controller: sellingPriceController,
+                  key: ValueKey('variant-$combinationKey-selling-price'),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  onChanged: (value) =>
+                      onSellingPriceChanged(combinationKey, value),
+                  decoration: _inputDecoration(
+                    context,
+                    label: 'Sell Price',
+                    prefixIcon: Icons.sell_outlined,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -864,10 +925,7 @@ class _VariantCombinationCard extends StatelessWidget {
 }
 
 class _VariantMetaPill extends StatelessWidget {
-  const _VariantMetaPill({
-    required this.label,
-    required this.value,
-  });
+  const _VariantMetaPill({required this.label, required this.value});
 
   final String label;
   final String value;

@@ -85,6 +85,8 @@ class _TestProductFormController extends ProductFormController {
             label: variant.combinationLabel ?? '',
             optionValues: variant.optionValues ?? const <String, String>{},
             quantity: variant.currentStock ?? 0,
+            purchasePrice: variant.purchasePrice,
+            sellingPrice: variant.sellingPrice,
             variantId: variant.id,
             isActive: variant.isActive ?? true,
           ),
@@ -113,6 +115,8 @@ class _TestPurchaseDetailsController extends PurchaseDetailsController {
           combinationKey: 'color-red__size-m',
           combinationLabel: 'Red / M',
           optionValues: {'Color': 'Red', 'Size': 'M'},
+          purchasePrice: 180,
+          sellingPrice: 240,
           currentStock: 5,
           isActive: true,
         ),
@@ -195,6 +199,8 @@ void main() {
             combinationKey: 'size-50-ml',
             combinationLabel: '50 ml',
             optionValues: {'Size': '50 ml'},
+            purchasePrice: 30,
+            sellingPrice: 40,
             currentStock: 0,
             isActive: true,
           ),
@@ -203,6 +209,8 @@ void main() {
             combinationKey: 'size-100-ml',
             combinationLabel: '100 ml',
             optionValues: {'Size': '100 ml'},
+            purchasePrice: 38,
+            sellingPrice: 50,
             currentStock: 0,
             isActive: true,
           ),
@@ -220,33 +228,38 @@ void main() {
     expect(controller.variantAttributeCount, 1);
     expect(controller.variantCombinationCount, 2);
     expect(controller.variantAttributes.first.name, 'Size');
-    expect(
-      controller.variantAttributes.first.values,
-      ['50 ml', '100 ml', '150ml'],
-    );
-    expect(
-      controller.variantCombinations.map((item) => item.key).toList(),
-      ['size-50-ml', 'size-100-ml'],
-    );
+    expect(controller.variantAttributes.first.values, [
+      '50 ml',
+      '100 ml',
+      '150ml',
+    ]);
+    expect(controller.variantCombinations.map((item) => item.key).toList(), [
+      'size-50-ml',
+      'size-100-ml',
+    ]);
+    expect(controller.variantCombinations.first.purchasePrice, 30);
+    expect(controller.variantCombinations.first.sellingPrice, 40);
   });
 
-  testWidgets('purchase page shows explicit variant choices for variant products', (
-    tester,
-  ) async {
-    Get.put<PurchaseDetailsController>(
-      _TestPurchaseDetailsController(
-        inventoryManagerRepository: inventoryRepo(),
-        productRepository: productRepo(),
-      ),
-    );
+  testWidgets(
+    'purchase page shows explicit variant choices for variant products',
+    (tester) async {
+      Get.put<PurchaseDetailsController>(
+        _TestPurchaseDetailsController(
+          inventoryManagerRepository: inventoryRepo(),
+          productRepository: productRepo(),
+        ),
+      );
 
-    await tester.pumpWidget(
-      const GetMaterialApp(home: PurchaseDetailsPage()),
-    );
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        const GetMaterialApp(home: PurchaseDetailsPage()),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('Select Variant'), findsOneWidget);
-    expect(find.text('Red / M'), findsOneWidget);
-    expect(find.textContaining('Stock 5'), findsOneWidget);
-  });
+      expect(find.text('Select Variant'), findsOneWidget);
+      expect(find.text('Red / M'), findsOneWidget);
+      expect(find.textContaining('Stock 5'), findsOneWidget);
+      expect(find.textContaining('Buy ৳180'), findsOneWidget);
+    },
+  );
 }

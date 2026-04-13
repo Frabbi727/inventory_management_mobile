@@ -74,6 +74,32 @@ class ProductModel {
 
   String? get primaryPhotoUrl => primaryPhoto?.fileUrl;
 
+  num? get lowestVariantSellingPrice {
+    final pricedVariants = (variants ?? const <ProductVariantModel>[])
+        .map((variant) => variant.sellingPrice)
+        .whereType<num>()
+        .toList(growable: false);
+    if (pricedVariants.isEmpty) {
+      return null;
+    }
+    return pricedVariants.reduce(
+      (value, element) => value < element ? value : element,
+    );
+  }
+
+  num? get lowestVariantPurchasePrice {
+    final pricedVariants = (variants ?? const <ProductVariantModel>[])
+        .map((variant) => variant.purchasePrice)
+        .whereType<num>()
+        .toList(growable: false);
+    if (pricedVariants.isEmpty) {
+      return null;
+    }
+    return pricedVariants.reduce(
+      (value, element) => value < element ? value : element,
+    );
+  }
+
   ProductStockStatus get effectiveStockStatus =>
       stockStatus ??
       ProductStockStatus.resolve(
@@ -126,7 +152,9 @@ class ProductModel {
           .toList(),
       photoCount: _asInt(json['photo_count']),
       category: json['category'] is Map<String, dynamic>
-          ? ProductCategoryModel.fromJson(json['category'] as Map<String, dynamic>)
+          ? ProductCategoryModel.fromJson(
+              json['category'] as Map<String, dynamic>,
+            )
           : null,
       subcategory: json['subcategory'] is Map<String, dynamic>
           ? ProductSubcategoryModel.fromJson(

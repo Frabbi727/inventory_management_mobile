@@ -35,9 +35,10 @@ class PurchaseDetailsController extends GetxController {
 
   int? get quantity => int.tryParse(quantityController.text.trim());
   double? get unitCost => double.tryParse(unitCostController.text.trim());
-  List<ProductVariantModel> get activeVariants => (product.value?.variants ?? const [])
-      .where((variant) => variant.isActive ?? true)
-      .toList(growable: false);
+  List<ProductVariantModel> get activeVariants =>
+      (product.value?.variants ?? const [])
+          .where((variant) => variant.isActive ?? true)
+          .toList(growable: false);
   bool get requiresVariantSelection => product.value?.hasVariants == true;
   bool get hasSelectableVariants => activeVariants.isNotEmpty;
   ProductVariantModel? get selectedVariant => activeVariants.firstWhereOrNull(
@@ -46,6 +47,7 @@ class PurchaseDetailsController extends GetxController {
   String? get selectedVariantLabel {
     return selectedVariant?.combinationLabel;
   }
+
   double get totalAmount {
     final currentQuantity = quantity;
     final currentUnitCost = unitCost;
@@ -190,8 +192,7 @@ class PurchaseDetailsController extends GetxController {
       unitCostError: parsedUnitCost == null || parsedUnitCost < 0
           ? 'Unit cost must be 0 or more.'
           : null,
-      variantError:
-          product.hasVariants == true && !hasSelectableVariants
+      variantError: product.hasVariants == true && !hasSelectableVariants
           ? 'No active variants are available for this product.'
           : product.hasVariants == true && selectedVariantId.value == null
           ? 'Select a variant before submitting this purchase.'
@@ -231,6 +232,10 @@ class PurchaseDetailsController extends GetxController {
 
   void onVariantChanged(int? variantId) {
     selectedVariantId.value = variantId;
+    final purchasePrice = selectedVariant?.purchasePrice;
+    if (purchasePrice != null) {
+      unitCostController.text = purchasePrice.toStringAsFixed(2);
+    }
     submitError.value = null;
   }
 

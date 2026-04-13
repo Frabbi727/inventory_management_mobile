@@ -10,6 +10,7 @@ import 'package:inventory_management_sales/features/cart_orders/data/repositorie
 import 'package:inventory_management_sales/features/cart_orders/presentation/controllers/cart_controller.dart';
 import 'package:inventory_management_sales/features/customers/data/models/customer_model.dart';
 import 'package:inventory_management_sales/features/products/data/models/product_model.dart';
+import 'package:inventory_management_sales/features/products/data/models/product_variant_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -95,24 +96,27 @@ void main() {
     expect(controller.formatCurrency(80), equals('৳80.00'));
   });
 
-  test('percent discount is clamped and input text normalizes to two decimals', () {
-    final controller = CartController(
-      orderRepository: createRepository((request) async {
-        return http.Response('{}', 200);
-      }),
-    );
+  test(
+    'percent discount is clamped and input text normalizes to two decimals',
+    () {
+      final controller = CartController(
+        orderRepository: createRepository((request) async {
+          return http.Response('{}', 200);
+        }),
+      );
 
-    controller.addProduct(const ProductModel(id: 8, sellingPrice: 48.456));
-    controller.setDiscountType('percentage');
-    controller.onDiscountValueChanged('150.999');
-    controller.discountValueController.text = '150.999';
-    controller.normalizeDiscountInputText();
+      controller.addProduct(const ProductModel(id: 8, sellingPrice: 48.456));
+      controller.setDiscountType('percentage');
+      controller.onDiscountValueChanged('150.999');
+      controller.discountValueController.text = '150.999';
+      controller.normalizeDiscountInputText();
 
-    expect(controller.appliedDiscountValue, equals(100));
-    expect(controller.discountValueController.text, equals('100.00'));
-    expect(controller.estimatedDiscountAmount, equals(48.46));
-    expect(controller.grandTotal, equals(0));
-  });
+      expect(controller.appliedDiscountValue, equals(100));
+      expect(controller.discountValueController.text, equals('100.00'));
+      expect(controller.estimatedDiscountAmount, equals(48.46));
+      expect(controller.grandTotal, equals(0));
+    },
+  );
 
   test('increment and decrement update items by product id', () {
     final controller = CartController(
@@ -122,15 +126,52 @@ void main() {
     );
 
     controller.addProduct(product);
-    expect(controller.incrementQuantity(product.id), isTrue);
+    expect(controller.incrementQuantity('${product.id}:base'), isTrue);
     expect(controller.items.single.quantity, equals(2));
 
-    controller.decrementQuantity(product.id);
+    controller.decrementQuantity('${product.id}:base');
     expect(controller.items.single.quantity, equals(1));
 
-    controller.decrementQuantity(product.id);
+    controller.decrementQuantity('${product.id}:base');
     expect(controller.items, isEmpty);
     expect(controller.currentStep.value, CartController.customerStep);
+  });
+
+  test('variant lines merge by product and variant id', () {
+    final controller = CartController(
+      orderRepository: createRepository((request) async {
+        return http.Response('{}', 200);
+      }),
+    );
+
+    const variantProduct = ProductModel(
+      id: 9,
+      name: 'Aquafina Water',
+      hasVariants: true,
+    );
+    const small = ProductVariantModel(
+      id: 101,
+      combinationKey: 'size-500ml',
+      combinationLabel: '500ml',
+      sellingPrice: 40,
+      currentStock: 10,
+    );
+    const large = ProductVariantModel(
+      id: 102,
+      combinationKey: 'size-1-liter',
+      combinationLabel: '1 Liter',
+      sellingPrice: 50,
+      currentStock: 8,
+    );
+
+    expect(controller.addProduct(variantProduct, variant: small), isTrue);
+    expect(controller.addProduct(variantProduct, variant: small), isTrue);
+    expect(controller.addProduct(variantProduct, variant: large), isTrue);
+
+    expect(controller.items.length, 2);
+    expect(controller.items.first.quantity, 2);
+    expect(controller.items.first.unitPrice, 40);
+    expect(controller.items.last.variantLabel, '1 Liter');
   });
 
   test(
@@ -141,6 +182,7 @@ void main() {
           final body = jsonDecode(request.body) as Map<String, dynamic>;
           expect(body['customer_id'], equals(5));
           expect((body['items'] as List<dynamic>).length, equals(1));
+          expect(body['items'][0]['product_variant_id'], 101);
 
           return http.Response(
             jsonEncode({
@@ -153,7 +195,16 @@ void main() {
         }),
       );
 
-      controller.addProduct(product);
+      controller.addProduct(
+        const ProductModel(id: 7, name: 'Aquafina Water', hasVariants: true),
+        variant: const ProductVariantModel(
+          id: 101,
+          combinationKey: 'size-500ml',
+          combinationLabel: '500ml',
+          sellingPrice: 40,
+          currentStock: 5,
+        ),
+      );
       controller.setSelectedCustomer(
         const CustomerModel(id: 5, name: 'Rahman'),
       );
