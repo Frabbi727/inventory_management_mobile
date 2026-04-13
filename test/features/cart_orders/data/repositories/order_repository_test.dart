@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:inventory_management_sales/core/constants/api_config.dart';
 import 'package:inventory_management_sales/core/network/api_client.dart';
 import 'package:inventory_management_sales/core/storage/token_storage.dart';
 import 'package:inventory_management_sales/features/cart_orders/data/models/create_order_request_model.dart';
@@ -26,7 +27,7 @@ void main() {
           expect(request.method, equals('POST'));
           expect(
             request.url.toString(),
-            equals('https://ordermanage.b2bhaat.com/api/orders'),
+            equals('${ApiConfig.baseUrl}/api/orders'),
           );
           expect(
             request.headers['X-Authorization'],
@@ -78,7 +79,7 @@ void main() {
           expect(request.method, equals('GET'));
           expect(
             request.url.toString(),
-            equals('https://ordermanage.b2bhaat.com/api/orders?page=2'),
+            equals('${ApiConfig.baseUrl}/api/orders?page=2'),
           );
           expect(
             request.headers['X-Authorization'],
@@ -126,7 +127,7 @@ void main() {
           expect(request.method, equals('GET'));
           expect(
             request.url.toString(),
-            equals('https://ordermanage.b2bhaat.com/api/orders/6'),
+            equals('${ApiConfig.baseUrl}/api/orders/6'),
           );
           expect(
             request.headers['X-Authorization'],
@@ -161,5 +162,41 @@ void main() {
     final response = await repository.fetchOrderDetails(6);
 
     expect(response.data?.orderNo, equals('ORD-0006'));
+  });
+
+  test('confirmOrder posts to confirm endpoint', () async {
+    final repository = OrderRepository(
+      apiClient: ApiClient(
+        httpClient: MockClient((request) async {
+          expect(request.method, equals('POST'));
+          expect(
+            request.url.toString(),
+            equals('${ApiConfig.baseUrl}/api/orders/9/confirm'),
+          );
+          expect(
+            request.headers['X-Authorization'],
+            equals('Bearer order-token'),
+          );
+
+          return http.Response(
+            jsonEncode({
+              'message': 'Order confirmed successfully.',
+              'data': {
+                'id': 9,
+                'order_no': 'ORD-009',
+                'status': 'confirmed',
+              },
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+      ),
+      tokenStorage: TokenStorage(),
+    );
+
+    final response = await repository.confirmOrder(9);
+
+    expect(response.data?.status, equals('confirmed'));
   });
 }

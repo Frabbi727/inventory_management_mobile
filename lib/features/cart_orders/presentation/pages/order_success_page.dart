@@ -15,17 +15,22 @@ class OrderSuccessPage extends StatelessWidget {
     final response = Get.arguments as CreateOrderResponseModel?;
     final order = response?.data;
     final items = order?.items ?? const <OrderItemModel>[];
+    final isConfirmed = (order?.status ?? '').toLowerCase() == 'confirmed';
+    final pageTitle = isConfirmed ? 'Order Confirmed' : 'Draft Saved';
+    final pageMessage = isConfirmed
+        ? 'The order is confirmed and ready for follow-up.'
+        : 'The draft is saved on the server and can be updated later.';
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Order Created')),
+      appBar: AppBar(title: Text(pageTitle)),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: ListView(
             children: [
               _SuccessCard(
-                title: response?.message ?? 'Order created successfully.',
-                message: 'The order has been saved and is ready for follow-up.',
+                title: response?.message ?? pageTitle,
+                message: pageMessage,
               ),
               const SizedBox(height: 16),
               _DetailCard(
@@ -47,7 +52,7 @@ class OrderSuccessPage extends StatelessWidget {
                     ),
                     _DetailRow(
                       label: 'Status',
-                      value: order?.status ?? 'confirmed',
+                      value: order?.status ?? (isConfirmed ? 'confirmed' : 'draft'),
                       badge: true,
                     ),
                   ],

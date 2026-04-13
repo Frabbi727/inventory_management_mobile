@@ -586,6 +586,7 @@ class CartItemWidget extends StatelessWidget {
     required this.onDecrement,
     required this.onRemove,
     required this.canIncrement,
+    this.warningMessage,
   });
 
   final String title;
@@ -599,6 +600,7 @@ class CartItemWidget extends StatelessWidget {
   final VoidCallback onDecrement;
   final VoidCallback onRemove;
   final bool canIncrement;
+  final String? warningMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -690,12 +692,34 @@ class CartItemWidget extends StatelessWidget {
               ),
             ],
           ),
-          if (isAtStockLimit) ...[
+          if ((warningMessage ?? '').isNotEmpty) ...[
             const SizedBox(height: 10),
-            Text(
-              'Maximum available stock reached. You cannot add more of this item.',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.error,
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.errorContainer,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    size: 18,
+                    color: theme.colorScheme.onErrorContainer,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      warningMessage!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onErrorContainer,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -752,6 +776,8 @@ class SummaryFooter extends StatelessWidget {
     this.onSecondaryPressed,
     this.isLoading = false,
     this.showTotals = true,
+    this.tertiaryLabel,
+    this.onTertiaryPressed,
   });
 
   final String? subtotal;
@@ -762,6 +788,8 @@ class SummaryFooter extends StatelessWidget {
   final VoidCallback? onSecondaryPressed;
   final bool isLoading;
   final bool showTotals;
+  final String? tertiaryLabel;
+  final VoidCallback? onTertiaryPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -826,6 +854,16 @@ class SummaryFooter extends StatelessWidget {
                   ),
                   const SizedBox(height: 14),
                 ],
+                if (tertiaryLabel != null && onTertiaryPressed != null) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: isLoading ? null : onTertiaryPressed,
+                      child: Text(tertiaryLabel!),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 Row(
                   children: [
                     if (secondaryLabel != null &&
@@ -864,6 +902,44 @@ class SummaryFooter extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class InlineInfoBanner extends StatelessWidget {
+  const InlineInfoBanner({super.key, required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline,
+            color: theme.colorScheme.onPrimaryContainer,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onPrimaryContainer,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

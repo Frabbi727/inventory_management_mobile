@@ -15,7 +15,9 @@ class OrderItemModel {
   const OrderItemModel({
     this.id,
     this.productId,
+    this.productVariantId,
     this.productName,
+    this.variantLabel,
     this.quantity,
     this.unitPrice,
     this.lineTotal,
@@ -26,8 +28,14 @@ class OrderItemModel {
   @JsonKey(name: 'product_id', fromJson: _nullableIntFromAny)
   final int? productId;
 
+  @JsonKey(name: 'product_variant_id', fromJson: _nullableIntFromAny)
+  final int? productVariantId;
+
   @JsonKey(name: 'product_name')
   final String? productName;
+
+  @JsonKey(name: 'variant_label')
+  final String? variantLabel;
 
   final int? quantity;
 

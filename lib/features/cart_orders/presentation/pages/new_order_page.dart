@@ -61,6 +61,12 @@ class _NewOrderPageState extends State<NewOrderPage> {
                       currentStep: controller.currentStep.value,
                       onStepTap: controller.goToStep,
                     ),
+                    if (controller.infoMessage.value != null) ...[
+                      const SizedBox(height: 12),
+                      InlineInfoBanner(
+                        message: controller.infoMessage.value!,
+                      ),
+                    ],
                     if (controller.errorMessage.value != null) ...[
                       const SizedBox(height: 12),
                       InlineWarningBanner(
@@ -100,13 +106,23 @@ class _NewOrderPageState extends State<NewOrderPage> {
       bottomNavigationBar: Obx(
         () => SummaryFooter(
           subtotal: controller.showFooterTotals
-              ? controller.formatCurrency(controller.subtotal)
+              ? controller.formatCurrency(controller.displaySubtotal)
               : null,
           total: controller.showFooterTotals
-              ? controller.formatCurrency(controller.grandTotal)
+              ? controller.formatCurrency(controller.displayGrandTotal)
               : null,
           showTotals: controller.showFooterTotals,
           primaryLabel: _primaryLabel(controller.currentStep.value),
+          tertiaryLabel: controller.currentStep.value == CartController.confirmStep
+              ? (controller.hasSavedDraft ? 'Update Draft' : 'Save Draft')
+              : null,
+          onTertiaryPressed:
+              controller.currentStep.value == CartController.confirmStep &&
+                  controller.canSaveDraft
+              ? () async {
+                  await controller.saveDraft();
+                }
+              : null,
           secondaryLabel:
               controller.currentStep.value == CartController.customerStep
               ? null
@@ -118,9 +134,9 @@ class _NewOrderPageState extends State<NewOrderPage> {
           isLoading: controller.isSubmitting.value,
           onPrimaryPressed:
               controller.currentStep.value == CartController.confirmStep
-              ? (controller.canSubmit
+              ? (controller.canConfirm
                     ? () async {
-                        await controller.submitOrder();
+                        await controller.confirmOrder();
                       }
                     : null)
               : (controller.canContinueCurrentStep
@@ -132,8 +148,8 @@ class _NewOrderPageState extends State<NewOrderPage> {
   }
 
   String _primaryLabel(int step) {
-    if (step == CartController.cartStep) {
-      return 'Confirm Order';
+    if (step == CartController.confirmStep && !controller.canConfirm) {
+      return 'Resolve Stock Warnings';
     }
 
     return controller.submitButtonLabel();
@@ -650,7 +666,7 @@ class _ProductsStepState extends State<_ProductsStep> {
                               scrollDirection: Axis.horizontal,
                               padding: EdgeInsets.zero,
                               itemCount: categories.length + 1,
-                              separatorBuilder: (_, __) =>
+                              separatorBuilder: (context, index) =>
                                   const SizedBox(width: 8),
                               itemBuilder: (context, index) {
                                 if (index == 0) {
@@ -973,6 +989,11 @@ class _CartStep extends StatelessWidget {
               onIncrement: () => controller.incrementQuantity(item.lineKey),
               onDecrement: () => controller.decrementQuantity(item.lineKey),
               onRemove: () => controller.removeItem(item.lineKey),
+              warningMessage: item.isOutOfStock
+                  ? 'This item is currently out of stock. Keep it only if you plan to revise the draft.'
+                  : item.exceedsAvailableStock
+                  ? 'Requested quantity is above available stock (${item.availableStock ?? 0}). Draft save is allowed, but confirm is blocked.'
+                  : null,
             ),
             const SizedBox(height: 12),
           ],
@@ -1357,6 +1378,14 @@ class _ConfirmStep extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
+          if (controller.hasSavedDraft) ...[
+            _DraftStatusCard(controller: controller),
+            const SizedBox(height: 16),
+          ],
+          if (controller.stockWarningSummary != null) ...[
+            InlineWarningBanner(message: controller.stockWarningSummary!),
+            const SizedBox(height: 16),
+          ],
           if (customer != null) ...[
             _CartCustomerSummaryCard(customer: customer),
             const SizedBox(height: 16),
@@ -1382,8 +1411,12 @@ class _ConfirmStep extends StatelessWidget {
                           title:
                               controller.items[index].product.name ??
                               'Unnamed product',
-                          subtitle:
-                              '${controller.items[index].quantity} x ${controller.formatCurrency(controller.items[index].unitPrice)}',
+                          subtitle: [
+                            if ((controller.items[index].variantLabel ?? '')
+                                .isNotEmpty)
+                              controller.items[index].variantLabel!,
+                            '${controller.items[index].quantity} x ${controller.formatCurrency(controller.items[index].unitPrice)}',
+                          ].join(' • '),
                           value: controller.formatCurrency(
                             controller.items[index].lineTotal,
                           ),
@@ -1407,13 +1440,13 @@ class _ConfirmStep extends StatelessWidget {
               children: [
                 _TotalRow(
                   label: 'Subtotal',
-                  value: controller.formatCurrency(controller.subtotal),
+                  value: controller.formatCurrency(controller.displaySubtotal),
                 ),
                 const SizedBox(height: 12),
                 _TotalRow(
                   label: 'Discount',
                   value: controller.formatCurrency(
-                    controller.estimatedDiscountAmount,
+                    controller.displayDiscountAmount,
                   ),
                   highlighted: true,
                 ),
@@ -1426,13 +1459,55 @@ class _ConfirmStep extends StatelessWidget {
                   ),
                   child: _TotalRow(
                     label: 'Total',
-                    value: controller.formatCurrency(controller.grandTotal),
+                    value: controller.formatCurrency(controller.displayGrandTotal),
                     strong: true,
                   ),
                 ),
               ],
             ),
           ),
+          if (controller.hasSavedDraft) ...[
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: controller.isSubmitting.value
+                    ? null
+                    : () async {
+                        final shouldDelete = await showDialog<bool>(
+                          context: context,
+                          builder: (dialogContext) => AlertDialog(
+                            title: const Text('Delete Draft'),
+                            content: const Text(
+                              'This will remove the saved draft from the server. Continue?',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.of(dialogContext).pop(false),
+                                child: const Text('Cancel'),
+                              ),
+                              FilledButton(
+                                onPressed: () =>
+                                    Navigator.of(dialogContext).pop(true),
+                                child: const Text('Delete'),
+                              ),
+                            ],
+                          ),
+                        );
+
+                        if (shouldDelete == true) {
+                          await controller.deleteDraft();
+                        }
+                      },
+                icon: const Icon(Icons.delete_outline),
+                label: const Text('Delete Draft'),
+                style: TextButton.styleFrom(
+                  foregroundColor: theme.colorScheme.error,
+                ),
+              ),
+            ),
+          ],
           if (controller.noteText.value.trim().isNotEmpty) ...[
             const SizedBox(height: 16),
             _CartSectionCard(
@@ -1446,6 +1521,73 @@ class _ConfirmStep extends StatelessWidget {
         ],
       );
     });
+  }
+}
+
+class _DraftStatusCard extends StatelessWidget {
+  const _DraftStatusCard({required this.controller});
+
+  final CartController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final draft = controller.savedDraftOrder.value;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: theme.colorScheme.primary.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              Icons.save_outlined,
+              color: theme.colorScheme.onPrimary,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  controller.hasUnsavedDraftChanges.value
+                      ? 'Draft has local changes'
+                      : 'Draft synced with server',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: theme.colorScheme.onPrimaryContainer,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  draft?.orderNo == null
+                      ? 'Save this order as a draft before final confirm.'
+                      : 'Order ${draft!.orderNo} is in draft status. You can keep editing and update it before confirm.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onPrimaryContainer,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

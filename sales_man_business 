@@ -1,0 +1,823 @@
+# Mobile Salesman API Contract
+
+## 1. Overview
+This document is the mobile-facing business and API contract for the salesman app. It reflects the current Laravel backend after:
+- draft-first order lifecycle
+- variant-level pricing
+- variant-aware stock validation
+
+Use this document as the source of truth for:
+- salesman mobile business flow
+- request and response models
+- draft and confirm behavior
+- stock warning rules
+- Postman verification for the salesman app
+
+## 2. Salesman Order Business
+
+### 2.1 Lifecycle
+Every salesman order follows this lifecycle:
+
+`draft -> confirmed -> cancelled`
+
+Business meaning:
+- `draft`
+  - working order
+  - editable by the owning salesman
+  - stock is not deducted
+- `confirmed`
+  - final submitted sale
+  - read-only for salesman
+  - stock deducted exactly once
+- `cancelled`
+  - reserved for a later correction/cancel flow
+  - not part of the current salesman mobile implementation
+
+### 2.2 End-to-End Flow
+The salesman app should follow this sequence:
+
+1. Login
+2. Load products, categories, and subcategories
+3. Search or create customer
+4. Start a new local order state
+5. Save first draft to backend
+6. Keep editing the same draft
+7. Review totals and stock warnings
+8. Confirm draft
+9. View confirmed order in read-only mode
+10. View own order history
+11. Logout
+
+### 2.3 Start Order
+The app should start with a local order state before the first API write.
+
+On first save:
+- call `POST /api/orders`
+- backend creates a new `draft`
+- backend generates `order_no`
+- backend calculates totals
+- backend does not deduct stock
+
+Required draft fields:
+- `customer_id`
+- `order_date`
+- `items[]`
+
+Optional draft fields:
+- `note`
+- `discount_type`
+- `discount_value`
+
+### 2.4 Customer Step
+Salesman must choose a customer before confirm.
+
+Allowed actions:
+- search customer with `GET /api/customers`
+- load customer detail with `GET /api/customers/{id}`
+- create customer with `POST /api/customers`
+- set order date
+
+Recommended mobile behavior:
+- customer selected first
+- after customer is selected, move to product selection
+
+Important note:
+- backend draft save still requires at least one item
+- so a completely empty draft should remain local only until at least one line exists
+
+### 2.5 Product Selection Step
+An order can contain many products.
+Each line represents one exact stock item.
+
+Use two product modes:
+
+`Simple product`
+- no variants
+- order line uses product-level `selling_price`
+- request line:
+
+```json
+{
+  "product_id": 11,
+  "quantity": 2
+}
+```
+
+`Variant product`
+- has variants
+- salesman must select exact variant
+- order line uses selected variant `selling_price`
+- request line:
+
+```json
+{
+  "product_id": 10,
+  "product_variant_id": 101,
+  "quantity": 5
+}
+```
+
+Business rules:
+- same order can contain simple and variant products together
+- same order can contain multiple variants of the same product
+- same exact `product_id + product_variant_id` must not be submitted twice
+- mobile cart should merge duplicate exact lines before API submission
+
+Example mixed order:
+
+```json
+{
+  "items": [
+    {
+      "product_id": 10,
+      "product_variant_id": 101,
+      "quantity": 5
+    },
+    {
+      "product_id": 10,
+      "product_variant_id": 102,
+      "quantity": 5
+    },
+    {
+      "product_id": 11,
+      "quantity": 2
+    }
+  ]
+}
+```
+
+### 2.6 Variant Selection Business
+Variants come from product detail, not mainly from product list.
+
+Use:
+- `GET /api/products` for catalog summary
+- `GET /api/products/{id}` for exact variant choice
+
+For a variant product, mobile should:
+1. load product detail
+2. read `variants[]`
+3. show each variant with:
+   - `combination_label`
+   - `current_stock`
+   - `selling_price`
+   - `stock_status`
+4. allow salesman to choose one or more variants
+5. add chosen variants as separate cart lines
+
+Example variant response:
+
+```json
+{
+  "id": 10,
+  "name": "Aquafina Water",
+  "has_variants": true,
+  "variants": [
+    {
+      "id": 101,
+      "combination_label": "1 Liter",
+      "purchase_price": 38,
+      "selling_price": 50,
+      "current_stock": 8,
+      "stock_status": "in_stock"
+    },
+    {
+      "id": 102,
+      "combination_label": "2 Liter",
+      "purchase_price": 52,
+      "selling_price": 70,
+      "current_stock": 6,
+      "stock_status": "in_stock"
+    }
+  ]
+}
+```
+
+Pricing rule:
+- simple product uses product-level `selling_price`
+- variant product uses selected variant `selling_price`
+
+### 2.7 Draft Save Business
+When salesman taps `Save Draft`, mobile should call:
+- `POST /api/orders` for first save
+- `PUT /api/orders/{id}` or `PATCH /api/orders/{id}` for later saves
+
+Backend behavior on draft save:
+- validates customer
+- validates products
+- validates variant belongs to product
+- validates quantity > 0
+- rejects duplicate exact lines
+- recalculates subtotal, discount amount, and grand total
+- saves order as `draft`
+- does not deduct stock
+
+Draft save response:
+- returns updated order object
+- returns `status = draft`
+
+### 2.8 Stock Warning Business During Draft
+Draft is not a stock reservation.
+
+So during draft:
+- mobile should show stock warnings early
+- backend does not hard-block draft save only because stock is low
+- stock is checked strictly again on confirm
+
+Mobile draft behavior:
+- if `quantity > current_stock`
+  - show amber warning
+  - still allow `Save Draft`
+- if `current_stock == 0`
+  - show red unavailable state
+  - do not allow adding from picker
+  - existing draft line can remain visible if already saved earlier
+
+Recommended warning logic:
+- `quantity <= stock` -> normal
+- `quantity > stock && stock > 0` -> warning
+- `stock == 0` -> unavailable
+
+### 2.9 Review Step
+Before confirm, mobile should show:
+- customer
+- order date
+- all lines
+- quantity per line
+- unit price per line
+- line total per line
+- subtotal
+- discount
+- grand total
+- note
+- stock warning summary when any line is invalid
+
+Recommended review actions:
+- `Save Draft`
+- `Confirm Order`
+
+Recommended confirm rule:
+- disable `Confirm Order` if the app already knows one or more lines exceed stock
+- still let backend be final authority
+
+### 2.10 Confirm Business
+Salesman confirms only an existing draft.
+
+API:
+- `POST /api/orders/{id}/confirm`
+
+Backend behavior:
+- only own draft can be confirmed by salesman
+- rebuilds pricing from current backend data
+- revalidates product and variant relationship
+- revalidates stock
+- recalculates totals
+- deducts stock exactly once
+- changes `status` from `draft` to `confirmed`
+
+Success result:
+- order becomes read-only
+- response returns `status = confirmed`
+
+Failure result:
+- returns `422` if stock changed or variant is invalid
+- mobile should keep the order in draft state and show the backend message
+
+Example stock failure:
+
+```json
+{
+  "message": "The given data was invalid.",
+  "errors": {
+    "items.0.quantity": [
+      "Insufficient stock for Aquafina Water (1 Liter). Available stock: 2.00."
+    ]
+  }
+}
+```
+
+### 2.11 Confirmed Order Business
+After confirm:
+- salesman can view the order
+- salesman cannot edit the order
+- salesman cannot confirm again
+- salesman cannot update line items
+- salesman cannot change customer, note, or discount through draft update API
+
+Correct mobile behavior:
+- show confirmed order as read-only detail
+- do not show edit button on confirmed order
+- if later correction is needed, use a separate cancel/recreate flow
+
+### 2.12 Delete Draft Business
+API:
+- `DELETE /api/orders/{id}`
+
+Rules:
+- only own draft can be deleted
+- confirmed order should not be deletable by salesman
+
+Recommended mobile behavior:
+- show delete only on draft orders
+- require confirmation dialog before deleting
+
+## 3. Authentication Contract
+- Base URL: `https://ordermanage.b2bhaat.com`
+- API prefix: `/api`
+- Protected endpoints require:
+  - Sanctum bearer token
+  - active user account
+
+Standard app headers:
+
+```http
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer {token}
+```
+
+Postman note:
+- Postman collection uses `X-Authorization: Bearer {token}` because the current host strips the normal `Authorization` header before Laravel receives it.
+
+## 4. Money and Numeric Format
+- Send money values as JSON numbers, for example `12.49` or `100.50`.
+- Backend stores money values with 2-decimal precision.
+- API responses return money fields as JSON numbers.
+- Mobile should display money values with exactly 2 decimal digits.
+
+Money fields used by salesman mobile:
+- product: `purchase_price`, `selling_price`
+- variant: `purchase_price`, `selling_price`
+- order item: `unit_price`, `line_total`
+- order: `subtotal`, `discount_value`, `discount_amount`, `grand_total`
+
+## 5. Validation Error Envelope
+Laravel validation failures return `422` in this shape:
+
+```json
+{
+  "message": "The given data was invalid.",
+  "errors": {
+    "items.0.quantity": [
+      "Insufficient stock for Aquafina Water (1 Liter). Available stock: 2.00."
+    ]
+  }
+}
+```
+
+Other common order validation cases:
+- missing customer
+- invalid product
+- missing variant for a variant product
+- variant sent for a simple product
+- duplicate `product + variant` lines
+- invalid discount
+
+## 6. Models
+
+### UserRole
+```json
+{
+  "id": 3,
+  "name": "Salesman",
+  "slug": "salesman"
+}
+```
+
+### AuthUser
+```json
+{
+  "id": 1,
+  "name": "Salesman Name",
+  "email": "sales@example.com",
+  "phone": "01700000000",
+  "status": "active",
+  "role": {
+    "id": 3,
+    "name": "Salesman",
+    "slug": "salesman"
+  },
+  "email_verified_at": null,
+  "created_at": "2026-04-13T00:00:00.000000Z",
+  "updated_at": "2026-04-13T00:00:00.000000Z"
+}
+```
+
+### LoginRequest
+```json
+{
+  "login": "salesman@example.com",
+  "password": "secret",
+  "device_name": "flutter-mobile"
+}
+```
+
+### LoginResponse
+```json
+{
+  "message": "Login successful.",
+  "data": {
+    "token": "plain-text-token",
+    "token_type": "Bearer",
+    "user": {
+      "id": 1,
+      "name": "Salesman Name",
+      "email": "sales@example.com",
+      "phone": "01700000000",
+      "status": "active",
+      "role": {
+        "id": 3,
+        "name": "Salesman",
+        "slug": "salesman"
+      }
+    }
+  }
+}
+```
+
+### ProductCategory
+```json
+{
+  "id": 2,
+  "name": "Beverage"
+}
+```
+
+### ProductSubcategory
+```json
+{
+  "id": 3,
+  "name": "Water",
+  "category_id": 2
+}
+```
+
+### ProductUnit
+```json
+{
+  "id": 1,
+  "name": "Bottle",
+  "short_name": "btl"
+}
+```
+
+### Product List Model
+Use for catalog summary:
+
+```json
+{
+  "id": 10,
+  "name": "Aquafina Water",
+  "sku": "AQF-1001",
+  "barcode": "1234567890123",
+  "barcode_image_url": null,
+  "purchase_price": 0,
+  "selling_price": 0,
+  "minimum_stock_alert": 5,
+  "status": "active",
+  "has_variants": true,
+  "current_stock": 24,
+  "stock_status": "in_stock",
+  "variant_summary": {
+    "total_variants": 3,
+    "active_variants": 3,
+    "total_stock": 24
+  },
+  "category": {
+    "id": 2,
+    "name": "Beverage"
+  },
+  "subcategory": {
+    "id": 3,
+    "name": "Water",
+    "category_id": 2
+  },
+  "unit": {
+    "id": 1,
+    "name": "Bottle",
+    "short_name": "btl"
+  },
+  "created_at": "...",
+  "updated_at": "..."
+}
+```
+
+### VariantAttribute
+```json
+{
+  "id": 1,
+  "name": "Size",
+  "values": ["500ml", "1 Liter", "2 Liter"]
+}
+```
+
+### Product Variant Model
+```json
+{
+  "id": 101,
+  "combination_key": "size-1-liter",
+  "combination_label": "1 Liter",
+  "option_values": {
+    "Size": "1 Liter"
+  },
+  "purchase_price": 38,
+  "selling_price": 50,
+  "is_active": true,
+  "current_stock": 8,
+  "stock_status": "in_stock"
+}
+```
+
+### Product Detail Model
+Use for exact variant choice:
+
+```json
+{
+  "id": 10,
+  "name": "Aquafina Water",
+  "sku": "AQF-1001",
+  "barcode": "1234567890123",
+  "purchase_price": 0,
+  "selling_price": 0,
+  "minimum_stock_alert": 5,
+  "status": "active",
+  "has_variants": true,
+  "current_stock": 24,
+  "stock_status": "in_stock",
+  "variant_attributes": [
+    {
+      "id": 1,
+      "name": "Size",
+      "values": ["500ml", "1 Liter", "2 Liter"]
+    }
+  ],
+  "variants": [
+    {
+      "id": 101,
+      "combination_key": "size-500ml",
+      "combination_label": "500ml",
+      "option_values": {
+        "Size": "500ml"
+      },
+      "purchase_price": 30,
+      "selling_price": 40,
+      "is_active": true,
+      "current_stock": 10,
+      "stock_status": "in_stock"
+    },
+    {
+      "id": 102,
+      "combination_key": "size-1-liter",
+      "combination_label": "1 Liter",
+      "option_values": {
+        "Size": "1 Liter"
+      },
+      "purchase_price": 38,
+      "selling_price": 50,
+      "is_active": true,
+      "current_stock": 8,
+      "stock_status": "in_stock"
+    }
+  ]
+}
+```
+
+### Customer
+```json
+{
+  "id": 5,
+  "name": "Retail Shop",
+  "phone": "01700000000",
+  "address": "Mirpur, Dhaka",
+  "area": "Mirpur",
+  "created_by": {
+    "id": 1,
+    "name": "Salesman Name"
+  },
+  "created_at": "...",
+  "updated_at": "..."
+}
+```
+
+### CreateCustomerRequest
+```json
+{
+  "name": "Retail Shop",
+  "phone": "01700000000",
+  "address": "Mirpur, Dhaka",
+  "area": "Mirpur"
+}
+```
+
+### Cart Line Model
+Recommended mobile local model:
+
+```json
+{
+  "product_id": 10,
+  "product_variant_id": 101,
+  "product_name": "Aquafina Water",
+  "variant_label": "1 Liter",
+  "unit_name": "btl",
+  "unit_price": 50,
+  "available_stock": 8,
+  "quantity": 5,
+  "line_total": 250,
+  "stock_warning_state": "normal"
+}
+```
+
+### DraftOrderUpsertRequest
+Use this for both create-draft and update-draft.
+
+```json
+{
+  "customer_id": 5,
+  "order_date": "2026-04-13",
+  "note": "Deliver quickly",
+  "discount_type": "amount",
+  "discount_value": 20,
+  "items": [
+    {
+      "product_id": 10,
+      "product_variant_id": 101,
+      "quantity": 5
+    },
+    {
+      "product_id": 10,
+      "product_variant_id": 102,
+      "quantity": 5
+    },
+    {
+      "product_id": 11,
+      "quantity": 2
+    }
+  ]
+}
+```
+
+### Order Item Model
+```json
+{
+  "id": 1,
+  "product_id": 10,
+  "product_variant_id": 101,
+  "product_name": "Aquafina Water (1 Liter)",
+  "variant_label": "1 Liter",
+  "quantity": 5,
+  "unit_price": 50,
+  "line_total": 250,
+  "product": {
+    "id": 10,
+    "sku": "AQF-1001",
+    "unit": {
+      "id": 1,
+      "name": "Bottle",
+      "short_name": "btl"
+    },
+    "variant": {
+      "id": 101,
+      "label": "1 Liter",
+      "option_values": {
+        "Size": "1 Liter"
+      },
+      "selling_price": 50
+    }
+  }
+}
+```
+
+### Order Response Model
+```json
+{
+  "id": 99,
+  "order_no": "ORD-ABC12345",
+  "order_date": "2026-04-13",
+  "subtotal": 600,
+  "discount_type": "amount",
+  "discount_value": 20,
+  "discount_amount": 20,
+  "grand_total": 580,
+  "status": "draft",
+  "note": "Deliver quickly",
+  "customer": {
+    "id": 5,
+    "name": "Retail Shop",
+    "phone": "01700000000"
+  },
+  "salesman": {
+    "id": 1,
+    "name": "Salesman Name"
+  },
+  "items": [
+    {
+      "id": 1,
+      "product_id": 10,
+      "product_variant_id": 101,
+      "product_name": "Aquafina Water (1 Liter)",
+      "variant_label": "1 Liter",
+      "quantity": 5,
+      "unit_price": 50,
+      "line_total": 250
+    }
+  ],
+  "created_at": "...",
+  "updated_at": "..."
+}
+```
+
+### PaginatedResponse<T>
+All list endpoints return Laravel paginator JSON.
+
+```json
+{
+  "data": [],
+  "links": {
+    "first": "https://ordermanage.b2bhaat.com/api/products?page=1",
+    "last": "https://ordermanage.b2bhaat.com/api/products?page=3",
+    "prev": null,
+    "next": "https://ordermanage.b2bhaat.com/api/products?page=2"
+  },
+  "meta": {
+    "current_page": 1,
+    "from": 1,
+    "last_page": 3,
+    "path": "https://ordermanage.b2bhaat.com/api/products",
+    "per_page": 15,
+    "to": 15,
+    "total": 42
+  }
+}
+```
+
+## 7. Public API Contract
+
+### Authentication
+- `POST /api/login`
+- `GET /api/me`
+- `POST /api/logout`
+
+### Catalog
+- `GET /api/products`
+  - query params: `page`, `q`, `status`, `category_id`, `subcategory_id`
+- `GET /api/products/{id}`
+- `GET /api/categories`
+- `GET /api/subcategories?category_id=...`
+
+### Customers
+- `GET /api/customers`
+  - query params: `page`, `q`
+- `GET /api/customers/{id}`
+- `POST /api/customers`
+
+### Orders
+- `GET /api/orders`
+  - query params: `page`, `q`, `status`, `customer_id`, `start_date`, `end_date`
+- `GET /api/orders/{id}`
+- `POST /api/orders`
+- `PUT /api/orders/{id}` or `PATCH /api/orders/{id}`
+- `POST /api/orders/{id}/confirm`
+- `DELETE /api/orders/{id}`
+
+## 8. Recommended Mobile Models
+For the salesman app, use these models:
+- `AuthUser`
+- `ProductCategory`
+- `ProductSubcategory`
+- `ProductUnit`
+- `ProductListItem`
+- `ProductDetail`
+- `ProductVariant`
+- `VariantAttribute`
+- `Customer`
+- `CartLine`
+- `DraftOrderUpsertRequest`
+- `Order`
+- `OrderItem`
+
+## 9. Test Scenarios
+The mobile implementation should be considered correct only if these flows work:
+
+1. salesman logs in and loads own profile
+2. product list loads with filters
+3. product detail loads variants for variant products
+4. customer search and create work
+5. salesman creates draft with simple products only
+6. salesman creates draft with variant products only
+7. salesman creates draft with mixed simple and variant products
+8. salesman adds multiple variants of the same product in one order
+9. draft save recalculates totals without deducting stock
+10. draft update works only for own draft
+11. confirm succeeds for valid draft and deducts stock once
+12. confirm fails with `422` when stock changed after draft save
+13. confirmed order becomes read-only
+14. salesman cannot edit another salesman’s order
+15. salesman can delete own draft
+16. salesman cannot delete confirmed order
+
+## 10. Integration Notes
+- Mobile should fully adopt the draft-first business and stop using direct create-and-confirm.
+- Product detail is the source of truth for variant choice.
+- Mobile cart should merge duplicate exact `product + variant` lines before API submission.
+- `Save Draft` should remain enabled even with stock warnings.
+- `Confirm Order` should be disabled in UI while known stock warnings exist.
+- Confirmed-order cancellation flow is not part of this phase.

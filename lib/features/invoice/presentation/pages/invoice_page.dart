@@ -11,9 +11,8 @@ class InvoicePage extends GetView<InvoiceController> {
   const InvoicePage({super.key});
 
   static const List<String> _statusOptions = [
-    'pending',
+    'draft',
     'confirmed',
-    'delivered',
     'cancelled',
   ];
 

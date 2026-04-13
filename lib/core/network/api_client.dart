@@ -76,6 +76,54 @@ class ApiClient {
     return _handleResponse(method: 'PUT', uri: uri, response: response);
   }
 
+  Future<Map<String, dynamic>> patch(
+    String endpoint, {
+    String? token,
+    Map<String, dynamic>? body,
+    Map<String, String>? queryParameters,
+  }) async {
+    final uri = _buildUri(endpoint, queryParameters);
+    final headers = _buildHeaders(token: token);
+    final encodedBody = jsonEncode(body ?? <String, dynamic>{});
+    _apiLogger.logRequest(
+      method: 'PATCH',
+      uri: uri,
+      headers: headers,
+      body: body ?? <String, dynamic>{},
+    );
+    final response = await _httpClient.patch(
+      uri,
+      headers: headers,
+      body: encodedBody,
+    );
+
+    return _handleResponse(method: 'PATCH', uri: uri, response: response);
+  }
+
+  Future<Map<String, dynamic>> delete(
+    String endpoint, {
+    String? token,
+    Map<String, dynamic>? body,
+    Map<String, String>? queryParameters,
+  }) async {
+    final uri = _buildUri(endpoint, queryParameters);
+    final headers = _buildHeaders(token: token);
+    final encodedBody = body == null ? null : jsonEncode(body);
+    _apiLogger.logRequest(
+      method: 'DELETE',
+      uri: uri,
+      headers: headers,
+      body: body,
+    );
+    final response = await _httpClient.delete(
+      uri,
+      headers: headers,
+      body: encodedBody,
+    );
+
+    return _handleResponse(method: 'DELETE', uri: uri, response: response);
+  }
+
   Future<Map<String, dynamic>> postMultipart(
     String endpoint, {
     String? token,

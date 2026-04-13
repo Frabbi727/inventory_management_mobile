@@ -207,7 +207,7 @@ class _OrderOverviewCard extends StatelessWidget {
           backgroundColor: Color(0xFFDDF4E6),
           foregroundColor: Color(0xFF166534),
         );
-      case 'pending':
+      case 'draft':
         return const _StatusTone(
           backgroundColor: Color(0xFFFFF1CC),
           foregroundColor: Color(0xFF92400E),

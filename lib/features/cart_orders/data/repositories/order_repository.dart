@@ -90,4 +90,39 @@ class OrderRepository {
 
     return CreateOrderResponseModel.fromJson(response);
   }
+
+  Future<CreateOrderResponseModel> updateOrderDraft(
+    int orderId,
+    CreateOrderRequestModel request,
+  ) async {
+    final token = await _requireToken();
+
+    final response = await _apiClient.put(
+      ApiEndpoints.orderDetails(orderId),
+      token: token,
+      body: request.toJson(),
+    );
+
+    return CreateOrderResponseModel.fromJson(response);
+  }
+
+  Future<CreateOrderResponseModel> confirmOrder(int orderId) async {
+    final token = await _requireToken();
+
+    final response = await _apiClient.post(
+      ApiEndpoints.orderConfirm(orderId),
+      token: token,
+    );
+
+    return CreateOrderResponseModel.fromJson(response);
+  }
+
+  Future<void> deleteOrder(int orderId) async {
+    final token = await _requireToken();
+
+    await _apiClient.delete(
+      ApiEndpoints.orderDetails(orderId),
+      token: token,
+    );
+  }
 }

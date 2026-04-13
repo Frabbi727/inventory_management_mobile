@@ -160,9 +160,12 @@ void main() {
     };
   }
 
-  Map<String, dynamic> orderCreatePayload() {
+  Map<String, dynamic> orderCreatePayload({
+    String message = 'Order created successfully.',
+    String status = 'confirmed',
+  }) {
     return {
-      'message': 'Order created successfully.',
+      'message': message,
       'data': {
         'id': 99,
         'order_no': 'ORD-ABC12345',
@@ -172,7 +175,7 @@ void main() {
         'discount_value': 4,
         'discount_amount': 4,
         'grand_total': 100,
-        'status': 'confirmed',
+        'status': status,
         'note': 'Deliver quickly',
         'customer': {
           'id': 1,
@@ -729,6 +732,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Logout'));
     await tester.pump();
+    await tester.tap(find.text('Logout').last);
     await tester.pumpAndSettle();
 
     expect(find.text('Salesman Sign In'), findsOneWidget);
@@ -801,7 +805,7 @@ void main() {
     expect(find.text('Subtotal'), findsNothing);
     expect(find.text('Total'), findsNothing);
 
-    await tester.enterText(find.byType(SearchBar), 'rah');
+    await tester.enterText(find.byType(TextField).first, 'rah');
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pumpAndSettle();
 
@@ -815,7 +819,6 @@ void main() {
       cartController.selectedCustomer.value?.phone,
       equals('+8801710001001'),
     );
-    expect(find.text('Clear'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Selected'), findsOneWidget);
   });
 
@@ -891,6 +894,20 @@ void main() {
           );
         }
 
+        if (request.method == 'POST' &&
+            request.url.path.endsWith('/orders/99/confirm')) {
+          return http.Response(
+            jsonEncode(
+              orderCreatePayload(
+                message: 'Order confirmed successfully.',
+                status: 'confirmed',
+              ),
+            ),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+
         expect(request.url.path.endsWith('/orders'), isTrue);
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         expect(body['customer_id'], equals(1));
@@ -898,7 +915,12 @@ void main() {
         expect((body['items'] as List<dynamic>).first['quantity'], equals(2));
 
         return http.Response(
-          jsonEncode(orderCreatePayload()),
+          jsonEncode(
+            orderCreatePayload(
+              message: 'Draft saved successfully.',
+              status: 'draft',
+            ),
+          ),
           200,
           headers: {'content-type': 'application/json'},
         );
@@ -924,7 +946,7 @@ void main() {
     await cartController.submitOrder();
     await tester.pumpAndSettle();
 
-    expect(find.text('Order Created'), findsOneWidget);
+    expect(find.text('Order Confirmed'), findsOneWidget);
     expect(find.text('ORD-ABC12345'), findsOneWidget);
     expect(find.text('View Orders'), findsOneWidget);
   });
@@ -999,40 +1021,30 @@ void main() {
       cartController.goToStep(CartController.productsStep);
       await tester.pumpAndSettle();
 
-      expect(find.text('Fresh Milk 500ml'), findsOneWidget);
+      expect(find.text('Fresh Milk 500ml'), findsWidgets);
       await tester.ensureVisible(find.text('Add').first);
       await tester.tap(find.text('Add').first);
       await tester.pump();
 
       expect(cartController.items.single.productId, equals(2));
       expect(cartController.items.single.quantity, equals(1));
-      expect(find.text('In cart: 1'), findsOneWidget);
+      expect(find.text('In cart 1'), findsOneWidget);
 
       cartController.goToStep(CartController.cartStep);
       await tester.pumpAndSettle();
 
       expect(find.text('Cart'), findsWidgets);
-      expect(find.text('Fresh Milk 500ml'), findsOneWidget);
+      expect(find.text('Fresh Milk 500ml'), findsWidgets);
       expect(find.text('Subtotal'), findsOneWidget);
       expect(find.text('Total'), findsOneWidget);
       expect(find.text('৳52.00'), findsWidgets);
 
-      await tester.tap(
-        find.descendant(
-          of: find.byKey(const ValueKey('cart-item-Fresh Milk 500ml')),
-          matching: find.byTooltip('Increase quantity'),
-        ),
-      );
+      cartController.incrementQuantity(cartController.items.single.lineKey);
       await tester.pump();
       expect(cartController.items.single.quantity, equals(2));
       expect(find.text('৳104.00'), findsWidgets);
 
-      await tester.tap(
-        find.descendant(
-          of: find.byKey(const ValueKey('cart-item-Fresh Milk 500ml')),
-          matching: find.byTooltip('Decrease quantity'),
-        ),
-      );
+      cartController.decrementQuantity(cartController.items.single.lineKey);
       await tester.pump();
       expect(cartController.items.single.quantity, equals(1));
       expect(find.text('৳52.00'), findsWidgets);

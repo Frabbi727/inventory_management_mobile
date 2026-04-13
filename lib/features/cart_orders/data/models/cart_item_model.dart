@@ -19,6 +19,14 @@ class CartItemModel {
   String? get variantLabel =>
       variant?.combinationLabel ?? variant?.combinationKey;
   int? get availableStock => variant?.currentStock ?? product.currentStock;
+  bool get hasStockLimit => availableStock != null;
+  bool get isOutOfStock => hasStockLimit && (availableStock ?? 0) <= 0;
+  bool get exceedsAvailableStock =>
+      hasStockLimit && quantity > (availableStock ?? 0);
+  bool get hasLowStockWarning =>
+      hasStockLimit &&
+      !isOutOfStock &&
+      quantity > (availableStock ?? 0);
 
   num get unitPrice => variant?.sellingPrice ?? product.sellingPrice ?? 0;
 

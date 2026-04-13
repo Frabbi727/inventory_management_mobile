@@ -177,17 +177,44 @@ void main() {
   test(
     'submitOrder sends cart items and clears local state on success',
     () async {
+      var requestCount = 0;
       final controller = CartController(
         orderRepository: createRepository((request) async {
-          final body = jsonDecode(request.body) as Map<String, dynamic>;
-          expect(body['customer_id'], equals(5));
-          expect((body['items'] as List<dynamic>).length, equals(1));
-          expect(body['items'][0]['product_variant_id'], 101);
+          requestCount += 1;
+
+          if (requestCount == 1) {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            expect(body['customer_id'], equals(5));
+            expect((body['items'] as List<dynamic>).length, equals(1));
+            expect(body['items'][0]['product_variant_id'], 101);
+
+            return http.Response(
+              jsonEncode({
+                'message': 'Draft saved successfully.',
+                'data': {
+                  'id': 9,
+                  'order_no': 'ORD-009',
+                  'grand_total': 104,
+                  'status': 'draft',
+                },
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+
+          expect(request.method, equals('POST'));
+          expect(request.url.path, endsWith('/api/orders/9/confirm'));
 
           return http.Response(
             jsonEncode({
-              'message': 'Order created successfully.',
-              'data': {'id': 9, 'order_no': 'ORD-009', 'grand_total': 104},
+              'message': 'Order confirmed successfully.',
+              'data': {
+                'id': 9,
+                'order_no': 'ORD-009',
+                'grand_total': 104,
+                'status': 'confirmed',
+              },
             }),
             200,
             headers: {'content-type': 'application/json'},
@@ -212,6 +239,7 @@ void main() {
       final response = await controller.submitOrder();
 
       expect(response?.data?.orderNo, equals('ORD-009'));
+      expect(response?.data?.status, equals('confirmed'));
       expect(controller.items, isEmpty);
       expect(controller.selectedCustomer.value, isNull);
     },

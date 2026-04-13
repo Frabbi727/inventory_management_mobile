@@ -19,6 +19,7 @@ class ApiEndpoints {
   static String purchaseDetails(int id) => '$purchases/$id';
   static String customerDetails(int id) => '$customers/$id';
   static String orderDetails(int id) => '$orders/$id';
+  static String orderConfirm(int id) => '${orderDetails(id)}/confirm';
   static String subcategoriesByCategory(int categoryId) =>
       '$subcategories?category_id=$categoryId';
   static String resolveBarcodeProduct(String barcode) =>
