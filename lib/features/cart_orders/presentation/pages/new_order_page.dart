@@ -7,6 +7,9 @@ import '../../../../core/routes/app_routes.dart';
 import '../../../../shared/widgets/app_message_state.dart';
 import '../../../../shared/widgets/app_searchable_select.dart';
 import '../../../customers/data/models/customer_model.dart';
+import '../../../products/data/models/product_model.dart';
+import '../../../products/data/models/product_variant_model.dart';
+import '../../../products/data/repositories/product_repository.dart';
 import '../../../customers/presentation/controllers/customer_search_controller.dart';
 import '../../../products/presentation/controllers/product_list_controller.dart';
 import '../controllers/cart_controller.dart';
@@ -610,6 +613,286 @@ class _ProductsStepState extends State<_ProductsStep> {
     widget.productController.loadMoreIfNeeded(_scrollController.position);
   }
 
+  void _applyProductQuantity(
+    CartController cartController,
+    ProductModel product,
+    int quantity, {
+    ProductVariantModel? variant,
+  }) {
+    final existingQuantity = cartController.quantityForLine(
+      product.id,
+      productVariantId: variant?.id,
+    );
+
+    if (existingQuantity > 0) {
+      cartController.setLineQuantity(
+        cartController.lineKeyFor(product.id, productVariantId: variant?.id),
+        quantity,
+      );
+      return;
+    }
+
+    if (quantity <= 0) {
+      return;
+    }
+
+    cartController.addProduct(product, variant: variant, quantity: quantity);
+  }
+
+  Future<ProductModel> _resolveVariantProduct(ProductModel product) async {
+    if ((product.variants ?? const <ProductVariantModel>[]).isNotEmpty) {
+      return product;
+    }
+
+    final repository = Get.find<ProductRepository>();
+    final response = await repository.fetchProductDetails(product.id!);
+    return response.data ?? product;
+  }
+
+  Future<void> _openVariantPicker(
+    BuildContext context,
+    ProductModel product,
+    CartController cartController,
+    ProductListController productController,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        final theme = Theme.of(sheetContext);
+
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              8,
+              20,
+              20 + MediaQuery.of(sheetContext).viewInsets.bottom,
+            ),
+            child: FutureBuilder<ProductModel>(
+              future: _resolveVariantProduct(product),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const SizedBox(
+                    height: 220,
+                    child: Center(child: CircularProgressIndicator()),
+                  );
+                }
+
+                final resolvedProduct = snapshot.data ?? product;
+                final variants = resolvedProduct.variants ?? const [];
+
+                if (snapshot.hasError || variants.isEmpty) {
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        resolvedProduct.name ?? 'Select Variant',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Variant information is not available right now. Open the details page to review this product.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.of(sheetContext).pop(),
+                              child: const Text('Close'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: FilledButton(
+                              onPressed: () {
+                                Navigator.of(sheetContext).pop();
+                                Get.toNamed(
+                                  AppRoutes.productDetails,
+                                  arguments: resolvedProduct,
+                                );
+                              },
+                              child: const Text('View Details'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  );
+                }
+
+                return Obx(
+                  () {
+                    final _ = cartController.items.length;
+
+                    return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        resolvedProduct.name ?? 'Select Variant',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Choose a variant and type the quantity you want to add.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Flexible(
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: variants.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 12),
+                          itemBuilder: (context, index) {
+                            final variant = variants[index];
+                            final availableStock = variant.currentStock ?? 0;
+                            final isUnavailable = availableStock <= 0;
+                            final quantity = cartController.quantityForLine(
+                              resolvedProduct.id,
+                              productVariantId: variant.id,
+                            );
+
+                            return Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surfaceContainerLowest,
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(
+                                  color: theme.colorScheme.outlineVariant,
+                                ),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              variant.combinationLabel ??
+                                                  variant.combinationKey ??
+                                                  'Variant',
+                                              style: theme.textTheme.titleSmall
+                                                  ?.copyWith(
+                                                    fontWeight: FontWeight.w800,
+                                                  ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              '${productController.formatPrice(variant.sellingPrice)} • Stock $availableStock',
+                                              style: theme.textTheme.bodySmall
+                                                  ?.copyWith(
+                                                    color: theme.colorScheme
+                                                        .onSurfaceVariant,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      QuantityStepper(
+                                        key: ValueKey(
+                                          'variant-qty-${resolvedProduct.id}-${variant.id}',
+                                        ),
+                                        quantity: quantity,
+                                        onIncrement: isUnavailable
+                                            ? null
+                                            : () => _applyProductQuantity(
+                                                cartController,
+                                                resolvedProduct,
+                                                quantity + 1,
+                                                variant: variant,
+                                              ),
+                                        onDecrement: quantity <= 0
+                                            ? null
+                                            : () => _applyProductQuantity(
+                                                cartController,
+                                                resolvedProduct,
+                                                quantity - 1,
+                                                variant: variant,
+                                              ),
+                                        onSubmitted: isUnavailable
+                                            ? null
+                                            : (value) => _applyProductQuantity(
+                                                cartController,
+                                                resolvedProduct,
+                                                value,
+                                                variant: variant,
+                                              ),
+                                        canIncrement: !isUnavailable,
+                                        enabled: !isUnavailable,
+                                      ),
+                                    ],
+                                  ),
+                                  if (isUnavailable) ...[
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      'This variant is out of stock.',
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: theme.colorScheme.error,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () {
+                                Navigator.of(sheetContext).pop();
+                                Get.toNamed(
+                                  AppRoutes.productDetails,
+                                  arguments: resolvedProduct,
+                                );
+                              },
+                              child: const Text('View Details'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: FilledButton(
+                              onPressed: () => Navigator.of(sheetContext).pop(),
+                              child: const Text('Done'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  );
+                  },
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _openFilterSheet(
     BuildContext context,
     ProductListController productController,
@@ -981,6 +1264,7 @@ class _ProductsStepState extends State<_ProductsStep> {
                       : product.sellingPrice;
 
                   return ProductCard(
+                    key: ValueKey('product-card-${product.id}'),
                     name: product.name ?? 'Unnamed product',
                     sku: product.sku ?? '-',
                     price: product.hasVariants == true
@@ -991,15 +1275,17 @@ class _ProductsStepState extends State<_ProductsStep> {
                     imageUrl: product.primaryPhotoUrl,
                     unitLabel: unitLabel == null ? null : 'Unit $unitLabel',
                     categoryLabel: product.category?.name,
-                    buttonLabel: product.hasVariants == true ? 'Choose' : 'Add',
+                    buttonLabel: 'Add',
                     showQuantityControls: product.hasVariants != true,
                     onViewDetails: () {
                       Get.toNamed(AppRoutes.productDetails, arguments: product);
                     },
                     onAdd: () => product.hasVariants == true
-                        ? Get.toNamed(
-                            AppRoutes.productDetails,
-                            arguments: product,
+                        ? _openVariantPicker(
+                            context,
+                            product,
+                            cartController,
+                            productController,
                           )
                         : cartController.addProduct(product),
                     onIncrement: product.hasVariants == true
@@ -1011,6 +1297,13 @@ class _ProductsStepState extends State<_ProductsStep> {
                         ? null
                         : () => cartController.decrementQuantity(
                             '${product.id}:base',
+                          ),
+                    onQuantitySubmitted: product.hasVariants == true
+                        ? null
+                        : (value) => _applyProductQuantity(
+                            cartController,
+                            product,
+                            value,
                           ),
                   );
                 },
@@ -1084,6 +1377,8 @@ class _CartStep extends StatelessWidget {
               canIncrement: controller.canIncrementQuantity(item.lineKey),
               onIncrement: () => controller.incrementQuantity(item.lineKey),
               onDecrement: () => controller.decrementQuantity(item.lineKey),
+              onQuantitySubmitted: (value) =>
+                  controller.setLineQuantity(item.lineKey, value),
               onRemove: () => controller.removeItem(item.lineKey),
               warningMessage: item.isOutOfStock
                   ? 'This item is currently out of stock. Keep it only if you plan to revise the draft.'

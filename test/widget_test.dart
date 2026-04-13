@@ -13,6 +13,7 @@ import 'package:inventory_management_sales/features/auth/data/models/user_model.
 import 'package:inventory_management_sales/features/auth/data/repositories/auth_repository.dart';
 import 'package:inventory_management_sales/features/cart_orders/data/repositories/order_repository.dart';
 import 'package:inventory_management_sales/features/cart_orders/presentation/controllers/cart_controller.dart';
+import 'package:inventory_management_sales/features/cart_orders/presentation/widgets/order_flow_widgets.dart';
 import 'package:inventory_management_sales/features/customers/data/models/customer_model.dart';
 import 'package:inventory_management_sales/features/customers/data/repositories/customer_repository.dart';
 import 'package:inventory_management_sales/features/products/data/models/product_model.dart';
@@ -121,6 +122,44 @@ void main() {
     {'id': 21, 'name': 'Milk', 'category_id': 2},
     {'id': 22, 'name': 'Yogurt', 'category_id': 2},
   ];
+
+  const sampleVariantProduct = {
+    'id': 9,
+    'name': 'Aquafina Water',
+    'sku': 'PRD-WATER-001',
+    'has_variants': true,
+    'current_stock': 18,
+    'category': {'id': 2, 'name': 'Dairy'},
+    'unit': {'id': 1, 'name': 'Piece', 'short_name': 'pc'},
+  };
+
+  const sampleVariantDetails = {
+    'data': {
+      'id': 9,
+      'name': 'Aquafina Water',
+      'sku': 'PRD-WATER-001',
+      'has_variants': true,
+      'current_stock': 18,
+      'category': {'id': 2, 'name': 'Dairy'},
+      'unit': {'id': 1, 'name': 'Piece', 'short_name': 'pc'},
+      'variants': [
+        {
+          'id': 101,
+          'combination_label': '500ml',
+          'combination_key': 'size-500ml',
+          'selling_price': 40,
+          'current_stock': 10,
+        },
+        {
+          'id': 102,
+          'combination_label': '1 Liter',
+          'combination_key': 'size-1-liter',
+          'selling_price': 60,
+          'current_stock': 0,
+        },
+      ],
+    },
+  };
 
   const sampleCustomers = [
     {
@@ -1157,6 +1196,189 @@ void main() {
       cartController.decrementQuantity(cartController.items.single.lineKey);
       await tester.pump();
       expect(cartController.items.single.quantity, equals(1));
+    },
+  );
+
+  testWidgets(
+    'variant products open quick picker and allow typed quantity entry',
+    (WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'auth_token': 'variant-picker-token',
+      });
+
+      Get.put<AuthRepository>(
+        createRepository((request) async {
+          if (request.url.path.endsWith('/me')) {
+            return http.Response(
+              jsonEncode({
+                'data': {
+                  'id': 2,
+                  'name': 'Sales Demo',
+                  'email': 'salesman@example.com',
+                  'phone': '+8801700000002',
+                  'role': {'id': 2, 'name': 'Salesman', 'slug': 'salesman'},
+                },
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+
+          return http.Response(
+            jsonEncode({'message': 'Logout successful.'}),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        permanent: true,
+      );
+      Get.put<ProductRepository>(
+        createProductRepository((request) async {
+          if (request.method == 'GET' &&
+              request.url.path.endsWith('/products/9')) {
+            return http.Response(
+              jsonEncode(sampleVariantDetails),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+
+          return http.Response(
+            jsonEncode(productListPayload(products: [sampleVariantProduct])),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        permanent: true,
+      );
+      Get.put<CustomerRepository>(
+        createCustomerRepository((request) async {
+          return http.Response(
+            jsonEncode(customerListPayload(customers: sampleCustomers)),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        permanent: true,
+      );
+      registerDefaultOrderRepository();
+
+      await tester.pumpWidget(const SalesApp());
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('New Order'));
+      await tester.pumpAndSettle();
+
+      final cartController = Get.find<CartController>();
+      cartController.setSelectedCustomer(
+        const CustomerModel(id: 1, name: 'Rahman Store'),
+      );
+      cartController.goToStep(CartController.productsStep);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Add').first);
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(find.text('Choose a variant and type the quantity you want to add.'), findsOneWidget);
+      expect(find.text('500ml'), findsOneWidget);
+      expect(find.text('1 Liter'), findsOneWidget);
+
+      final quantityField = find.descendant(
+        of: find.byType(QuantityStepper).first,
+        matching: find.byType(TextField),
+      ).first;
+
+      await tester.enterText(quantityField, '12');
+      await tester.tap(find.widgetWithText(FilledButton, 'Done'));
+      await tester.pumpAndSettle();
+
+      expect(cartController.items.single.productVariantId, equals(101));
+      expect(cartController.items.single.quantity, equals(12));
+    },
+  );
+
+  testWidgets(
+    'cart quantity field accepts typed values for large orders',
+    (WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'auth_token': 'cart-input-token',
+      });
+
+      Get.put<AuthRepository>(
+        createRepository((request) async {
+          if (request.url.path.endsWith('/me')) {
+            return http.Response(
+              jsonEncode({
+                'data': {
+                  'id': 2,
+                  'name': 'Sales Demo',
+                  'email': 'salesman@example.com',
+                  'phone': '+8801700000002',
+                  'role': {'id': 2, 'name': 'Salesman', 'slug': 'salesman'},
+                },
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+
+          return http.Response(
+            jsonEncode({'message': 'Logout successful.'}),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        permanent: true,
+      );
+      Get.put<ProductRepository>(
+        createProductRepository((request) async {
+          return http.Response(
+            jsonEncode(productListPayload(products: sampleProducts)),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        permanent: true,
+      );
+      Get.put<CustomerRepository>(
+        createCustomerRepository((request) async {
+          return http.Response(
+            jsonEncode(customerListPayload(customers: sampleCustomers)),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        permanent: true,
+      );
+      registerDefaultOrderRepository();
+
+      await tester.pumpWidget(const SalesApp());
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('New Order'));
+      await tester.pumpAndSettle();
+
+      final cartController = Get.find<CartController>();
+      cartController.addProduct(ProductModel.fromJson(sampleProducts.first));
+      cartController.setSelectedCustomer(
+        const CustomerModel(id: 1, name: 'Rahman Store'),
+      );
+      cartController.goToStep(CartController.cartStep);
+      await tester.pumpAndSettle();
+
+      final quantityField = find.descendant(
+        of: find.byType(QuantityStepper).first,
+        matching: find.byType(TextField),
+      ).first;
+      await tester.enterText(quantityField, '1000');
+      tester.binding.focusManager.primaryFocus?.unfocus();
+      await tester.pumpAndSettle();
+
+      expect(cartController.items.single.quantity, equals(1000));
+      expect(cartController.canConfirm, isFalse);
     },
   );
 }

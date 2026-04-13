@@ -71,6 +71,26 @@ void main() {
     expect(controller.subtotal, equals(104));
   });
 
+  test('addProduct supports initial quantity and setLineQuantity updates it', () {
+    final controller = CartController(
+      orderRepository: createRepository((request) async {
+        return http.Response('{}', 200);
+      }),
+      productRepository: createProductRepository((request) async {
+        return http.Response('{}', 200);
+      }),
+    );
+
+    expect(controller.addProduct(product, quantity: 12), isTrue);
+    expect(controller.items.single.quantity, equals(12));
+    expect(
+      controller.setLineQuantity(controller.items.single.lineKey, 25),
+      isTrue,
+    );
+    expect(controller.items.single.quantity, equals(25));
+    expect(controller.totalUnits, equals(25));
+  });
+
   test('estimated discount supports percent and amount', () {
     final controller = CartController(
       orderRepository: createRepository((request) async {
@@ -160,6 +180,26 @@ void main() {
     controller.decrementQuantity('${product.id}:base');
     expect(controller.items, isEmpty);
     expect(controller.currentStep.value, CartController.customerStep);
+  });
+
+  test('setLineQuantity removes line at zero and keeps overstock warnings', () {
+    final controller = CartController(
+      orderRepository: createRepository((request) async {
+        return http.Response('{}', 200);
+      }),
+      productRepository: createProductRepository((request) async {
+        return http.Response('{}', 200);
+      }),
+    );
+
+    controller.addProduct(product);
+    expect(controller.setLineQuantity('${product.id}:base', 8), isTrue);
+    expect(controller.items.single.quantity, equals(8));
+    expect(controller.items.single.exceedsAvailableStock, isTrue);
+    expect(controller.canConfirm, isFalse);
+
+    expect(controller.setLineQuantity('${product.id}:base', 0), isTrue);
+    expect(controller.items, isEmpty);
   });
 
   test('variant lines merge by product and variant id', () {

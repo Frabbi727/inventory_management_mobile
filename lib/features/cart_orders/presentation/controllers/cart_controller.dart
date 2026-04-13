@@ -66,9 +66,21 @@ class CartController extends GetxController {
     );
   }
 
-  bool addProduct(ProductModel product, {ProductVariantModel? variant}) {
+  String lineKeyFor(int? productId, {int? productVariantId}) =>
+      '${productId ?? 'unknown'}:${productVariantId ?? 'base'}';
+
+  bool addProduct(
+    ProductModel product, {
+    ProductVariantModel? variant,
+    int quantity = 1,
+  }) {
     final productId = product.id;
     if (productId == null) {
+      return false;
+    }
+
+    if (quantity <= 0) {
+      errorMessage.value = 'Quantity must be greater than zero.';
       return false;
     }
 
@@ -86,20 +98,18 @@ class CartController extends GetxController {
 
     final existingIndex = _indexOfLine(productId, variant?.id);
     if (existingIndex == -1) {
-      items.add(CartItemModel(product: product, quantity: 1, variant: variant));
+      items.add(
+        CartItemModel(product: product, quantity: quantity, variant: variant),
+      );
       _markDraftDirty();
       errorMessage.value = null;
       return true;
     }
 
-    final existingItem = items[existingIndex];
-    items[existingIndex] = existingItem.copyWith(
-      quantity: existingItem.quantity + 1,
+    return _setItemQuantityAt(
+      existingIndex,
+      items[existingIndex].quantity + quantity,
     );
-    items.refresh();
-    _markDraftDirty();
-    errorMessage.value = null;
-    return true;
   }
 
   bool canIncrementQuantity(String lineKey) {
@@ -118,19 +128,7 @@ class CartController extends GetxController {
       return false;
     }
 
-    final currentItem = items[index];
-    final currentStock = currentItem.availableStock;
-    if (currentStock != null && currentStock <= 0) {
-      errorMessage.value =
-          '${currentItem.variantLabel ?? currentItem.product.name ?? 'This product'} is currently unavailable.';
-      return false;
-    }
-
-    items[index] = currentItem.copyWith(quantity: currentItem.quantity + 1);
-    items.refresh();
-    _markDraftDirty();
-    errorMessage.value = null;
-    return true;
+    return _setItemQuantityAt(index, items[index].quantity + 1);
   }
 
   void decrementQuantity(String lineKey) {
@@ -139,16 +137,7 @@ class CartController extends GetxController {
       return;
     }
 
-    final currentItem = items[index];
-    if (currentItem.quantity <= 1) {
-      removeItem(lineKey);
-      return;
-    }
-
-    items[index] = currentItem.copyWith(quantity: currentItem.quantity - 1);
-    items.refresh();
-    _markDraftDirty();
-    errorMessage.value = null;
+    setLineQuantity(lineKey, items[index].quantity - 1);
   }
 
   void removeItem(String lineKey) {
@@ -165,6 +154,15 @@ class CartController extends GetxController {
     }
   }
 
+  bool setLineQuantity(String lineKey, int quantity) {
+    final index = items.indexWhere((item) => item.lineKey == lineKey);
+    if (index == -1) {
+      return false;
+    }
+
+    return _setItemQuantityAt(index, quantity);
+  }
+
   int quantityForProduct(int? productId) {
     if (productId == null) {
       return 0;
@@ -175,7 +173,37 @@ class CartController extends GetxController {
         .fold(0, (sum, item) => sum + item.quantity);
   }
 
+  int quantityForLine(int? productId, {int? productVariantId}) {
+    final index = _indexOfLine(productId, productVariantId);
+    if (index == -1) {
+      return 0;
+    }
+
+    return items[index].quantity;
+  }
+
   bool containsProduct(int? productId) => quantityForProduct(productId) > 0;
+
+  bool _setItemQuantityAt(int index, int quantity) {
+    final currentItem = items[index];
+    if (quantity <= 0) {
+      removeItem(currentItem.lineKey);
+      return true;
+    }
+
+    final currentStock = currentItem.availableStock;
+    if (currentStock != null && currentStock <= 0) {
+      errorMessage.value =
+          '${currentItem.variantLabel ?? currentItem.product.name ?? 'This product'} is currently unavailable.';
+      return false;
+    }
+
+    items[index] = currentItem.copyWith(quantity: quantity);
+    items.refresh();
+    _markDraftDirty();
+    errorMessage.value = null;
+    return true;
+  }
 
   bool get hasCustomerSelected => selectedCustomer.value?.id != null;
   bool get hasItems => items.isNotEmpty;

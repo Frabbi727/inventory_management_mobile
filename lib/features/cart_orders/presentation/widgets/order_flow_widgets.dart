@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../../shared/widgets/app_remote_media.dart';
 
@@ -284,6 +285,7 @@ class ProductCard extends StatelessWidget {
     this.onViewDetails,
     this.onIncrement,
     this.onDecrement,
+    this.onQuantitySubmitted,
   });
 
   final String name;
@@ -300,6 +302,7 @@ class ProductCard extends StatelessWidget {
   final VoidCallback? onViewDetails;
   final VoidCallback? onIncrement;
   final VoidCallback? onDecrement;
+  final ValueChanged<int>? onQuantitySubmitted;
 
   @override
   Widget build(BuildContext context) {
@@ -411,6 +414,7 @@ class ProductCard extends StatelessWidget {
                     quantity: selectedQuantity,
                     onIncrement: onIncrement,
                     onDecrement: onDecrement,
+                    onSubmitted: onQuantitySubmitted,
                   ),
                 ],
               ),
@@ -516,11 +520,126 @@ class QuantityStepper extends StatelessWidget {
     required this.quantity,
     this.onIncrement,
     this.onDecrement,
+    this.onSubmitted,
+    this.canIncrement = true,
+    this.allowZero = true,
+    this.autofocus = false,
+    this.enabled = true,
   });
 
   final int quantity;
   final VoidCallback? onIncrement;
   final VoidCallback? onDecrement;
+  final ValueChanged<int>? onSubmitted;
+  final bool canIncrement;
+  final bool allowZero;
+  final bool autofocus;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return _QuantityInputStepper(
+      quantity: quantity,
+      onIncrement: onIncrement,
+      onDecrement: onDecrement,
+      onSubmitted: onSubmitted,
+      canIncrement: canIncrement,
+      allowZero: allowZero,
+      autofocus: autofocus,
+      enabled: enabled,
+    );
+  }
+}
+
+class _QuantityInputStepper extends StatefulWidget {
+  const _QuantityInputStepper({
+    required this.quantity,
+    this.onIncrement,
+    this.onDecrement,
+    this.onSubmitted,
+    required this.canIncrement,
+    required this.allowZero,
+    required this.autofocus,
+    required this.enabled,
+  });
+
+  final int quantity;
+  final VoidCallback? onIncrement;
+  final VoidCallback? onDecrement;
+  final ValueChanged<int>? onSubmitted;
+  final bool canIncrement;
+  final bool allowZero;
+  final bool autofocus;
+  final bool enabled;
+
+  @override
+  State<_QuantityInputStepper> createState() => _QuantityInputStepperState();
+}
+
+class _QuantityInputStepperState extends State<_QuantityInputStepper> {
+  late final TextEditingController _controller;
+  late final FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: '${widget.quantity}');
+    _focusNode = FocusNode()..addListener(_handleFocusChange);
+  }
+
+  @override
+  void didUpdateWidget(covariant _QuantityInputStepper oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.quantity != oldWidget.quantity && !_focusNode.hasFocus) {
+      _controller.text = '${widget.quantity}';
+    }
+  }
+
+  @override
+  void dispose() {
+    _focusNode
+      ..removeListener(_handleFocusChange)
+      ..dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _handleFocusChange() {
+    if (_focusNode.hasFocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_focusNode.hasFocus) {
+          return;
+        }
+
+        _controller.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: _controller.text.length,
+        );
+      });
+      return;
+    }
+
+    if (!_focusNode.hasFocus) {
+      _commit();
+    }
+  }
+
+  void _commit() {
+    final raw = _controller.text.trim();
+    final parsed = int.tryParse(raw);
+    final minimum = widget.allowZero ? 0 : 1;
+    if (parsed == null || parsed < minimum) {
+      _controller.text = '${widget.quantity}';
+      return;
+    }
+
+    if (parsed == widget.quantity) {
+      _controller.text = '$parsed';
+      return;
+    }
+
+    widget.onSubmitted?.call(parsed);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -537,7 +656,7 @@ class QuantityStepper extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
-            onPressed: onDecrement,
+            onPressed: widget.enabled ? widget.onDecrement : null,
             icon: const Icon(Icons.remove_rounded),
             tooltip: 'Decrease quantity',
             constraints: const BoxConstraints.tightFor(width: 40, height: 40),
@@ -547,17 +666,32 @@ class QuantityStepper extends StatelessWidget {
             ),
           ),
           SizedBox(
-            width: 36,
-            child: Text(
-              '$quantity',
+            width: 56,
+            child: TextField(
+              controller: _controller,
+              focusNode: _focusNode,
+              autofocus: widget.autofocus,
+              readOnly: !widget.enabled,
               textAlign: TextAlign.center,
+              keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.done,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: const InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(vertical: 10),
+              ),
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w800,
               ),
+              onEditingComplete: _commit,
+              onSubmitted: (_) => _commit(),
             ),
           ),
           IconButton(
-            onPressed: onIncrement,
+            onPressed: widget.enabled && widget.canIncrement
+                ? widget.onIncrement
+                : null,
             icon: const Icon(Icons.add_rounded),
             tooltip: 'Increase quantity',
             constraints: const BoxConstraints.tightFor(width: 40, height: 40),
@@ -586,6 +720,7 @@ class CartItemWidget extends StatelessWidget {
     required this.onDecrement,
     required this.onRemove,
     required this.canIncrement,
+    required this.onQuantitySubmitted,
     this.warningMessage,
   });
 
@@ -600,6 +735,7 @@ class CartItemWidget extends StatelessWidget {
   final VoidCallback onDecrement;
   final VoidCallback onRemove;
   final bool canIncrement;
+  final ValueChanged<int> onQuantitySubmitted;
   final String? warningMessage;
 
   @override
@@ -752,9 +888,12 @@ class CartItemWidget extends StatelessWidget {
                 ),
                 const Spacer(),
                 QuantityStepper(
+                  key: ValueKey('cart-qty-$title-$subtitle-${variantLabel ?? 'base'}'),
                   quantity: quantity,
                   onIncrement: canIncrement ? onIncrement : null,
                   onDecrement: onDecrement,
+                  onSubmitted: onQuantitySubmitted,
+                  canIncrement: canIncrement,
                 ),
               ],
             ),

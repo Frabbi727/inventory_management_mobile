@@ -6,7 +6,9 @@ import '../../../../shared/widgets/app_message_state.dart';
 import '../../../../shared/widgets/app_remote_media.dart';
 import '../../../../shared/widgets/product_stock_status_badge.dart';
 import '../../../cart_orders/presentation/controllers/cart_controller.dart';
+import '../../../cart_orders/presentation/widgets/order_flow_widgets.dart';
 import '../../data/models/product_model.dart';
+import '../../data/models/product_variant_model.dart';
 import '../../../inventory_manager/presentation/models/product_form_args.dart';
 import '../controllers/product_details_controller.dart';
 
@@ -417,6 +419,32 @@ class _VariantSection extends StatelessWidget {
   final ProductModel product;
   final ProductDetailsController controller;
 
+  void _applyVariantQuantity(
+    CartController cartController,
+    ProductModel product,
+    ProductVariantModel variant,
+    int quantity,
+  ) {
+    final existingQuantity = cartController.quantityForLine(
+      product.id,
+      productVariantId: variant.id,
+    );
+
+    if (existingQuantity > 0) {
+      cartController.setLineQuantity(
+        cartController.lineKeyFor(product.id, productVariantId: variant.id),
+        quantity,
+      );
+      return;
+    }
+
+    if (quantity <= 0) {
+      return;
+    }
+
+    cartController.addProduct(product, variant: variant, quantity: quantity);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -506,25 +534,46 @@ class _VariantSection extends StatelessWidget {
                       ),
                       if (canOrder) ...[
                         const SizedBox(height: 10),
-                        FilledButton(
-                          onPressed: (variant.currentStock ?? 0) <= 0
-                              ? null
-                              : () {
-                                  final cartController =
-                                      Get.find<CartController>();
-                                  final added = cartController.addProduct(
+                        Obx(() {
+                          final cartController = Get.find<CartController>();
+                          final _ = cartController.items.length;
+                          final quantity = cartController.quantityForLine(
+                            product.id,
+                            productVariantId: variant.id,
+                          );
+                          final isUnavailable =
+                              (variant.currentStock ?? 0) <= 0;
+
+                          return QuantityStepper(
+                            quantity: quantity,
+                            onIncrement: isUnavailable
+                                ? null
+                                : () => _applyVariantQuantity(
+                                    cartController,
                                     product,
-                                    variant: variant,
-                                  );
-                                  if (added) {
-                                    Get.snackbar(
-                                      'Added to cart',
-                                      '${product.name ?? 'Product'}${variant.combinationLabel == null ? '' : ' • ${variant.combinationLabel}'} added.',
-                                    );
-                                  }
-                                },
-                          child: const Text('Add'),
-                        ),
+                                    variant,
+                                    quantity + 1,
+                                  ),
+                            onDecrement: quantity <= 0
+                                ? null
+                                : () => _applyVariantQuantity(
+                                    cartController,
+                                    product,
+                                    variant,
+                                    quantity - 1,
+                                  ),
+                            onSubmitted: isUnavailable
+                                ? null
+                                : (value) => _applyVariantQuantity(
+                                    cartController,
+                                    product,
+                                    variant,
+                                    value,
+                                  ),
+                            canIncrement: !isUnavailable,
+                            enabled: !isUnavailable,
+                          );
+                        }),
                       ],
                     ],
                   ),
@@ -543,35 +592,72 @@ class _SalesActionCard extends StatelessWidget {
 
   final ProductModel product;
 
+  void _applyProductQuantity(
+    CartController cartController,
+    ProductModel product,
+    int quantity,
+  ) {
+    final existingQuantity = cartController.quantityForLine(product.id);
+    if (existingQuantity > 0) {
+      cartController.setLineQuantity(
+        cartController.lineKeyFor(product.id),
+        quantity,
+      );
+      return;
+    }
+
+    if (quantity <= 0) {
+      return;
+    }
+
+    cartController.addProduct(product, quantity: quantity);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final cartController = Get.find<CartController>();
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text('Use the current selling price for simple products.'),
-            ),
-            const SizedBox(width: 12),
-            FilledButton(
-              onPressed: (product.currentStock ?? 0) <= 0
-                  ? null
-                  : () {
-                      final added = cartController.addProduct(product);
-                      if (added) {
-                        Get.snackbar(
-                          'Added to cart',
-                          '${product.name ?? 'Product'} added.',
-                        );
-                      }
-                    },
-              child: const Text('Add to Cart'),
-            ),
-          ],
-        ),
+        child: Obx(() {
+          final cartController = Get.find<CartController>();
+          final _ = cartController.items.length;
+          final quantity = cartController.quantityForLine(product.id);
+          final isUnavailable = (product.currentStock ?? 0) <= 0;
+
+          return Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Use the current selling price for simple products.',
+                ),
+              ),
+              const SizedBox(width: 12),
+              QuantityStepper(
+                quantity: quantity,
+                onIncrement: isUnavailable
+                    ? null
+                    : () => _applyProductQuantity(
+                        cartController,
+                        product,
+                        quantity + 1,
+                      ),
+                onDecrement: quantity <= 0
+                    ? null
+                    : () => _applyProductQuantity(
+                        cartController,
+                        product,
+                        quantity - 1,
+                      ),
+                onSubmitted: isUnavailable
+                    ? null
+                    : (value) =>
+                          _applyProductQuantity(cartController, product, value),
+                canIncrement: !isUnavailable,
+                enabled: !isUnavailable,
+              ),
+            ],
+          );
+        }),
       ),
     );
   }
