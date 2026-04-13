@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import '../../../../core/errors/api_exception.dart';
 import '../../data/models/category_response_model.dart';
 import '../../data/models/product_model.dart';
+import '../../data/models/product_subcategory_model.dart';
 import '../../data/repositories/product_repository.dart';
 
 class ProductListController extends GetxController {
@@ -16,11 +17,14 @@ class ProductListController extends GetxController {
 
   final products = <ProductModel>[].obs;
   final categories = <CategoryModel>[].obs;
+  final subcategories = <ProductSubcategoryModel>[].obs;
   final selectedCategoryId = Rxn<int>();
+  final selectedSubcategoryId = Rxn<int>();
   final isInitialLoading = false.obs;
   final isLoadingMore = false.obs;
   final isSearching = false.obs;
   final isCategoriesLoading = false.obs;
+  final isSubcategoriesLoading = false.obs;
   final errorMessage = RxnString();
   final infoMessage = RxnString();
   final searchQuery = ''.obs;
@@ -34,7 +38,9 @@ class ProductListController extends GetxController {
 
   bool get hasActiveSearch => searchQuery.value.isNotEmpty;
   bool get hasActiveCategory => selectedCategoryId.value != null;
-  bool get hasActiveFilter => hasActiveSearch || hasActiveCategory;
+  bool get hasActiveSubcategory => selectedSubcategoryId.value != null;
+  bool get hasActiveFilter =>
+      hasActiveSearch || hasActiveCategory || hasActiveSubcategory;
   bool get hasErrorState =>
       errorMessage.value != null && products.isEmpty && !isInitialLoading.value;
   bool get hasEmptyState =>
@@ -65,12 +71,31 @@ class ProductListController extends GetxController {
   void onCategoryChanged(int? id) {
     if (selectedCategoryId.value == id) return;
     selectedCategoryId.value = id;
+    selectedSubcategoryId.value = null;
+    subcategories.clear();
+    if (id != null) {
+      unawaited(loadSubcategories(categoryId: id));
+    }
     unawaited(fetchProducts(reset: true));
   }
 
   void clearCategory() {
     if (selectedCategoryId.value == null) return;
     selectedCategoryId.value = null;
+    selectedSubcategoryId.value = null;
+    subcategories.clear();
+    unawaited(fetchProducts(reset: true));
+  }
+
+  void onSubcategoryChanged(int? id) {
+    if (selectedSubcategoryId.value == id) return;
+    selectedSubcategoryId.value = id;
+    unawaited(fetchProducts(reset: true));
+  }
+
+  void clearSubcategory() {
+    if (selectedSubcategoryId.value == null) return;
+    selectedSubcategoryId.value = null;
     unawaited(fetchProducts(reset: true));
   }
 
@@ -78,13 +103,38 @@ class ProductListController extends GetxController {
     _searchDebounce?.cancel();
     final hadSearch = searchQuery.value.isNotEmpty || _lastExecutedQuery.isNotEmpty;
     final hadCategory = selectedCategoryId.value != null;
+    final hadSubcategory = selectedSubcategoryId.value != null;
     searchQuery.value = '';
     infoMessage.value = null;
     isSearching.value = false;
     _lastExecutedQuery = '';
     selectedCategoryId.value = null;
-    if (hadSearch || hadCategory || products.isEmpty) {
+    selectedSubcategoryId.value = null;
+    subcategories.clear();
+    if (hadSearch || hadCategory || hadSubcategory || products.isEmpty) {
       unawaited(fetchProducts(reset: true));
+    }
+  }
+
+  Future<void> loadSubcategories({required int categoryId}) async {
+    if (isSubcategoriesLoading.value) return;
+    isSubcategoriesLoading.value = true;
+    try {
+      final response = await _productRepository.fetchSubcategories(
+        categoryId: categoryId,
+      );
+      if (selectedCategoryId.value == categoryId) {
+        subcategories.assignAll(response);
+      }
+    } catch (_) {
+      if (selectedCategoryId.value == categoryId) {
+        subcategories.clear();
+      }
+    } finally {
+      if (selectedCategoryId.value == categoryId ||
+          selectedCategoryId.value == null) {
+        isSubcategoriesLoading.value = false;
+      }
     }
   }
 
@@ -100,6 +150,7 @@ class ProductListController extends GetxController {
   }) async {
     final requestedQuery = searchQuery.value.trim();
     final requestedCategory = selectedCategoryId.value;
+    final requestedSubcategory = selectedSubcategoryId.value;
     final hasExistingItems = products.isNotEmpty;
 
     if (reset) {
@@ -124,6 +175,7 @@ class ProductListController extends GetxController {
         page: pageToLoad,
         query: requestedQuery.isEmpty ? null : requestedQuery,
         categoryId: requestedCategory,
+        subcategoryId: requestedSubcategory,
         forceRefresh: forceRefresh,
       );
 
@@ -147,7 +199,11 @@ class ProductListController extends GetxController {
       _currentPage = currentPage + 1;
 
       if (products.isEmpty) {
-        infoMessage.value = _buildEmptyMessage(requestedQuery, requestedCategory);
+        infoMessage.value = _buildEmptyMessage(
+          requestedQuery,
+          requestedCategory,
+          requestedSubcategory,
+        );
       } else {
         infoMessage.value = null;
       }
@@ -176,16 +232,29 @@ class ProductListController extends GetxController {
     }
   }
 
-  String _buildEmptyMessage(String query, int? categoryId) {
+  String _buildEmptyMessage(
+    String query,
+    int? categoryId,
+    int? subcategoryId,
+  ) {
     final categoryName = categoryId != null
         ? categories.firstWhereOrNull((c) => c.id == categoryId)?.name
         : null;
+    final subcategoryName = subcategoryId != null
+        ? subcategories.firstWhereOrNull((s) => s.id == subcategoryId)?.name
+        : null;
 
+    if (query.isNotEmpty && categoryName != null && subcategoryName != null) {
+      return 'No products found for "$query" in $categoryName / $subcategoryName.';
+    }
     if (query.isNotEmpty && categoryName != null) {
       return 'No products found for "$query" in $categoryName.';
     }
     if (query.isNotEmpty) {
       return 'No products found for "$query".';
+    }
+    if (categoryName != null && subcategoryName != null) {
+      return 'No products found in $categoryName / $subcategoryName.';
     }
     if (categoryName != null) {
       return 'No products found in $categoryName.';

@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '../../../../core/constants/controller_tags.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../shared/widgets/app_message_state.dart';
+import '../../../../shared/widgets/app_searchable_select.dart';
 import '../../../customers/data/models/customer_model.dart';
 import '../../../customers/presentation/controllers/customer_search_controller.dart';
 import '../../../products/presentation/controllers/product_list_controller.dart';
@@ -105,13 +106,7 @@ class _NewOrderPageState extends State<NewOrderPage> {
       ),
       bottomNavigationBar: Obx(
         () => SummaryFooter(
-          subtotal: controller.showFooterTotals
-              ? controller.formatCurrency(controller.displaySubtotal)
-              : null,
-          total: controller.showFooterTotals
-              ? controller.formatCurrency(controller.displayGrandTotal)
-              : null,
-          showTotals: controller.showFooterTotals,
+          showTotals: false,
           primaryLabel: _primaryLabel(controller.currentStep.value),
           tertiaryLabel: controller.currentStep.value == CartController.confirmStep
               ? (controller.hasSavedDraft ? 'Update Draft' : 'Save Draft')
@@ -615,6 +610,145 @@ class _ProductsStepState extends State<_ProductsStep> {
     widget.productController.loadMoreIfNeeded(_scrollController.position);
   }
 
+  Future<void> _openFilterSheet(
+    BuildContext context,
+    ProductListController productController,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        final theme = Theme.of(sheetContext);
+
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              8,
+              20,
+              20 + MediaQuery.of(sheetContext).viewInsets.bottom,
+            ),
+            child: Obx(
+              () {
+                final categoryOptions = productController.categories
+                    .where((category) => category.id != null)
+                    .map(
+                      (category) => AppSearchableSelectOption<int>(
+                        value: category.id!,
+                        label: category.name ?? 'Category',
+                      ),
+                    )
+                    .toList(growable: false);
+                final subcategoryOptions = productController.subcategories
+                    .where((subcategory) => subcategory.id != null)
+                    .map(
+                      (subcategory) => AppSearchableSelectOption<int>(
+                        value: subcategory.id!,
+                        label: subcategory.name ?? 'Subcategory',
+                        searchTerms: [
+                          subcategory.name ?? '',
+                          productController.categories
+                                  .firstWhereOrNull(
+                                    (category) =>
+                                        category.id == subcategory.categoryId,
+                                  )
+                                  ?.name ??
+                              '',
+                        ],
+                      ),
+                    )
+                    .toList(growable: false);
+
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Filter Products',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Choose a category and subcategory to narrow the item list.',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    AppSearchableSelectField<int>(
+                      label: 'Category',
+                      searchHint: 'Search category',
+                      options: categoryOptions,
+                      value: productController.selectedCategoryId.value,
+                      placeholder: productController.categories.isEmpty
+                          ? 'No categories available'
+                          : 'All categories',
+                      prefixIcon: Icons.category_outlined,
+                      onChanged: productController.onCategoryChanged,
+                      enabled: productController.categories.isNotEmpty,
+                      isLoading: productController.isCategoriesLoading.value,
+                      helperText: 'Filter products by category.',
+                      clearLabel: 'All categories',
+                    ),
+                    const SizedBox(height: 12),
+                    AppSearchableSelectField<int>(
+                      label: 'Subcategory',
+                      searchHint: 'Search subcategory',
+                      options: subcategoryOptions,
+                      value: productController.selectedSubcategoryId.value,
+                      placeholder: productController.selectedCategoryId.value == null
+                          ? 'Select a category first'
+                          : productController.subcategories.isEmpty
+                          ? 'No subcategories available'
+                          : 'All subcategories',
+                      prefixIcon: Icons.account_tree_outlined,
+                      onChanged: productController.selectedCategoryId.value == null
+                          ? null
+                          : productController.onSubcategoryChanged,
+                      enabled: productController.selectedCategoryId.value != null,
+                      isLoading: productController.isSubcategoriesLoading.value,
+                      helperText: productController.selectedCategoryId.value == null
+                          ? 'Choose a category to load subcategories.'
+                          : 'Refine the selected category.',
+                      clearLabel: productController.selectedCategoryId.value == null
+                          ? null
+                          : 'All subcategories',
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () {
+                              productController.clearFilters();
+                              _searchController.clear();
+                              Navigator.of(sheetContext).pop();
+                            },
+                            child: const Text('Clear'),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: () => Navigator.of(sheetContext).pop(),
+                            child: const Text('Done'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -636,183 +770,165 @@ class _ProductsStepState extends State<_ProductsStep> {
       final products = productController.products;
       final categories = productController.categories;
       final selectedCategoryId = productController.selectedCategoryId.value;
+      final selectedSubcategoryId =
+          productController.selectedSubcategoryId.value;
       final showInitialLoader =
           productController.isInitialLoading.value && products.isEmpty;
       final showErrorState = productController.hasErrorState;
       final showEmptyState = productController.hasEmptyState;
-
-      return RefreshIndicator(
-        onRefresh: productController.retry,
-        child: CustomScrollView(
-          controller: _scrollController,
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: [
-            SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ── Search + Category Panel ──────────────────────────
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surface,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: theme.colorScheme.outlineVariant,
+      return Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: theme.colorScheme.outlineVariant),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                OrderSearchField(
+                  controller: _searchController,
+                  hintText: 'Search by product name or SKU',
+                  isLoading: productController.isSearching.value,
+                  onChanged: productController.onSearchChanged,
+                  onClear: () {
+                    _searchController.clear();
+                    productController.clearSearch();
+                  },
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        productController.hasActiveSearch
+                            ? 'Search results'
+                            : productController.hasActiveCategory ||
+                                  productController.hasActiveSubcategory
+                            ? 'Filtered products'
+                            : 'Available products',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.03),
-                          blurRadius: 16,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Search field
-                        OrderSearchField(
-                          controller: _searchController,
-                          hintText: 'Search by product name or SKU',
-                          isLoading: productController.isSearching.value,
-                          onChanged: productController.onSearchChanged,
-                          onClear: () {
-                            _searchController.clear();
-                            productController.clearSearch();
-                          },
-                        ),
-                        // Category chips (only visible when categories loaded)
-                        if (categories.isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            height: 36,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              padding: EdgeInsets.zero,
-                              itemCount: categories.length + 1,
-                              separatorBuilder: (context, index) =>
-                                  const SizedBox(width: 8),
-                              itemBuilder: (context, index) {
-                                if (index == 0) {
-                                  return _CategoryChip(
-                                    label: 'All',
-                                    isSelected: selectedCategoryId == null,
-                                    onTap: () => productController
-                                        .onCategoryChanged(null),
-                                  );
-                                }
-                                final category = categories[index - 1];
-                                return _CategoryChip(
-                                  label: category.name ?? 'Category',
-                                  isSelected: selectedCategoryId == category.id,
-                                  onTap: () => productController
-                                      .onCategoryChanged(category.id),
-                                );
-                              },
+                    const SizedBox(width: 12),
+                    FilledButton.tonalIcon(
+                      onPressed: () => _openFilterSheet(
+                        context,
+                        productController,
+                      ),
+                      icon: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          const Icon(Icons.tune),
+                          if (productController.hasActiveCategory ||
+                              productController.hasActiveSubcategory)
+                            Positioned(
+                              right: -4,
+                              top: -4,
+                              child: Container(
+                                width: 16,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  '${(selectedCategoryId != null ? 1 : 0) + (selectedSubcategoryId != null ? 1 : 0)}',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: theme.colorScheme.onPrimary,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
                         ],
-                      ],
-                    ),
-                  ),
-                  if (productController.errorMessage.value != null &&
-                      products.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    InlineWarningBanner(
-                      message: productController.errorMessage.value!,
+                      ),
+                      label: const Text('Filters'),
                     ),
                   ],
-                  const SizedBox(height: 14),
-                  // ── Results header ───────────────────────────────────
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          productController.hasActiveSearch
-                              ? 'Search results'
-                              : productController.hasActiveCategory
-                              ? 'Filtered products'
-                              : 'Available products',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    if (products.isNotEmpty)
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
                           vertical: 8,
                         ),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.surface,
+                          color: theme.colorScheme.surfaceContainerHighest,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: theme.colorScheme.outlineVariant,
-                            width: 1,
+                        ),
+                        child: Text(
+                          '${products.length} FOUND',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.green,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (products.isNotEmpty)
-                              Text(
-                                '${products.length} FOUND',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: Colors.green,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-
-                            if (productController.hasActiveFilter) ...[
-                              const SizedBox(width: 10),
-
-                              InkWell(
-                                onTap: () {
-                                  _searchController.clear();
-                                  productController.clearFilters();
-                                },
-                                borderRadius: BorderRadius.circular(10),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 10,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red.withValues(alpha: 0.08),
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.filter_alt_off_outlined,
-                                        size: 18,
-                                        color: Colors.red,
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        'Clear',
-                                        style: theme.textTheme.labelSmall
-                                            ?.copyWith(
-                                              color: Colors.red,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ],
+                      ),
+                    if (productController.hasActiveCategory) ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          categories
+                                  .firstWhereOrNull(
+                                    (category) =>
+                                        category.id == selectedCategoryId,
+                                  )
+                                  ?.name ??
+                              'Category selected',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ],
-                  ),
+                    ] else
+                      const Spacer(),
+                    if (productController.hasActiveFilter)
+                      TextButton.icon(
+                        onPressed: () {
+                          _searchController.clear();
+                          productController.clearFilters();
+                        },
+                        icon: const Icon(Icons.filter_alt_off_outlined, size: 18),
+                        label: const Text('Clear'),
+                      ),
+                  ],
+                ),
+                if (productController.errorMessage.value != null &&
+                    products.isNotEmpty) ...[
                   const SizedBox(height: 12),
+                  InlineWarningBanner(
+                    message: productController.errorMessage.value!,
+                  ),
                 ],
-              ),
+              ],
             ),
+          ),
+          const SizedBox(height: 14),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: productController.retry,
+              child: CustomScrollView(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
             if (showInitialLoader)
               const SliverFillRemaining(
                 hasScrollBody: false,
@@ -907,58 +1023,13 @@ class _ProductsStepState extends State<_ProductsStep> {
                     : const SizedBox.shrink(),
               ),
             ),
-          ],
-        ),
+                ],
+              ),
+            ),
+          ),
+        ],
       );
     });
-  }
-}
-
-// ── Category Chip ────────────────────────────────────────────────────────────
-
-class _CategoryChip extends StatelessWidget {
-  const _CategoryChip({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? colorScheme.primary
-              : colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: isSelected
-                ? colorScheme.primary
-                : colorScheme.outlineVariant,
-          ),
-        ),
-        child: Text(
-          label,
-          style: theme.textTheme.labelMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: isSelected
-                ? colorScheme.onPrimary
-                : colorScheme.onSurfaceVariant,
-          ),
-        ),
-      ),
-    );
   }
 }
 
