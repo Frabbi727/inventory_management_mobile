@@ -6,10 +6,12 @@ import '../../../../core/routes/app_routes.dart';
 import '../../../customers/data/models/customer_model.dart';
 import '../../../products/data/models/product_model.dart';
 import '../../../products/data/models/product_variant_model.dart';
+import '../../../products/data/repositories/product_repository.dart';
 import '../../data/models/cart_item_model.dart';
 import '../../data/models/create_order_request_model.dart';
 import '../../data/models/create_order_response_model.dart';
 import '../../data/models/order_item_request_model.dart';
+import '../../data/models/order_item_model.dart';
 import '../../data/models/order_model.dart';
 import '../../data/repositories/order_repository.dart';
 
@@ -19,10 +21,14 @@ class CartController extends GetxController {
   static const int cartStep = 2;
   static const int confirmStep = 3;
 
-  CartController({required OrderRepository orderRepository})
-    : _orderRepository = orderRepository;
+  CartController({
+    required OrderRepository orderRepository,
+    required ProductRepository productRepository,
+  }) : _orderRepository = orderRepository,
+       _productRepository = productRepository;
 
   final OrderRepository _orderRepository;
+  final ProductRepository _productRepository;
 
   final items = <CartItemModel>[].obs;
   final selectedCustomer = Rxn<CustomerModel>();
@@ -33,6 +39,7 @@ class CartController extends GetxController {
   final selectedOrderDate = DateTime.now().obs;
   final savedDraftOrder = Rxn<OrderModel>();
   final isSubmitting = false.obs;
+  final isHydratingDraft = false.obs;
   final errorMessage = RxnString();
   final infoMessage = RxnString();
   final hasUnsavedDraftChanges = false.obs;
@@ -529,9 +536,9 @@ class CartController extends GetxController {
 
   Future<CreateOrderResponseModel?> submitOrder() => confirmOrder();
 
-  Future<bool> deleteDraft() async {
-    final orderId = savedDraftOrder.value?.id;
-    if (orderId == null) {
+  Future<bool> deleteDraft({int? orderId}) async {
+    final targetOrderId = orderId ?? savedDraftOrder.value?.id;
+    if (targetOrderId == null) {
       clearCart();
       return true;
     }
@@ -541,8 +548,10 @@ class CartController extends GetxController {
     infoMessage.value = null;
 
     try {
-      await _orderRepository.deleteOrder(orderId);
-      clearCart();
+      await _orderRepository.deleteOrder(targetOrderId);
+      if (savedDraftOrder.value?.id == targetOrderId) {
+        clearCart();
+      }
       return true;
     } on ApiException catch (error) {
       errorMessage.value = _formatApiException(error);
@@ -553,6 +562,90 @@ class CartController extends GetxController {
     }
 
     return false;
+  }
+
+  Future<void> hydrateDraftFromOrder(OrderModel order) async {
+    final orderId = order.id;
+    if (orderId == null) {
+      errorMessage.value = 'Draft order details are missing.';
+      return;
+    }
+
+    isHydratingDraft.value = true;
+    errorMessage.value = null;
+    infoMessage.value = null;
+
+    try {
+      final draftOrder = await _loadOrderForEditing(orderId, fallback: order);
+      final draftItems = <CartItemModel>[];
+
+      for (final item in draftOrder.items ?? const <OrderItemModel>[]) {
+        final productId = item.productId;
+        if (productId == null) {
+          continue;
+        }
+
+        try {
+          final productDetails = await _productRepository.fetchProductDetails(
+            productId,
+            forceRefresh: true,
+          );
+          final product = productDetails.data;
+          if (product == null) {
+            throw ApiException(message: 'Product details were not returned.');
+          }
+
+          ProductVariantModel? variant;
+          if (item.productVariantId != null) {
+            variant = (product.variants ?? const <ProductVariantModel>[])
+                .cast<ProductVariantModel?>()
+                .firstWhere(
+                  (candidate) => candidate?.id == item.productVariantId,
+                  orElse: () => null,
+                );
+          }
+
+          draftItems.add(
+            CartItemModel(
+              product: product,
+              quantity: item.quantity ?? 1,
+              variant: variant,
+            ),
+          );
+        } catch (_) {
+          draftItems.add(_fallbackCartItem(item));
+        }
+      }
+
+      items.assignAll(draftItems);
+      selectedCustomer.value = CustomerModel(
+        id: draftOrder.customer?.id,
+        name: draftOrder.customer?.name,
+        phone: draftOrder.customer?.phone,
+      );
+      noteText.value = draftOrder.note ?? '';
+      noteController.text = noteText.value;
+      discountType.value = draftOrder.discountType;
+      discountValue.value = draftOrder.discountValue;
+      discountValueController.text = draftOrder.discountValue == null
+          ? ''
+          : _normalizeMoney(draftOrder.discountValue!).toStringAsFixed(2);
+      selectedOrderDate.value =
+          DateTime.tryParse((draftOrder.orderDate ?? '').split('T').first) ??
+          DateTime.now();
+      savedDraftOrder.value = draftOrder;
+      hasUnsavedDraftChanges.value = false;
+      currentStep.value = confirmStep;
+      infoMessage.value =
+          'Draft ${draftOrder.orderNo ?? ''} loaded. You can edit, save, and confirm it from here.'
+              .trim();
+    } on ApiException catch (error) {
+      errorMessage.value = _formatApiException(error);
+    } catch (_) {
+      errorMessage.value = 'Unable to open the draft for editing right now.';
+    } finally {
+      isHydratingDraft.value = false;
+    }
   }
 
   String submitButtonLabel() {
@@ -667,6 +760,42 @@ class CartController extends GetxController {
     }
 
     return error.message;
+  }
+
+  Future<OrderModel> _loadOrderForEditing(
+    int orderId, {
+    required OrderModel fallback,
+  }) async {
+    try {
+      final response = await _orderRepository.fetchOrderDetails(orderId);
+      return response.data ?? fallback;
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  CartItemModel _fallbackCartItem(OrderItemModel item) {
+    final product = ProductModel(
+      id: item.productId,
+      name: item.productName ?? 'Unnamed product',
+      hasVariants: item.productVariantId != null,
+      sellingPrice: item.unitPrice,
+      currentStock: item.quantity,
+    );
+    final variant = item.productVariantId == null
+        ? null
+        : ProductVariantModel(
+            id: item.productVariantId,
+            combinationLabel: item.variantLabel,
+            sellingPrice: item.unitPrice,
+            currentStock: item.quantity,
+          );
+
+    return CartItemModel(
+      product: product,
+      quantity: item.quantity ?? 1,
+      variant: variant,
+    );
   }
 
   @override

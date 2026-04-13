@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/routes/app_routes.dart';
 import '../../../../shared/widgets/app_message_state.dart';
 import '../../../cart_orders/data/models/order_item_model.dart';
+import '../../../cart_orders/data/models/order_model.dart';
+import '../../../cart_orders/presentation/controllers/cart_controller.dart';
 import '../controllers/order_details_controller.dart';
 
 class OrderDetailsPage extends GetView<OrderDetailsController> {
@@ -14,7 +17,23 @@ class OrderDetailsPage extends GetView<OrderDetailsController> {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Order Details')),
+      appBar: AppBar(
+        title: const Text('Order Details'),
+        actions: [
+          Obx(() {
+            final order = controller.order.value;
+            if (order?.status != 'draft' || order?.id == null) {
+              return const SizedBox.shrink();
+            }
+
+            return TextButton.icon(
+              onPressed: () => _editDraft(order!),
+              icon: const Icon(Icons.edit_outlined),
+              label: const Text('Edit'),
+            );
+          }),
+        ],
+      ),
       body: SafeArea(
         child: Obx(() {
           if (controller.isLoading.value && controller.order.value == null) {
@@ -101,6 +120,16 @@ class OrderDetailsPage extends GetView<OrderDetailsController> {
     }
 
     return value[0].toUpperCase() + value.substring(1);
+  }
+
+  Future<void> _editDraft(OrderModel order) async {
+    final cartController = Get.find<CartController>();
+    await cartController.hydrateDraftFromOrder(order);
+    if (cartController.errorMessage.value != null) {
+      return;
+    }
+
+    await Get.toNamed(AppRoutes.newOrder);
   }
 }
 

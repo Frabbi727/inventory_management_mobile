@@ -136,7 +136,10 @@ class _NewOrderPageState extends State<NewOrderPage> {
               controller.currentStep.value == CartController.confirmStep
               ? (controller.canConfirm
                     ? () async {
-                        await controller.confirmOrder();
+                        final shouldConfirm = await _showConfirmOrderDialog();
+                        if (shouldConfirm == true) {
+                          await controller.confirmOrder();
+                        }
                       }
                     : null)
               : (controller.canContinueCurrentStep
@@ -153,6 +156,28 @@ class _NewOrderPageState extends State<NewOrderPage> {
     }
 
     return controller.submitButtonLabel();
+  }
+
+  Future<bool?> _showConfirmOrderDialog() {
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Confirm Order'),
+        content: const Text(
+          'Are you sure you want to confirm this order? You can still save it as a draft if you need more changes.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -1466,48 +1491,6 @@ class _ConfirmStep extends StatelessWidget {
               ],
             ),
           ),
-          if (controller.hasSavedDraft) ...[
-            const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: controller.isSubmitting.value
-                    ? null
-                    : () async {
-                        final shouldDelete = await showDialog<bool>(
-                          context: context,
-                          builder: (dialogContext) => AlertDialog(
-                            title: const Text('Delete Draft'),
-                            content: const Text(
-                              'This will remove the saved draft from the server. Continue?',
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () =>
-                                    Navigator.of(dialogContext).pop(false),
-                                child: const Text('Cancel'),
-                              ),
-                              FilledButton(
-                                onPressed: () =>
-                                    Navigator.of(dialogContext).pop(true),
-                                child: const Text('Delete'),
-                              ),
-                            ],
-                          ),
-                        );
-
-                        if (shouldDelete == true) {
-                          await controller.deleteDraft();
-                        }
-                      },
-                icon: const Icon(Icons.delete_outline),
-                label: const Text('Delete Draft'),
-                style: TextButton.styleFrom(
-                  foregroundColor: theme.colorScheme.error,
-                ),
-              ),
-            ),
-          ],
           if (controller.noteText.value.trim().isNotEmpty) ...[
             const SizedBox(height: 16),
             _CartSectionCard(

@@ -11,6 +11,7 @@ import 'package:inventory_management_sales/features/cart_orders/presentation/con
 import 'package:inventory_management_sales/features/customers/data/models/customer_model.dart';
 import 'package:inventory_management_sales/features/products/data/models/product_model.dart';
 import 'package:inventory_management_sales/features/products/data/models/product_variant_model.dart';
+import 'package:inventory_management_sales/features/products/data/repositories/product_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -36,6 +37,15 @@ void main() {
     );
   }
 
+  ProductRepository createProductRepository(
+    Future<http.Response> Function(http.Request request) handler,
+  ) {
+    return ProductRepository(
+      apiClient: ApiClient(httpClient: MockClient(handler)),
+      tokenStorage: TokenStorage(),
+    );
+  }
+
   const product = ProductModel(
     id: 7,
     name: 'Fresh Milk 500ml',
@@ -47,6 +57,9 @@ void main() {
   test('adding the same product increments quantity and subtotal', () {
     final controller = CartController(
       orderRepository: createRepository((request) async {
+        return http.Response('{}', 200);
+      }),
+      productRepository: createProductRepository((request) async {
         return http.Response('{}', 200);
       }),
     );
@@ -61,6 +74,9 @@ void main() {
   test('estimated discount supports percent and amount', () {
     final controller = CartController(
       orderRepository: createRepository((request) async {
+        return http.Response('{}', 200);
+      }),
+      productRepository: createProductRepository((request) async {
         return http.Response('{}', 200);
       }),
     );
@@ -83,6 +99,9 @@ void main() {
       orderRepository: createRepository((request) async {
         return http.Response('{}', 200);
       }),
+      productRepository: createProductRepository((request) async {
+        return http.Response('{}', 200);
+      }),
     );
 
     controller.addProduct(const ProductModel(id: 8, sellingPrice: 48.456));
@@ -101,6 +120,9 @@ void main() {
     () {
       final controller = CartController(
         orderRepository: createRepository((request) async {
+          return http.Response('{}', 200);
+        }),
+        productRepository: createProductRepository((request) async {
           return http.Response('{}', 200);
         }),
       );
@@ -123,6 +145,9 @@ void main() {
       orderRepository: createRepository((request) async {
         return http.Response('{}', 200);
       }),
+      productRepository: createProductRepository((request) async {
+        return http.Response('{}', 200);
+      }),
     );
 
     controller.addProduct(product);
@@ -140,6 +165,9 @@ void main() {
   test('variant lines merge by product and variant id', () {
     final controller = CartController(
       orderRepository: createRepository((request) async {
+        return http.Response('{}', 200);
+      }),
+      productRepository: createProductRepository((request) async {
         return http.Response('{}', 200);
       }),
     );
@@ -219,6 +247,9 @@ void main() {
             200,
             headers: {'content-type': 'application/json'},
           );
+        }),
+        productRepository: createProductRepository((request) async {
+          return http.Response('{}', 200);
         }),
       );
 

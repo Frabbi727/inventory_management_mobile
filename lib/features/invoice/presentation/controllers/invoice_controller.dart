@@ -23,10 +23,10 @@ class InvoiceController extends GetxController {
   final errorMessage = RxnString();
   final infoMessage = RxnString();
   final searchQuery = ''.obs;
-  final selectedStatus = RxnString();
   final selectedCustomerId = RxnInt();
   final startDate = RxnString();
   final endDate = RxnString();
+  final activeStatusTab = 'draft'.obs;
 
   int _currentPage = 1;
   bool _hasNextPage = false;
@@ -39,7 +39,6 @@ class InvoiceController extends GetxController {
   bool get hasLoadedOnce => _hasLoadedOnce;
   bool get hasMorePages => _hasNextPage;
   bool get hasActiveFilters =>
-      selectedStatus.value != null ||
       selectedCustomerId.value != null ||
       startDate.value != null ||
       endDate.value != null;
@@ -49,9 +48,6 @@ class InvoiceController extends GetxController {
   int get activeFilterCount {
     var count = 0;
     if (searchQuery.value.trim().isNotEmpty) {
-      count++;
-    }
-    if (selectedStatus.value != null) {
       count++;
     }
     if (selectedCustomerId.value != null) {
@@ -135,7 +131,7 @@ class InvoiceController extends GetxController {
       final response = await _orderRepository.fetchOrders(
         page: pageToLoad,
         query: requestedQuery.isEmpty ? null : requestedQuery,
-        status: selectedStatus.value,
+        status: activeStatusTab.value,
         customerId: selectedCustomerId.value,
         startDate: startDate.value,
         endDate: endDate.value,
@@ -252,11 +248,9 @@ class InvoiceController extends GetxController {
   }
 
   Future<void> applyFilters({
-    String? status,
     int? customerId,
     DateTimeRange? dateRange,
   }) async {
-    selectedStatus.value = status;
     selectedCustomerId.value = customerId;
     startDate.value = dateRange == null
         ? null
@@ -267,7 +261,6 @@ class InvoiceController extends GetxController {
 
   Future<void> clearFilters() async {
     final hadFilters = hasActiveFilters;
-    selectedStatus.value = null;
     selectedCustomerId.value = null;
     startDate.value = null;
     endDate.value = null;
@@ -286,7 +279,6 @@ class InvoiceController extends GetxController {
     searchQuery.value = '';
     isSearching.value = false;
     _lastIssuedQuery = '';
-    selectedStatus.value = null;
     selectedCustomerId.value = null;
     startDate.value = null;
     endDate.value = null;
@@ -354,6 +346,15 @@ class InvoiceController extends GetxController {
     ];
 
     return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}';
+  }
+
+  Future<void> changeStatusTab(String status) async {
+    if (activeStatusTab.value == status) {
+      return;
+    }
+
+    activeStatusTab.value = status;
+    await fetchOrders(reset: true);
   }
 
   void _onScroll() {

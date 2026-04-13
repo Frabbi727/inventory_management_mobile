@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/storage/token_storage.dart';
 import '../../../auth/presentation/bindings/auth_dependencies.dart';
+import '../../../products/presentation/bindings/product_dependencies.dart';
+import '../../../products/data/repositories/product_repository.dart';
 import '../../data/repositories/order_repository.dart';
 import '../controllers/cart_controller.dart';
 
@@ -11,6 +13,7 @@ class CartDependencies {
 
   static void ensureRegistered() {
     AuthDependencies.ensureRegistered();
+    ProductDependencies.ensureRegistered();
 
     if (!Get.isRegistered<ApiClient>()) {
       Get.lazyPut(ApiClient.new, fenix: true);
@@ -32,7 +35,10 @@ class CartDependencies {
 
     if (!Get.isRegistered<CartController>()) {
       Get.put(
-        CartController(orderRepository: Get.find<OrderRepository>()),
+        CartController(
+          orderRepository: Get.find<OrderRepository>(),
+          productRepository: Get.find<ProductRepository>(),
+        ),
         permanent: true,
       );
     }

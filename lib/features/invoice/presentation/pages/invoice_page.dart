@@ -5,16 +5,11 @@ import '../../../../core/routes/app_routes.dart';
 import '../../../../shared/widgets/app_message_state.dart';
 import '../../../../shared/widgets/app_page_header.dart';
 import '../../../cart_orders/data/models/order_model.dart';
+import '../../../cart_orders/presentation/controllers/cart_controller.dart';
 import '../controllers/invoice_controller.dart';
 
 class InvoicePage extends GetView<InvoiceController> {
   const InvoicePage({super.key});
-
-  static const List<String> _statusOptions = [
-    'draft',
-    'confirmed',
-    'cancelled',
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -66,6 +61,13 @@ class InvoicePage extends GetView<InvoiceController> {
               ),
             ),
             const SizedBox(height: 16),
+            Obx(
+              () => _OrderStatusTabs(
+                activeStatus: controller.activeStatusTab.value,
+                onChanged: controller.changeStatusTab,
+              ),
+            ),
+            const SizedBox(height: 12),
             _OrdersToolbar(controller: controller),
             const SizedBox(height: 12),
             Obx(
@@ -214,6 +216,12 @@ class InvoicePage extends GetView<InvoiceController> {
                                     formatCurrency: controller.formatCurrency,
                                     formatDate: controller.formatDate,
                                     onTap: () => _openOrderDetails(order),
+                                    onEditDraft: order.status == 'draft'
+                                        ? () => _editDraft(order)
+                                        : null,
+                                    onDeleteDraft: order.status == 'draft'
+                                        ? () => _deleteDraft(order)
+                                        : null,
                                   );
                                 },
                               ),
@@ -230,7 +238,6 @@ class InvoicePage extends GetView<InvoiceController> {
   }
 
   Future<void> _openFilterSheet(BuildContext context) async {
-    var draftStatus = controller.selectedStatus.value;
     var draftRange = controller.selectedDateRange;
 
     await showModalBottomSheet<void>(
@@ -248,16 +255,6 @@ class InvoicePage extends GetView<InvoiceController> {
         final sectionLabelColor = colorScheme.onSurface.withValues(alpha: 0.95);
         final sectionBorderColor = colorScheme.outlineVariant.withValues(
           alpha: 0.55,
-        );
-        final chipFillColor = Color.alphaBlend(
-          colorScheme.surfaceContainerHighest.withValues(alpha: 0.58),
-          colorScheme.surface,
-        );
-        final chipBorderColor = colorScheme.outline.withValues(alpha: 0.36);
-        final selectedChipFill = colorScheme.primary;
-        final selectedChipTextColor = colorScheme.onPrimary;
-        final unselectedChipTextColor = colorScheme.onSurface.withValues(
-          alpha: 0.9,
         );
         final dateFieldFill = Color.alphaBlend(
           colorScheme.surfaceContainerHighest.withValues(alpha: 0.72),
@@ -297,61 +294,6 @@ class InvoicePage extends GetView<InvoiceController> {
                         ),
                       ),
                       const SizedBox(height: 18),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: surfaceCardColor,
-                          borderRadius: BorderRadius.circular(22),
-                          border: Border.all(color: sectionBorderColor),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Status',
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w800,
-                                color: sectionLabelColor,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Wrap(
-                              spacing: 10,
-                              runSpacing: 10,
-                              children: [
-                                _FilterChoiceChip(
-                                  label: 'All',
-                                  selected: draftStatus == null,
-                                  onSelected: () {
-                                    setModalState(() => draftStatus = null);
-                                  },
-                                  fillColor: chipFillColor,
-                                  borderColor: chipBorderColor,
-                                  selectedFillColor: selectedChipFill,
-                                  selectedTextColor: selectedChipTextColor,
-                                  unselectedTextColor: unselectedChipTextColor,
-                                ),
-                                for (final status in _statusOptions)
-                                  _FilterChoiceChip(
-                                    label: _titleCase(status),
-                                    selected: draftStatus == status,
-                                    onSelected: () {
-                                      setModalState(() => draftStatus = status);
-                                    },
-                                    fillColor: chipFillColor,
-                                    borderColor: chipBorderColor,
-                                    selectedFillColor: selectedChipFill,
-                                    selectedTextColor: selectedChipTextColor,
-                                    unselectedTextColor:
-                                        unselectedChipTextColor,
-                                  ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
@@ -476,7 +418,6 @@ class InvoicePage extends GetView<InvoiceController> {
                               onPressed: () async {
                                 Navigator.of(context).pop();
                                 await controller.applyFilters(
-                                  status: draftStatus,
                                   dateRange: draftRange,
                                 );
                               },
@@ -504,12 +445,138 @@ class InvoicePage extends GetView<InvoiceController> {
     Get.toNamed(AppRoutes.orderDetails, arguments: order);
   }
 
-  String _titleCase(String value) {
-    if (value.isEmpty) {
-      return value;
+  Future<void> _editDraft(OrderModel order) async {
+    if (order.status != 'draft' || order.id == null) {
+      return;
     }
 
-    return value[0].toUpperCase() + value.substring(1);
+    final cartController = Get.find<CartController>();
+    await cartController.hydrateDraftFromOrder(order);
+    if (cartController.errorMessage.value != null) {
+      return;
+    }
+
+    await Get.toNamed(AppRoutes.newOrder);
+  }
+
+  Future<void> _deleteDraft(OrderModel order) async {
+    if (order.status != 'draft' || order.id == null) {
+      return;
+    }
+
+    final shouldDelete = await showDialog<bool>(
+      context: Get.context!,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete Draft'),
+        content: Text(
+          'Delete ${order.orderNo ?? 'this draft order'}? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDelete != true) {
+      return;
+    }
+
+    final cartController = Get.find<CartController>();
+    final didDelete = await cartController.deleteDraft(orderId: order.id);
+    if (!didDelete) {
+      return;
+    }
+
+    await controller.retry();
+  }
+}
+
+class _OrderStatusTabs extends StatelessWidget {
+  const _OrderStatusTabs({
+    required this.activeStatus,
+    required this.onChanged,
+  });
+
+  final String activeStatus;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _StatusTabChip(
+              label: 'Draft',
+              selected: activeStatus == 'draft',
+              onTap: () => onChanged('draft'),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _StatusTabChip(
+              label: 'Confirm',
+              selected: activeStatus == 'confirmed',
+              onTap: () => onChanged('confirmed'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusTabChip extends StatelessWidget {
+  const _StatusTabChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected
+              ? theme.colorScheme.primary
+              : theme.colorScheme.surfaceContainerHigh,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: theme.textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: selected
+                ? theme.colorScheme.onPrimary
+                : theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -607,10 +674,6 @@ class _ActiveFiltersRow extends StatelessWidget {
       children: [
         if (controller.searchQuery.value.isNotEmpty)
           _FilterChip(label: 'Search: ${controller.searchQuery.value}'),
-        if (controller.selectedStatus.value != null)
-          _FilterChip(
-            label: 'Status: ${_titleCase(controller.selectedStatus.value!)}',
-          ),
         if (controller.startDate.value != null &&
             controller.endDate.value != null)
           _FilterChip(
@@ -626,14 +689,6 @@ class _ActiveFiltersRow extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  String _titleCase(String value) {
-    if (value.isEmpty) {
-      return value;
-    }
-
-    return value[0].toUpperCase() + value.substring(1);
   }
 }
 
@@ -662,62 +717,22 @@ class _FilterChip extends StatelessWidget {
   }
 }
 
-class _FilterChoiceChip extends StatelessWidget {
-  const _FilterChoiceChip({
-    required this.label,
-    required this.selected,
-    required this.onSelected,
-    required this.fillColor,
-    required this.borderColor,
-    required this.selectedFillColor,
-    required this.selectedTextColor,
-    required this.unselectedTextColor,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onSelected;
-  final Color fillColor;
-  final Color borderColor;
-  final Color selectedFillColor;
-  final Color selectedTextColor;
-  final Color unselectedTextColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      showCheckmark: false,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      backgroundColor: fillColor,
-      selectedColor: selectedFillColor,
-      side: BorderSide(
-        color: selected ? selectedFillColor : borderColor,
-        width: selected ? 1.35 : 1.1,
-      ),
-      labelStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
-        fontWeight: FontWeight.w800,
-        color: selected ? selectedTextColor : unselectedTextColor,
-      ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      onSelected: (_) => onSelected(),
-    );
-  }
-}
-
 class _OrderCard extends StatelessWidget {
   const _OrderCard({
     required this.order,
     required this.formatCurrency,
     required this.formatDate,
     required this.onTap,
+    this.onEditDraft,
+    this.onDeleteDraft,
   });
 
   final OrderModel order;
   final String Function(num? value) formatCurrency;
   final String Function(String? value) formatDate;
   final VoidCallback onTap;
+  final VoidCallback? onEditDraft;
+  final VoidCallback? onDeleteDraft;
 
   @override
   Widget build(BuildContext context) {
@@ -800,22 +815,46 @@ class _OrderCard extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _StatusBadge(
-                    label: _titleCase(order.status ?? 'unknown'),
-                    backgroundColor: statusStyle.backgroundColor,
-                    foregroundColor: statusStyle.foregroundColor,
+                  Expanded(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        _StatusBadge(
+                          label: _titleCase(order.status ?? 'unknown'),
+                          backgroundColor: statusStyle.backgroundColor,
+                          foregroundColor: statusStyle.foregroundColor,
+                        ),
+                        _MetaBadge(
+                          icon: Icons.inventory_2_outlined,
+                          label: '${order.items?.length ?? 0} items',
+                        ),
+                        if (onEditDraft != null)
+                          TextButton.icon(
+                            onPressed: onEditDraft,
+                            icon: const Icon(Icons.edit_outlined, size: 16),
+                            label: const Text('Edit'),
+                          ),
+                        if (onDeleteDraft != null)
+                          TextButton.icon(
+                            onPressed: onDeleteDraft,
+                            icon: const Icon(Icons.delete_outline, size: 16),
+                            label: const Text('Delete'),
+                          ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(width: 8),
-                  _MetaBadge(
-                    icon: Icons.inventory_2_outlined,
-                    label: '${order.items?.length ?? 0} items',
-                  ),
-                  const Spacer(),
-                  Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    size: 16,
-                    color: theme.colorScheme.onSurfaceVariant,
+                  const SizedBox(width: 12),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 16,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
@@ -834,7 +873,7 @@ class _OrderCard extends StatelessWidget {
           backgroundColor: const Color(0xFFDFF7EA),
           foregroundColor: const Color(0xFF166534),
         );
-      case 'pending':
+      case 'draft':
         return _OrderStatusStyle(
           backgroundColor: const Color(0xFFFFF4D6),
           foregroundColor: const Color(0xFF92400E),
