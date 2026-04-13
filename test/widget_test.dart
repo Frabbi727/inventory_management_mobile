@@ -1381,4 +1381,90 @@ void main() {
       expect(cartController.canConfirm, isFalse);
     },
   );
+
+  testWidgets(
+    'products step shows compact scan button beside search',
+    (WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'auth_token': 'sales-scan-token',
+      });
+
+      Get.put<AuthRepository>(
+        createRepository((request) async {
+          if (request.url.path.endsWith('/me')) {
+            return http.Response(
+              jsonEncode({
+                'data': {
+                  'id': 2,
+                  'name': 'Sales Demo',
+                  'email': 'salesman@example.com',
+                  'phone': '+8801700000002',
+                  'role': {'id': 2, 'name': 'Salesman', 'slug': 'salesman'},
+                },
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+
+          return http.Response(
+            jsonEncode({'message': 'Logout successful.'}),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        permanent: true,
+      );
+      Get.put<ProductRepository>(
+        createProductRepository((request) async {
+          if (request.method == 'GET' &&
+              request.url.path.contains(
+                '/inventory-manager/barcode/products/BC-001',
+              )) {
+            return http.Response(
+              jsonEncode({
+                'data': sampleProducts.first,
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+
+          return http.Response(
+            jsonEncode(productListPayload(products: sampleProducts)),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        permanent: true,
+      );
+      Get.put<CustomerRepository>(
+        createCustomerRepository((request) async {
+          return http.Response(
+            jsonEncode(customerListPayload(customers: sampleCustomers)),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        permanent: true,
+      );
+      registerDefaultOrderRepository();
+
+      await tester.pumpWidget(const SalesApp());
+      await tester.pump(const Duration(milliseconds: 700));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('New Order'));
+      await tester.pumpAndSettle();
+
+      final cartController = Get.find<CartController>();
+      cartController.setSelectedCustomer(
+        const CustomerModel(id: 1, name: 'Rahman Store'),
+      );
+      cartController.goToStep(CartController.productsStep);
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Scan barcode'), findsOneWidget);
+    },
+  );
 }

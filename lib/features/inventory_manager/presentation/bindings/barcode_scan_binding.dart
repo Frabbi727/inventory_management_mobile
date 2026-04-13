@@ -8,7 +8,10 @@ class BarcodeScanBinding extends Bindings {
   void dependencies() {
     InventoryManagerDependencies.ensureRegistered();
     Get.lazyPut(
-      () => BarcodeScanController(inventoryManagerRepository: Get.find()),
+      () => BarcodeScanController(
+        inventoryManagerRepository: Get.find(),
+        productRepository: Get.find(),
+      ),
     );
   }
 }

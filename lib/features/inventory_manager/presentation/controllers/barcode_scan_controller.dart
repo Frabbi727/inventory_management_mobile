@@ -7,13 +7,17 @@ import '../../data/models/barcode_resolve_response.dart';
 import '../../data/repositories/inventory_manager_repository.dart';
 import '../models/barcode_scan_models.dart';
 import '../models/product_form_args.dart';
+import '../../../products/data/repositories/product_repository.dart';
 
 class BarcodeScanController extends GetxController {
   BarcodeScanController({
     required InventoryManagerRepository inventoryManagerRepository,
-  }) : _inventoryManagerRepository = inventoryManagerRepository;
+    required ProductRepository productRepository,
+  }) : _inventoryManagerRepository = inventoryManagerRepository,
+       _productRepository = productRepository;
 
   final InventoryManagerRepository _inventoryManagerRepository;
+  final ProductRepository _productRepository;
 
   final barcodeController = TextEditingController();
   final scannerController = MobileScannerController(
@@ -29,10 +33,14 @@ class BarcodeScanController extends GetxController {
 
   String get subtitle => scanContext.value == BarcodeScanContext.purchaseLookup
       ? 'Scan a barcode to add a product to the purchase draft.'
+      : scanContext.value == BarcodeScanContext.salesOrderLookup
+      ? 'Scan a barcode to find a product and add it to the sales order.'
       : 'Scan a barcode to open an existing product or create a new one.';
 
   String get title => scanContext.value == BarcodeScanContext.purchaseLookup
       ? 'Scan Purchase Item'
+      : scanContext.value == BarcodeScanContext.salesOrderLookup
+      ? 'Scan Product'
       : 'Scan Barcode';
 
   @override
@@ -88,6 +96,16 @@ class BarcodeScanController extends GetxController {
     try {
       if (scanContext.value == BarcodeScanContext.purchaseLookup) {
         Get.back(result: BarcodeScanResult(barcode: barcode));
+        return;
+      }
+
+      if (scanContext.value == BarcodeScanContext.salesOrderLookup) {
+        final product = await _productRepository.fetchProductByBarcode(
+          barcode,
+        );
+        Get.back(
+          result: BarcodeScanResult(barcode: barcode, product: product),
+        );
         return;
       }
 

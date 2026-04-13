@@ -4,6 +4,7 @@ import '../../../../core/errors/api_exception.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/storage/token_storage.dart';
+import '../models/product_model.dart';
 import '../models/product_details_response_model.dart';
 import '../models/product_list_response_model.dart';
 import '../models/subcategory_list_response_model.dart';
@@ -150,6 +151,27 @@ class ProductRepository {
     );
 
     return CategoryResponseModel.fromJson(response);
+  }
+
+  Future<ProductModel> fetchProductByBarcode(String barcode) async {
+    final token = await _tokenStorage.getToken();
+    if (token == null || token.isEmpty) {
+      throw ApiException(
+        message: 'Authentication token not found.',
+        statusCode: 401,
+      );
+    }
+
+    final response = await _apiClient.get(
+      ApiEndpoints.publicProductByBarcode(barcode.trim()),
+      token: token,
+    );
+
+    if (response['data'] is Map<String, dynamic>) {
+      return ProductModel.fromJson(response['data'] as Map<String, dynamic>);
+    }
+
+    throw ApiException(message: 'Product details were not returned.');
   }
 
   Future<List<ProductSubcategoryModel>> fetchSubcategories({

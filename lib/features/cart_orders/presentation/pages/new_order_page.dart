@@ -7,6 +7,7 @@ import '../../../../core/routes/app_routes.dart';
 import '../../../../shared/widgets/app_message_state.dart';
 import '../../../../shared/widgets/app_searchable_select.dart';
 import '../../../customers/data/models/customer_model.dart';
+import '../../../inventory_manager/presentation/models/barcode_scan_models.dart';
 import '../../../products/data/models/product_model.dart';
 import '../../../products/data/models/product_variant_model.dart';
 import '../../../products/data/repositories/product_repository.dart';
@@ -649,6 +650,203 @@ class _ProductsStepState extends State<_ProductsStep> {
     return response.data ?? product;
   }
 
+  Future<void> _openSimpleProductPicker(
+    BuildContext context,
+    ProductModel product,
+    CartController cartController,
+    ProductListController productController,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        final theme = Theme.of(sheetContext);
+
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              8,
+              20,
+              20 + MediaQuery.of(sheetContext).viewInsets.bottom,
+            ),
+            child: Obx(() {
+              final _ = cartController.items.length;
+              final quantity = cartController.quantityForLine(product.id);
+              final availableStock = product.currentStock ?? 0;
+              final isUnavailable = availableStock <= 0;
+
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    product.name ?? 'Quick Add Product',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${productController.formatPrice(product.sellingPrice)} • Stock $availableStock',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerLowest,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: theme.colorScheme.outlineVariant,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Type the quantity you want to add.',
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        QuantityStepper(
+                          key: ValueKey('simple-qty-${product.id}'),
+                          quantity: quantity,
+                          onIncrement: isUnavailable
+                              ? null
+                              : () => _applyProductQuantity(
+                                  cartController,
+                                  product,
+                                  quantity + 1,
+                                ),
+                          onDecrement: quantity <= 0
+                              ? null
+                              : () => _applyProductQuantity(
+                                  cartController,
+                                  product,
+                                  quantity - 1,
+                                ),
+                          onSubmitted: isUnavailable
+                              ? null
+                              : (value) => _applyProductQuantity(
+                                  cartController,
+                                  product,
+                                  value,
+                                ),
+                          canIncrement: !isUnavailable,
+                          enabled: !isUnavailable,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (isUnavailable) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      'This product is out of stock.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.error,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            Navigator.of(sheetContext).pop();
+                            Get.toNamed(
+                              AppRoutes.productDetails,
+                              arguments: product,
+                            );
+                          },
+                          child: const Text('View Details'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          child: const Text('Done'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            }),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openQuickAddSheet(
+    BuildContext context,
+    ProductModel product,
+    CartController cartController,
+    ProductListController productController,
+  ) async {
+    if (product.hasVariants == true) {
+      await _openVariantPicker(
+        context,
+        product,
+        cartController,
+        productController,
+      );
+      return;
+    }
+
+    await _openSimpleProductPicker(
+      context,
+      product,
+      cartController,
+      productController,
+    );
+  }
+
+  Future<void> _scanBarcode(
+    BuildContext context,
+    CartController cartController,
+    ProductListController productController,
+  ) async {
+    final result = await Get.toNamed(
+      AppRoutes.inventoryBarcodeScan,
+      arguments: const BarcodeScanArgs(
+        context: BarcodeScanContext.salesOrderLookup,
+      ),
+    );
+
+    if (result is! BarcodeScanResult) {
+      return;
+    }
+
+    final scannedProduct = result.product;
+    if (scannedProduct == null) {
+      cartController.errorMessage.value =
+          'No product was found for this barcode.';
+      return;
+    }
+
+    if (!context.mounted) {
+      return;
+    }
+
+    await _openQuickAddSheet(
+      context,
+      scannedProduct,
+      cartController,
+      productController,
+    );
+  }
+
   Future<void> _openVariantPicker(
     BuildContext context,
     ProductModel product,
@@ -1078,15 +1276,31 @@ class _ProductsStepState extends State<_ProductsStep> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                OrderSearchField(
-                  controller: _searchController,
-                  hintText: 'Search by product name or SKU',
-                  isLoading: productController.isSearching.value,
-                  onChanged: productController.onSearchChanged,
-                  onClear: () {
-                    _searchController.clear();
-                    productController.clearSearch();
-                  },
+                Row(
+                  children: [
+                    Expanded(
+                      child: OrderSearchField(
+                        controller: _searchController,
+                        hintText: 'Search by product name or SKU',
+                        isLoading: productController.isSearching.value,
+                        onChanged: productController.onSearchChanged,
+                        onClear: () {
+                          _searchController.clear();
+                          productController.clearSearch();
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton.filledTonal(
+                      onPressed: () => _scanBarcode(
+                        context,
+                        cartController,
+                        productController,
+                      ),
+                      icon: const Icon(Icons.qr_code_scanner_rounded),
+                      tooltip: 'Scan barcode',
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -1281,13 +1495,18 @@ class _ProductsStepState extends State<_ProductsStep> {
                       Get.toNamed(AppRoutes.productDetails, arguments: product);
                     },
                     onAdd: () => product.hasVariants == true
-                        ? _openVariantPicker(
+                        ? _openQuickAddSheet(
                             context,
                             product,
                             cartController,
                             productController,
                           )
-                        : cartController.addProduct(product),
+                        : _openQuickAddSheet(
+                            context,
+                            product,
+                            cartController,
+                            productController,
+                          ),
                     onIncrement: product.hasVariants == true
                         ? null
                         : () => cartController.incrementQuantity(

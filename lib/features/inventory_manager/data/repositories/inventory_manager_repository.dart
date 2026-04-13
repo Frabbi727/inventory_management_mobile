@@ -46,17 +46,7 @@ class InventoryManagerRepository {
   }
 
   Future<ProductModel> getProductByBarcode(String barcode) async {
-    final token = await _requireToken();
-    final response = await _apiClient.get(
-      ApiEndpoints.barcodeProductDetails(_normalizeBarcode(barcode)),
-      token: token,
-    );
-
-    if (response['data'] is Map<String, dynamic>) {
-      return ProductModel.fromJson(response['data'] as Map<String, dynamic>);
-    }
-
-    throw ApiException(message: 'Product details were not returned.');
+    return _productRepository.fetchProductByBarcode(_normalizeBarcode(barcode));
   }
 
   Future<PurchaseBarcodeLookupResponse> getPurchaseProductByBarcode(

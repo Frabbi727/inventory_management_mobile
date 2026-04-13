@@ -24,6 +24,8 @@ class ApiEndpoints {
       '$subcategories?category_id=$categoryId';
   static String resolveBarcodeProduct(String barcode) =>
       '$inventoryManagerBarcodeBase/products/$barcode/resolve';
+  static String publicProductByBarcode(String barcode) =>
+      '$products/barcode/$barcode';
   static String barcodeProductDetails(String barcode) =>
       '$inventoryManagerBarcodeBase/products/$barcode';
   static String barcodeProducts() => '$inventoryManagerBarcodeBase/products';

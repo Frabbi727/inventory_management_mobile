@@ -579,19 +579,26 @@ class _QuantityInputStepper extends StatefulWidget {
 class _QuantityInputStepperState extends State<_QuantityInputStepper> {
   late final TextEditingController _controller;
   late final FocusNode _focusNode;
+  late int _committedQuantity;
+  var _isEditing = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: '${widget.quantity}');
+    _committedQuantity = widget.quantity;
+    _controller = TextEditingController(text: '$_committedQuantity');
     _focusNode = FocusNode()..addListener(_handleFocusChange);
   }
 
   @override
   void didUpdateWidget(covariant _QuantityInputStepper oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.quantity != oldWidget.quantity && !_focusNode.hasFocus) {
-      _controller.text = '${widget.quantity}';
+    if (widget.quantity != oldWidget.quantity) {
+      _committedQuantity = widget.quantity;
+    }
+
+    if (!_focusNode.hasFocus && !_isEditing && widget.quantity != oldWidget.quantity) {
+      _setDisplayedValue(widget.quantity);
     }
   }
 
@@ -606,6 +613,7 @@ class _QuantityInputStepperState extends State<_QuantityInputStepper> {
 
   void _handleFocusChange() {
     if (_focusNode.hasFocus) {
+      _isEditing = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted || !_focusNode.hasFocus) {
           return;
@@ -620,8 +628,17 @@ class _QuantityInputStepperState extends State<_QuantityInputStepper> {
     }
 
     if (!_focusNode.hasFocus) {
+      _isEditing = false;
       _commit();
     }
+  }
+
+  void _setDisplayedValue(int value) {
+    final text = '$value';
+    _controller.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
   }
 
   void _commit() {
@@ -629,15 +646,16 @@ class _QuantityInputStepperState extends State<_QuantityInputStepper> {
     final parsed = int.tryParse(raw);
     final minimum = widget.allowZero ? 0 : 1;
     if (parsed == null || parsed < minimum) {
-      _controller.text = '${widget.quantity}';
+      _setDisplayedValue(_committedQuantity);
       return;
     }
 
-    if (parsed == widget.quantity) {
-      _controller.text = '$parsed';
+    if (parsed == _committedQuantity) {
+      _setDisplayedValue(parsed);
       return;
     }
 
+    _committedQuantity = parsed;
     widget.onSubmitted?.call(parsed);
   }
 

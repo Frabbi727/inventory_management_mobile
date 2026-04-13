@@ -9,6 +9,7 @@ import 'package:inventory_management_sales/core/storage/token_storage.dart';
 import 'package:inventory_management_sales/features/inventory_manager/data/models/barcode_resolve_response.dart';
 import 'package:inventory_management_sales/features/inventory_manager/data/repositories/inventory_manager_repository.dart';
 import 'package:inventory_management_sales/features/inventory_manager/presentation/controllers/barcode_scan_controller.dart';
+import 'package:inventory_management_sales/features/inventory_manager/presentation/models/barcode_scan_models.dart';
 import 'package:inventory_management_sales/features/products/data/models/product_model.dart';
 import 'package:inventory_management_sales/features/products/data/repositories/product_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -40,6 +41,23 @@ class _FakeInventoryManagerRepository extends InventoryManagerRepository {
 
   @override
   Future<ProductModel> getProductByBarcode(String barcode) {
+    return barcodeLookupHandler(barcode);
+  }
+}
+
+class _FakeProductRepository extends ProductRepository {
+  _FakeProductRepository({required this.barcodeLookupHandler})
+    : super(
+        apiClient: ApiClient(
+          httpClient: MockClient((_) async => http.Response('{}', 200)),
+        ),
+        tokenStorage: TokenStorage(),
+      );
+
+  final Future<ProductModel> Function(String barcode) barcodeLookupHandler;
+
+  @override
+  Future<ProductModel> fetchProductByBarcode(String barcode) {
     return barcodeLookupHandler(barcode);
   }
 }
@@ -91,6 +109,9 @@ void main() {
 
     final controller = BarcodeScanController(
       inventoryManagerRepository: repository,
+      productRepository: _FakeProductRepository(
+        barcodeLookupHandler: (barcode) async => throw UnimplementedError(),
+      ),
     );
     Get.put(controller);
 
@@ -118,6 +139,9 @@ void main() {
 
       final controller = BarcodeScanController(
         inventoryManagerRepository: repository,
+        productRepository: _FakeProductRepository(
+          barcodeLookupHandler: (barcode) async => throw UnimplementedError(),
+        ),
       );
       Get.put(controller);
 
@@ -146,6 +170,9 @@ void main() {
 
     final controller = BarcodeScanController(
       inventoryManagerRepository: repository,
+      productRepository: _FakeProductRepository(
+        barcodeLookupHandler: (barcode) async => throw UnimplementedError(),
+      ),
     );
     Get.put(controller);
 
@@ -177,6 +204,9 @@ void main() {
 
       final controller = BarcodeScanController(
         inventoryManagerRepository: repository,
+        productRepository: _FakeProductRepository(
+          barcodeLookupHandler: (barcode) async => throw UnimplementedError(),
+        ),
       );
       Get.put(controller);
 
@@ -187,6 +217,38 @@ void main() {
       expect(lookupCalled, isTrue);
       expect(Get.currentRoute, AppRoutes.productDetails);
       expect(find.text('details-int'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'returns scanned product result for sales order lookup',
+    (tester) async {
+      var lookupCalled = false;
+      final repository = _FakeInventoryManagerRepository(
+        resolveHandler: (barcode) async => throw UnimplementedError(),
+        barcodeLookupHandler: (barcode) async {
+          throw UnimplementedError();
+        },
+      );
+      final productRepository = _FakeProductRepository(
+        barcodeLookupHandler: (barcode) async {
+          lookupCalled = true;
+          return const ProductModel(id: 8, name: 'Scanned Product');
+        },
+      );
+
+      final controller = BarcodeScanController(
+        inventoryManagerRepository: repository,
+        productRepository: productRepository,
+      );
+      Get.put(controller);
+      controller.scanContext.value = BarcodeScanContext.salesOrderLookup;
+
+      await tester.pumpWidget(testApp());
+      await controller.resolveBarcode('BC-001');
+
+      expect(lookupCalled, isTrue);
+      expect(controller.errorMessage.value, isNull);
     },
   );
 }
