@@ -4,9 +4,9 @@ import '../../../../core/errors/api_exception.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/storage/token_storage.dart';
-import '../../../inventory_manager/data/models/subcategory_list_response_model.dart';
 import '../models/product_details_response_model.dart';
 import '../models/product_list_response_model.dart';
+import '../models/subcategory_list_response_model.dart';
 import '../models/product_subcategory_model.dart';
 
 class ProductRepository {
@@ -115,11 +115,12 @@ class ProductRepository {
     final request = _apiClient
         .get(ApiEndpoints.productDetails(id), token: token)
         .then((response) {
-          if (response['data'] case final Map<String, dynamic> _) {
-            return ProductDetailsResponseModel.fromJson(response);
+          final parsed = ProductDetailsResponseModel.fromJson(response);
+          if (parsed.data == null) {
+            throw ApiException(message: 'Product details were not returned.');
           }
 
-          return ProductDetailsResponseModel.fromJson({'data': response});
+          return parsed;
         });
 
     _inflightDetailRequests[id] = request;

@@ -1,17 +1,22 @@
-import 'package:json_annotation/json_annotation.dart';
-
+import '../../../../core/models/api_object_response_model.dart';
 import 'product_model.dart';
 
-part 'product_details_response_model.g.dart';
+class ProductDetailsResponseModel extends ApiObjectResponseModel<ProductModel> {
+  const ProductDetailsResponseModel({super.success, super.message, super.data});
 
-@JsonSerializable(explicitToJson: true)
-class ProductDetailsResponseModel {
-  const ProductDetailsResponseModel({this.data});
+  factory ProductDetailsResponseModel.fromJson(Map<String, dynamic> json) {
+    final parsed = ApiObjectResponseModel<ProductModel>.fromJson(
+      json,
+      ProductModel.fromJson,
+    );
 
-  final ProductModel? data;
+    return ProductDetailsResponseModel(
+      success: parsed.success,
+      message: parsed.message,
+      data: parsed.data,
+    );
+  }
 
-  factory ProductDetailsResponseModel.fromJson(Map<String, dynamic> json) =>
-      _$ProductDetailsResponseModelFromJson(json);
-
-  Map<String, dynamic> toJson() => _$ProductDetailsResponseModelToJson(this);
+  Map<String, dynamic> toJson() =>
+      super.toResponseJson((product) => product.toJson());
 }

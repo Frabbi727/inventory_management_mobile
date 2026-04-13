@@ -5,6 +5,7 @@ import '../../../../core/storage/token_storage.dart';
 import '../../../products/data/models/category_response_model.dart';
 import '../../../products/data/models/product_model.dart';
 import '../../../products/data/models/product_subcategory_model.dart';
+import '../../../products/data/models/subcategory_list_response_model.dart';
 import '../../../products/data/models/product_unit_model.dart';
 import '../../../products/data/repositories/product_repository.dart';
 import '../models/barcode_resolve_response.dart';
@@ -16,7 +17,6 @@ import '../models/purchase_response_model.dart';
 import '../models/purchase_response_wrapper_model.dart';
 import '../models/product_unit_list_response_model.dart';
 import '../models/purchase_barcode_lookup_response.dart';
-import '../models/subcategory_list_response_model.dart';
 
 class InventoryManagerRepository {
   InventoryManagerRepository({

@@ -4,9 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:inventory_management_sales/core/errors/api_exception.dart';
+import 'package:inventory_management_sales/core/constants/api_config.dart';
 import 'package:inventory_management_sales/core/network/api_client.dart';
 import 'package:inventory_management_sales/core/storage/token_storage.dart';
-import 'package:inventory_management_sales/features/products/data/models/product_details_response_model.dart';
+import 'package:inventory_management_sales/features/products/data/models/category_response_model.dart';
 import 'package:inventory_management_sales/features/products/data/repositories/product_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -22,43 +23,44 @@ void main() {
   test(
     'fetchProducts sends page, status, q, category, and subcategory query parameters',
     () async {
-    late http.Request capturedRequest;
-    final repository = ProductRepository(
-      apiClient: ApiClient(
-        httpClient: MockClient((request) async {
-          capturedRequest = request;
-          return http.Response(
-            jsonEncode({
-              'data': const [],
-              'links': {'next': null},
-              'meta': {'current_page': 2, 'last_page': 3},
-            }),
-            200,
-            headers: {'content-type': 'application/json'},
-          );
-        }),
-      ),
-      tokenStorage: TokenStorage(),
-    );
+      late http.Request capturedRequest;
+      final repository = ProductRepository(
+        apiClient: ApiClient(
+          httpClient: MockClient((request) async {
+            capturedRequest = request;
+            return http.Response(
+              jsonEncode({
+                'data': const [],
+                'links': {'next': null},
+                'meta': {'current_page': 2, 'last_page': 3},
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }),
+        ),
+        tokenStorage: TokenStorage(),
+      );
 
-    await repository.fetchProducts(
-      page: 2,
-      query: 'milk',
-      categoryId: 8,
-      subcategoryId: 11,
-    );
+      await repository.fetchProducts(
+        page: 2,
+        query: 'milk',
+        categoryId: 8,
+        subcategoryId: 11,
+      );
 
-    expect(
-      capturedRequest.headers['X-Authorization'],
-      equals('Bearer product-token'),
-    );
-    expect(capturedRequest.url.path, '/api/products');
-    expect(capturedRequest.url.queryParameters['page'], '2');
-    expect(capturedRequest.url.queryParameters['status'], 'active');
-    expect(capturedRequest.url.queryParameters['q'], 'milk');
-    expect(capturedRequest.url.queryParameters['category_id'], '8');
-    expect(capturedRequest.url.queryParameters['subcategory_id'], '11');
-  });
+      expect(
+        capturedRequest.headers['X-Authorization'],
+        equals('Bearer product-token'),
+      );
+      expect(capturedRequest.url.path, '/api/products');
+      expect(capturedRequest.url.queryParameters['page'], '2');
+      expect(capturedRequest.url.queryParameters['status'], 'active');
+      expect(capturedRequest.url.queryParameters['q'], 'milk');
+      expect(capturedRequest.url.queryParameters['category_id'], '8');
+      expect(capturedRequest.url.queryParameters['subcategory_id'], '11');
+    },
+  );
 
   test('fetchProducts throws when token is missing', () async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
@@ -182,92 +184,62 @@ void main() {
     expect(response.data?.barcodeImageUrl, 'https://example.com/barcode.svg');
   });
 
-  test('fetchProductDetails parses optional variant and subcategory fields', () async {
-    final repository = ProductRepository(
-      apiClient: ApiClient(
-        httpClient: MockClient((request) async {
-          return http.Response(
-            jsonEncode({
-              'data': {
-                'id': 1,
-                'name': 'Samsung S28',
-                'has_variants': true,
-                'subcategory': {
+  test(
+    'fetchProductDetails parses optional variant and subcategory fields',
+    () async {
+      final repository = ProductRepository(
+        apiClient: ApiClient(
+          httpClient: MockClient((request) async {
+            return http.Response(
+              jsonEncode({
+                'data': {
                   'id': 1,
-                  'name': 'Samsung',
-                  'category_id': 1,
-                },
-                'variant_summary': {
-                  'total_variants': 3,
-                  'in_stock_count': 0,
-                  'low_stock_count': 0,
-                  'out_of_stock_count': 3,
-                },
-                'variant_attributes': [
-                  {
-                    'id': 4,
-                    'name': 'Storage',
-                    'values': ['128', '256'],
+                  'name': 'Samsung S28',
+                  'has_variants': true,
+                  'subcategory': {'id': 1, 'name': 'Samsung', 'category_id': 1},
+                  'variant_summary': {
+                    'total_variants': 3,
+                    'in_stock_count': 0,
+                    'low_stock_count': 0,
+                    'out_of_stock_count': 3,
                   },
-                ],
-                'variants': [
-                  {
-                    'id': 9,
-                    'combination_key': 'storage-128',
-                    'combination_label': '128',
-                    'option_values': {'Storage': '128'},
-                    'is_active': true,
-                    'current_stock': 0,
-                    'stock_status': 'out_of_stock',
-                  },
-                ],
-              },
-            }),
-            200,
-            headers: {'content-type': 'application/json'},
-          );
-        }),
-      ),
-      tokenStorage: TokenStorage(),
-    );
+                  'variant_attributes': [
+                    {
+                      'id': 4,
+                      'name': 'Storage',
+                      'values': ['128', '256'],
+                    },
+                  ],
+                  'variants': [
+                    {
+                      'id': 9,
+                      'combination_key': 'storage-128',
+                      'combination_label': '128',
+                      'option_values': {'Storage': '128'},
+                      'is_active': true,
+                      'current_stock': 0,
+                      'stock_status': 'out_of_stock',
+                    },
+                  ],
+                },
+              }),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }),
+        ),
+        tokenStorage: TokenStorage(),
+      );
 
-    final response = await repository.fetchProductDetails(1);
+      final response = await repository.fetchProductDetails(1);
 
-    expect(response.data?.hasVariants, isTrue);
-    expect(response.data?.subcategory?.name, 'Samsung');
-    expect(response.data?.variantSummary?.totalVariants, 3);
-    expect(response.data?.variantAttributes?.first.values, ['128', '256']);
-    expect(response.data?.variants?.first.combinationKey, 'storage-128');
-  });
-
-  test('fetchProductDetails accepts direct product objects too', () async {
-    final repository = ProductRepository(
-      apiClient: ApiClient(
-        httpClient: MockClient((request) async {
-          return http.Response(
-            jsonEncode({
-              'id': 5,
-              'name': 'Dishwashing Liquid 500ml',
-              'sku': 'PRD-DISH-500',
-              'barcode': 'PRD-DISH-500',
-              'barcode_image_url': 'https://example.com/dish.svg',
-              'selling_price': 85,
-              'current_stock': 924,
-            }),
-            200,
-            headers: {'content-type': 'application/json'},
-          );
-        }),
-      ),
-      tokenStorage: TokenStorage(),
-    );
-
-    final ProductDetailsResponseModel response = await repository
-        .fetchProductDetails(5);
-
-    expect(response.data?.id, 5);
-    expect(response.data?.barcode, 'PRD-DISH-500');
-  });
+      expect(response.data?.hasVariants, isTrue);
+      expect(response.data?.subcategory?.name, 'Samsung');
+      expect(response.data?.variantSummary?.totalVariants, 3);
+      expect(response.data?.variantAttributes?.first.values, ['128', '256']);
+      expect(response.data?.variants?.first.combinationKey, 'storage-128');
+    },
+  );
 
   test('fetchProductDetails rewrites localhost media URLs to API host', () async {
     final repository = ProductRepository(
@@ -310,15 +282,98 @@ void main() {
 
     expect(
       response.data?.barcodeImageUrl,
-      'http://192.168.0.129:8000/storage/products/orimo-open-air/barcode/barcode.svg',
+      '${ApiConfig.baseUrl}/storage/products/orimo-open-air/barcode/barcode.svg',
     );
     expect(
       response.data?.primaryPhoto?.fileUrl,
-      'http://192.168.0.129:8000/storage/products/orimo-open-air/photos/01.png',
+      '${ApiConfig.baseUrl}/storage/products/orimo-open-air/photos/01.png',
     );
     expect(
       response.data?.photos?.first.fileUrl,
-      'http://192.168.0.129:8000/storage/products/orimo-open-air/photos/01.png',
+      '${ApiConfig.baseUrl}/storage/products/orimo-open-air/photos/01.png',
     );
+  });
+
+  test('fetchProductDetails throws when nested data is missing', () async {
+    final repository = ProductRepository(
+      apiClient: ApiClient(
+        httpClient: MockClient((request) async {
+          return http.Response(
+            jsonEncode({'message': 'Product loaded.'}),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+      ),
+      tokenStorage: TokenStorage(),
+    );
+
+    expect(
+      () => repository.fetchProductDetails(7),
+      throwsA(
+        isA<ApiException>().having(
+          (error) => error.message,
+          'message',
+          'Product details were not returned.',
+        ),
+      ),
+    );
+  });
+
+  test('fetchCategories parses success and nested data', () async {
+    final repository = ProductRepository(
+      apiClient: ApiClient(
+        httpClient: MockClient((request) async {
+          return http.Response(
+            jsonEncode({
+              'success': true,
+              'data': [
+                {'id': 1, 'name': 'Mobile Phone'},
+                {'id': '2', 'name': 'Accessories'},
+              ],
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+      ),
+      tokenStorage: TokenStorage(),
+    );
+
+    final CategoryResponseModel response = await repository.fetchCategories();
+
+    expect(response.success, isTrue);
+    expect(response.data?.length, 2);
+    expect(response.data?.first.id, 1);
+    expect(response.data?.last.id, 2);
+  });
+
+  test('fetchSubcategories parses success and nested data', () async {
+    final repository = ProductRepository(
+      apiClient: ApiClient(
+        httpClient: MockClient((request) async {
+          return http.Response(
+            jsonEncode({
+              'success': true,
+              'data': [
+                {'id': 3, 'name': 'Samsung', 'category_id': 1},
+                {'id': '4', 'name': 'Vivo', 'category_id': '1'},
+              ],
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+      ),
+      tokenStorage: TokenStorage(),
+    );
+
+    final response = await repository.fetchSubcategories(categoryId: 1);
+
+    expect(response.length, 2);
+    expect(response.first.id, 3);
+    expect(response.first.categoryId, 1);
+    expect(response.last.id, 4);
+    expect(response.last.categoryId, 1);
   });
 }

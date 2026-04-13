@@ -1,54 +1,57 @@
-import 'package:json_annotation/json_annotation.dart';
+import '../../../../core/models/api_list_response_model.dart';
 
-part 'category_response_model.g.dart';
+class CategoryResponseModel extends ApiListResponseModel<CategoryModel> {
+  const CategoryResponseModel({super.success, super.message, super.data});
 
-@JsonSerializable(explicitToJson: true)
-class CategoryResponseModel {
-  @JsonKey(name: 'success')
-  final bool? success;
+  factory CategoryResponseModel.fromJson(Map<String, dynamic> json) {
+    final parsed = ApiListResponseModel<CategoryModel>.fromJson(
+      json,
+      CategoryModel.fromJson,
+    );
 
-  @JsonKey(name: 'data')
-  final List<CategoryModel>? data;
+    return CategoryResponseModel(
+      success: parsed.success,
+      message: parsed.message,
+      data: parsed.data,
+    );
+  }
 
-  CategoryResponseModel({
-    this.success,
-    this.data,
-  });
-
-  factory CategoryResponseModel.fromJson(Map<String, dynamic> json) =>
-      _$CategoryResponseModelFromJson(json);
-
-  Map<String, dynamic> toJson() => _$CategoryResponseModelToJson(this);
+  Map<String, dynamic> toJson() =>
+      super.toResponseJson((category) => category.toJson());
 
   @override
   String toString() {
     return 'CategoryResponseModel{success: $success, data: $data}';
   }
-
 }
 
-@JsonSerializable()
 class CategoryModel {
-  @JsonKey(name: 'id')
   final int? id;
-
-  @JsonKey(name: 'name')
   final String? name;
 
-  CategoryModel({
-    this.id,
-    this.name,
-  });
+  const CategoryModel({this.id, this.name});
 
-  factory CategoryModel.fromJson(Map<String, dynamic> json) =>
-      _$CategoryModelFromJson(json);
+  factory CategoryModel.fromJson(Map<String, dynamic> json) {
+    return CategoryModel(id: _asInt(json['id']), name: json['name'] as String?);
+  }
 
-  Map<String, dynamic> toJson() => _$CategoryModelToJson(this);
+  Map<String, dynamic> toJson() => <String, dynamic>{'id': id, 'name': name};
 
   @override
   String toString() {
     return 'CategoryModel{id: $id, name: $name}';
   }
 
-
+  static int? _asInt(dynamic value) {
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    if (value is String) {
+      return int.tryParse(value);
+    }
+    return null;
+  }
 }
