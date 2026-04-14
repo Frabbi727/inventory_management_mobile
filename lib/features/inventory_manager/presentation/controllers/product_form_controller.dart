@@ -9,11 +9,13 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/errors/api_exception.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../products/data/models/category_response_model.dart';
+import '../../../products/data/models/product_model.dart';
 import '../../../products/data/models/product_subcategory_model.dart';
 import '../../../products/data/models/product_unit_model.dart';
 import '../../../products/data/models/product_variant_attribute_model.dart';
 import '../../../products/data/models/product_variant_model.dart';
 import '../../data/models/create_or_update_barcode_product_request.dart';
+import '../../data/models/product_photo_upload_file.dart';
 import '../../data/repositories/inventory_manager_repository.dart';
 import '../models/editable_variant_attribute.dart';
 import '../models/product_form_args.dart';
@@ -460,11 +462,7 @@ class ProductFormController extends GetxController {
           .toList();
 
       final product = isEdit
-          ? await _inventoryManagerRepository.updateProductByBarcode(
-              args.barcode ?? '',
-              request,
-              photos: readyPhotos,
-            )
+          ? await _submitProductUpdate(request, readyPhotos)
           : await _inventoryManagerRepository.createProductFromBarcode(
               request,
               photos: readyPhotos,
@@ -485,6 +483,26 @@ class ProductFormController extends GetxController {
     } finally {
       isSubmitting.value = false;
     }
+  }
+
+  Future<ProductModel> _submitProductUpdate(
+    CreateOrUpdateBarcodeProductRequest request,
+    List<ProductPhotoUploadFile> readyPhotos,
+  ) async {
+    final productId = args.productId;
+    if (productId != null) {
+      return _inventoryManagerRepository.updateProduct(
+        productId,
+        request,
+        photos: readyPhotos,
+      );
+    }
+
+    return _inventoryManagerRepository.updateProductByBarcode(
+      args.barcode ?? '',
+      request,
+      photos: readyPhotos,
+    );
   }
 
   String? requiredField(String? value) {

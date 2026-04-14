@@ -90,6 +90,36 @@ class InventoryManagerRepository {
     return getProductByBarcode(request.barcode);
   }
 
+  Future<ProductModel> createProduct(
+    CreateOrUpdateBarcodeProductRequest request, {
+    List<ProductPhotoUploadFile> photos = const <ProductPhotoUploadFile>[],
+  }) async {
+    final token = await _requireToken();
+    if (photos.isEmpty) {
+      await _apiClient.post(
+        ApiEndpoints.products,
+        token: token,
+        body: request.toJson(),
+      );
+    } else {
+      await _apiClient.postMultipart(
+        ApiEndpoints.products,
+        token: token,
+        fields: request.toMultipartFields(),
+        files: photos
+            .map(
+              (photo) => MultipartFileData(
+                fieldName: 'photos[]',
+                fileName: photo.fileName,
+                bytes: photo.bytes,
+              ),
+            )
+            .toList(),
+      );
+    }
+    return getProductByBarcode(request.barcode);
+  }
+
   Future<ProductModel> updateProductByBarcode(
     String barcode,
     CreateOrUpdateBarcodeProductRequest request, {
@@ -105,6 +135,37 @@ class InventoryManagerRepository {
     } else {
       await _apiClient.putMultipart(
         ApiEndpoints.updateBarcodeProduct(_normalizeBarcode(barcode)),
+        token: token,
+        fields: request.toMultipartFields(),
+        files: photos
+            .map(
+              (photo) => MultipartFileData(
+                fieldName: 'photos[]',
+                fileName: photo.fileName,
+                bytes: photo.bytes,
+              ),
+            )
+            .toList(),
+      );
+    }
+    return getProductByBarcode(request.barcode);
+  }
+
+  Future<ProductModel> updateProduct(
+    int productId,
+    CreateOrUpdateBarcodeProductRequest request, {
+    List<ProductPhotoUploadFile> photos = const <ProductPhotoUploadFile>[],
+  }) async {
+    final token = await _requireToken();
+    if (photos.isEmpty) {
+      await _apiClient.put(
+        ApiEndpoints.productDetails(productId),
+        token: token,
+        body: request.toJson(),
+      );
+    } else {
+      await _apiClient.putMultipart(
+        ApiEndpoints.productDetails(productId),
         token: token,
         fields: request.toMultipartFields(),
         files: photos

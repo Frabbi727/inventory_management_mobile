@@ -13,7 +13,7 @@ class PurchaseDetailsPage extends GetView<PurchaseDetailsController> {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Purchase Details')),
+      appBar: AppBar(title: const Text('Purchase Item')),
       body: SafeArea(
         child: Obx(() {
           final product = controller.product.value;
@@ -83,36 +83,18 @@ class PurchaseDetailsPage extends GetView<PurchaseDetailsController> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Receiving Details',
+                        'Purchase Line',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                       const SizedBox(height: 16),
-                      InkWell(
-                        onTap: () => controller.pickDate(context),
-                        borderRadius: BorderRadius.circular(12),
-                        child: InputDecorator(
-                          decoration: const InputDecoration(
-                            labelText: 'Purchase Date',
-                            prefixIcon: Icon(Icons.calendar_today_outlined),
-                            border: OutlineInputBorder(),
-                          ),
-                          child: Text(
-                            controller.formatDate(
-                              controller.purchaseDate.value,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: controller.noteController,
-                        maxLines: 3,
-                        decoration: const InputDecoration(
-                          labelText: 'Note',
-                          alignLabelWithHint: true,
-                          border: OutlineInputBorder(),
+                      Text(
+                        controller.requiresVariantSelection
+                            ? 'Choose the specific variant and enter the quantity and unit cost for this line.'
+                            : 'Enter the quantity and unit cost for this simple product line.',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
                       if (controller.requiresVariantSelection) ...[
@@ -153,7 +135,7 @@ class PurchaseDetailsPage extends GetView<PurchaseDetailsController> {
                                   padding: const EdgeInsets.only(bottom: 10),
                                   child: _VariantChoiceCard(
                                     label:
-                                        variant.combinationLabel ??
+                                        variant.resolvedLabel ??
                                         variant.combinationKey ??
                                         'Variant ${variant.id ?? ''}',
                                     stock: variant.currentStock ?? 0,
@@ -267,16 +249,12 @@ class PurchaseDetailsPage extends GetView<PurchaseDetailsController> {
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           child: Obx(
             () => FilledButton(
-              onPressed: controller.isSubmitting.value
-                  ? null
-                  : controller.submitPurchase,
-              child: controller.isSubmitting.value
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Submit Purchase'),
+              onPressed: controller.submitLine,
+              child: Text(
+                controller.initialItem.value == null
+                    ? 'Add Purchase Line'
+                    : 'Update Purchase Line',
+              ),
             ),
           ),
         ),

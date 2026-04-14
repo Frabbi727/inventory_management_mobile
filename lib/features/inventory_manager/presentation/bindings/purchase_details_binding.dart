@@ -7,11 +7,6 @@ class PurchaseDetailsBinding extends Bindings {
   @override
   void dependencies() {
     InventoryManagerDependencies.ensureRegistered();
-    Get.lazyPut(
-      () => PurchaseDetailsController(
-        inventoryManagerRepository: Get.find(),
-        productRepository: Get.find(),
-      ),
-    );
+    Get.lazyPut(() => PurchaseDetailsController(productRepository: Get.find()));
   }
 }

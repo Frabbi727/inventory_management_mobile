@@ -86,9 +86,8 @@ void main() {
         ),
         GetPage(
           name: AppRoutes.productDetails,
-          page: () => Scaffold(
-            body: Text('details-${Get.arguments.runtimeType}'),
-          ),
+          page: () =>
+              Scaffold(body: Text('details-${Get.arguments.runtimeType}')),
         ),
       ],
       home: const Scaffold(body: SizedBox.shrink()),
@@ -102,7 +101,9 @@ void main() {
         exists: false,
         action: 'create',
         barcode: barcode,
+        matchType: null,
         data: null,
+        variant: null,
       ),
       barcodeLookupHandler: (barcode) async => throw UnimplementedError(),
     );
@@ -131,7 +132,9 @@ void main() {
           exists: false,
           action: 'create',
           barcode: barcode,
+          matchType: null,
           data: null,
+          variant: null,
         ),
         barcodeLookupHandler: (barcode) async =>
             const ProductModel(id: 9, name: 'Recovered Existing Product'),
@@ -154,35 +157,38 @@ void main() {
     },
   );
 
-  testWidgets('opens product details directly when resolve returns product data', (
-    tester,
-  ) async {
-    final repository = _FakeInventoryManagerRepository(
-      resolveHandler: (barcode) async => BarcodeResolveResponse(
-        message: 'found',
-        exists: true,
-        action: 'view_or_update',
-        barcode: barcode,
-        data: const ProductModel(id: 1, name: 'Existing Product'),
-      ),
-      barcodeLookupHandler: (barcode) async => throw UnimplementedError(),
-    );
-
-    final controller = BarcodeScanController(
-      inventoryManagerRepository: repository,
-      productRepository: _FakeProductRepository(
+  testWidgets(
+    'opens product details directly when resolve returns product data',
+    (tester) async {
+      final repository = _FakeInventoryManagerRepository(
+        resolveHandler: (barcode) async => BarcodeResolveResponse(
+          message: 'found',
+          exists: true,
+          action: 'view_or_update',
+          barcode: barcode,
+          matchType: 'product',
+          data: const ProductModel(id: 1, name: 'Existing Product'),
+          variant: null,
+        ),
         barcodeLookupHandler: (barcode) async => throw UnimplementedError(),
-      ),
-    );
-    Get.put(controller);
+      );
 
-    await tester.pumpWidget(testApp());
-    await controller.resolveBarcode('BC-001');
-    await tester.pumpAndSettle();
+      final controller = BarcodeScanController(
+        inventoryManagerRepository: repository,
+        productRepository: _FakeProductRepository(
+          barcodeLookupHandler: (barcode) async => throw UnimplementedError(),
+        ),
+      );
+      Get.put(controller);
 
-    expect(Get.currentRoute, AppRoutes.productDetails);
-    expect(find.text('details-int'), findsOneWidget);
-  });
+      await tester.pumpWidget(testApp());
+      await controller.resolveBarcode('BC-001');
+      await tester.pumpAndSettle();
+
+      expect(Get.currentRoute, AppRoutes.productDetails);
+      expect(find.text('details-int'), findsOneWidget);
+    },
+  );
 
   testWidgets(
     'fetches product by barcode when resolve says existing product but data is missing',
@@ -194,7 +200,9 @@ void main() {
           exists: true,
           action: 'view_or_update',
           barcode: barcode,
+          matchType: 'product',
           data: null,
+          variant: null,
         ),
         barcodeLookupHandler: (barcode) async {
           lookupCalled = true;
@@ -220,35 +228,34 @@ void main() {
     },
   );
 
-  testWidgets(
-    'returns scanned product result for sales order lookup',
-    (tester) async {
-      var lookupCalled = false;
-      final repository = _FakeInventoryManagerRepository(
-        resolveHandler: (barcode) async => throw UnimplementedError(),
-        barcodeLookupHandler: (barcode) async {
-          throw UnimplementedError();
-        },
-      );
-      final productRepository = _FakeProductRepository(
-        barcodeLookupHandler: (barcode) async {
-          lookupCalled = true;
-          return const ProductModel(id: 8, name: 'Scanned Product');
-        },
-      );
+  testWidgets('returns scanned product result for sales order lookup', (
+    tester,
+  ) async {
+    var lookupCalled = false;
+    final repository = _FakeInventoryManagerRepository(
+      resolveHandler: (barcode) async => throw UnimplementedError(),
+      barcodeLookupHandler: (barcode) async {
+        throw UnimplementedError();
+      },
+    );
+    final productRepository = _FakeProductRepository(
+      barcodeLookupHandler: (barcode) async {
+        lookupCalled = true;
+        return const ProductModel(id: 8, name: 'Scanned Product');
+      },
+    );
 
-      final controller = BarcodeScanController(
-        inventoryManagerRepository: repository,
-        productRepository: productRepository,
-      );
-      Get.put(controller);
-      controller.scanContext.value = BarcodeScanContext.salesOrderLookup;
+    final controller = BarcodeScanController(
+      inventoryManagerRepository: repository,
+      productRepository: productRepository,
+    );
+    Get.put(controller);
+    controller.scanContext.value = BarcodeScanContext.salesOrderLookup;
 
-      await tester.pumpWidget(testApp());
-      await controller.resolveBarcode('BC-001');
+    await tester.pumpWidget(testApp());
+    await controller.resolveBarcode('BC-001');
 
-      expect(lookupCalled, isTrue);
-      expect(controller.errorMessage.value, isNull);
-    },
-  );
+    expect(lookupCalled, isTrue);
+    expect(controller.errorMessage.value, isNull);
+  });
 }

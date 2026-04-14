@@ -1,0 +1,482 @@
+{
+  "info": {
+    "name": "Inventory Manager Mobile API",
+    "_postman_id": "7f4f9d8b-3f3d-4d9c-8e7c-ims-mobile-api",
+    "description": "Inventory Manager mobile API collection for products, barcode scan, and purchases.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "product_id",
+      "value": "1"
+    },
+    {
+      "key": "purchase_id",
+      "value": "1"
+    },
+    {
+      "key": "barcode",
+      "value": "100000000001"
+    },
+    {
+      "key": "variant_barcode",
+      "value": "200000000001"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth - Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "login"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"inventory@example.com\",\n  \"password\": \"password\",\n  \"device_name\": \"flutter-mobile\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Auth - Me",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/me",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "me"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Master - Categories",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/categories",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "categories"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Master - Subcategories",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/subcategories?category_id=1",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "subcategories"
+          ],
+          "query": [
+            {
+              "key": "category_id",
+              "value": "1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Master - Units",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/units",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "units"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Products - List",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/products?q=shirt&has_variants=1",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "products"
+          ],
+          "query": [
+            {
+              "key": "q",
+              "value": "shirt"
+            },
+            {
+              "key": "has_variants",
+              "value": "1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Products - Detail",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/products/{{product_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "products",
+            "{{product_id}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Products - Barcode Lookup",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/products/barcode/{{barcode}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "products",
+            "barcode",
+            "{{barcode}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Inventory Manager - Resolve Barcode",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/inventory-manager/barcode/products/{{barcode}}/resolve",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "inventory-manager",
+            "barcode",
+            "products",
+            "{{barcode}}",
+            "resolve"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Inventory Manager - Purchase Scan Lookup",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/inventory-manager/barcode/purchase-products/{{variant_barcode}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "inventory-manager",
+            "barcode",
+            "purchase-products",
+            "{{variant_barcode}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Purchases - List",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/purchases",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "purchases"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Purchases - Detail",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/purchases/{{purchase_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "purchases",
+            "{{purchase_id}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Purchases - Create Variant Purchase",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/purchases",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "purchases"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purchase_date\": \"2026-04-14\",\n  \"note\": \"Restock red XL\",\n  \"items\": [\n    {\n      \"product_id\": 1,\n      \"product_variant_id\": 11,\n      \"quantity\": 20,\n      \"unit_cost\": 205\n    }\n  ]\n}"
+        }
+      }
+    },
+    {
+      "name": "Purchases - Create Simple Purchase",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/purchases",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "purchases"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purchase_date\": \"2026-04-14\",\n  \"note\": \"Simple restock\",\n  \"items\": [\n    {\n      \"product_id\": 2,\n      \"product_variant_id\": null,\n      \"quantity\": 10,\n      \"unit_cost\": 90\n    }\n  ]\n}"
+        }
+      }
+    },
+    {
+      "name": "Purchases - Update",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/purchases/{{purchase_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "purchases",
+            "{{purchase_id}}"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purchase_date\": \"2026-04-14\",\n  \"note\": \"Updated receive\",\n  \"items\": [\n    {\n      \"product_id\": 1,\n      \"product_variant_id\": 11,\n      \"quantity\": 15,\n      \"unit_cost\": 208\n    }\n  ]\n}"
+        }
+      }
+    }
+  ]
+}

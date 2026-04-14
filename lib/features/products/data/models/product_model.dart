@@ -30,6 +30,7 @@ class ProductModel {
     this.hasVariants,
     this.variantSummary,
     this.variantAttributes,
+    this.matchedVariant,
     this.variants,
     this.createdAt,
     this.updatedAt,
@@ -66,6 +67,7 @@ class ProductModel {
   final bool? hasVariants;
   final ProductVariantSummaryModel? variantSummary;
   final List<ProductVariantAttributeModel>? variantAttributes;
+  final ProductVariantModel? matchedVariant;
   final List<ProductVariantModel>? variants;
 
   final String? createdAt;
@@ -174,6 +176,11 @@ class ProductModel {
           ?.whereType<Map<String, dynamic>>()
           .map(ProductVariantAttributeModel.fromJson)
           .toList(),
+      matchedVariant: json['matched_variant'] is Map<String, dynamic>
+          ? ProductVariantModel.fromJson(
+              json['matched_variant'] as Map<String, dynamic>,
+            )
+          : null,
       variants: (json['variants'] as List<dynamic>?)
           ?.whereType<Map<String, dynamic>>()
           .map(ProductVariantModel.fromJson)
@@ -207,6 +214,7 @@ class ProductModel {
       'variant_attributes': variantAttributes
           ?.map((attribute) => attribute.toJson())
           .toList(),
+      'matched_variant': matchedVariant?.toJson(),
       'variants': variants?.map((variant) => variant.toJson()).toList(),
       'created_at': createdAt,
       'updated_at': updatedAt,

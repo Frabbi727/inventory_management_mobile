@@ -167,6 +167,17 @@ class ProductRepository {
       token: token,
     );
 
+    if (response['product'] is Map<String, dynamic>) {
+      final productJson = Map<String, dynamic>.from(
+        response['product'] as Map<String, dynamic>,
+      );
+      if (response['variant'] is Map<String, dynamic> &&
+          productJson['matched_variant'] == null) {
+        productJson['matched_variant'] = response['variant'];
+      }
+      return ProductModel.fromJson(productJson);
+    }
+
     if (response['data'] is Map<String, dynamic>) {
       return ProductModel.fromJson(response['data'] as Map<String, dynamic>);
     }

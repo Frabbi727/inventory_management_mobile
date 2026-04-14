@@ -3,36 +3,59 @@ import 'product_stock_status.dart';
 class ProductVariantModel {
   const ProductVariantModel({
     this.id,
+    this.sku,
+    this.barcode,
+    this.attributes,
+    this.displayName,
     this.combinationKey,
     this.combinationLabel,
     this.optionValues,
     this.purchasePrice,
     this.sellingPrice,
     this.isActive,
+    this.status,
     this.currentStock,
     this.stockStatus,
   });
 
   final int? id;
+  final String? sku;
+  final String? barcode;
+  final Map<String, String>? attributes;
+  final String? displayName;
   final String? combinationKey;
   final String? combinationLabel;
   final Map<String, String>? optionValues;
   final num? purchasePrice;
   final num? sellingPrice;
   final bool? isActive;
+  final String? status;
   final int? currentStock;
   final ProductStockStatus? stockStatus;
+
+  String? get resolvedLabel => combinationLabel ?? displayName;
 
   factory ProductVariantModel.fromJson(Map<String, dynamic> json) {
     return ProductVariantModel(
       id: _asInt(json['id']),
+      sku: json['sku'] as String?,
+      barcode: json['barcode'] as String?,
+      attributes: _asStringMap(json['attributes']),
+      displayName: json['display_name'] as String?,
       combinationKey: json['combination_key'] as String?,
-      combinationLabel: json['combination_label'] as String?,
-      optionValues: _asStringMap(json['option_values']),
-      purchasePrice: _asNum(json['purchase_price']),
+      combinationLabel:
+          json['combination_label'] as String? ??
+          json['label'] as String? ??
+          json['display_name'] as String?,
+      optionValues:
+          _asStringMap(json['option_values']) ??
+          _asStringMap(json['attributes']),
+      purchasePrice:
+          _asNum(json['purchase_price']) ?? _asNum(json['buying_price']),
       sellingPrice: _asNum(json['selling_price']),
       isActive: _asBool(json['is_active']),
-      currentStock: _asInt(json['current_stock']),
+      status: json['status'] as String?,
+      currentStock: _asInt(json['current_stock']) ?? _asInt(json['quantity']),
       stockStatus: ProductStockStatus.fromApiValue(
         json['stock_status'] as String?,
       ),
@@ -42,12 +65,17 @@ class ProductVariantModel {
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
       'id': id,
+      'sku': sku,
+      'barcode': barcode,
+      'attributes': attributes,
+      'display_name': displayName,
       'combination_key': combinationKey,
       'combination_label': combinationLabel,
       'option_values': optionValues,
       'purchase_price': purchasePrice,
       'selling_price': sellingPrice,
       'is_active': isActive,
+      'status': status,
       'current_stock': currentStock,
       'stock_status': ProductStockStatus.toApiValue(stockStatus),
     };

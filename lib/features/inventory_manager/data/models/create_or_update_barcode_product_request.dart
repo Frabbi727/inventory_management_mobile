@@ -114,7 +114,6 @@ class CreateOrUpdateBarcodeProductRequest {
   Map<String, String> toMultipartFields() {
     final fields = <String, String>{
       'name': name,
-      if (sku != null) 'sku': sku!,
       'barcode': barcode,
       'category_id': '$categoryId',
       if (subcategoryId != null) 'subcategory_id': '$subcategoryId',
@@ -124,6 +123,10 @@ class CreateOrUpdateBarcodeProductRequest {
       'minimum_stock_alert': '$minimumStockAlert',
       'status': status,
     };
+
+    if (sku != null) {
+      fields['sku'] = sku!;
+    }
 
     if (hasVariants != null) {
       fields['has_variants'] = hasVariants! ? '1' : '0';

@@ -133,6 +133,7 @@ class EditPurchasePage extends GetView<EditPurchaseController> {
                     ),
                     formatCurrency: controller.formatCurrency,
                     isSubmitting: controller.isSubmitting.value,
+                    onRemove: () => controller.removeDraftItem(item.lineKey),
                   ),
                 ),
               ),
@@ -201,6 +202,7 @@ class _EditablePurchaseItemCard extends StatelessWidget {
     required this.unitCostController,
     required this.formatCurrency,
     required this.isSubmitting,
+    required this.onRemove,
   });
 
   final PurchaseDraftItem item;
@@ -208,6 +210,7 @@ class _EditablePurchaseItemCard extends StatelessWidget {
   final TextEditingController unitCostController;
   final String Function(num value) formatCurrency;
   final bool isSubmitting;
+  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -219,11 +222,23 @@ class _EditablePurchaseItemCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              item.name,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    item.name,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: isSubmitting ? null : onRemove,
+                  tooltip: 'Remove line',
+                  icon: const Icon(Icons.delete_outline),
+                ),
+              ],
             ),
             const SizedBox(height: 4),
             Text(
@@ -239,6 +254,17 @@ class _EditablePurchaseItemCard extends StatelessWidget {
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                   fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+            if ((item.optionValues ?? const <String, String>{}).isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                item.optionValues!.entries
+                    .map((entry) => '${entry.key}: ${entry.value}')
+                    .join('  •  '),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ],

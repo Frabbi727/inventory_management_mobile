@@ -84,6 +84,15 @@ class ProductDetailsPage extends GetView<ProductDetailsController> {
                 _ProductGalleryCard(product: product),
                 const SizedBox(height: 16),
                 _OverviewCard(product: product, controller: controller),
+                if (product.matchedVariant != null) ...[
+                  const SizedBox(height: 16),
+                  _SectionShell(
+                    title: 'Matched Variant',
+                    child: _MatchedVariantCard(
+                      variant: product.matchedVariant!,
+                    ),
+                  ),
+                ],
                 if (!controller.isInventoryManager.value &&
                     Get.isRegistered<CartController>() &&
                     product.hasVariants != true) ...[
@@ -172,6 +181,61 @@ class _ProductGalleryCard extends StatefulWidget {
 
   @override
   State<_ProductGalleryCard> createState() => _ProductGalleryCardState();
+}
+
+class _MatchedVariantCard extends StatelessWidget {
+  const _MatchedVariantCard({required this.variant});
+
+  final ProductVariantModel variant;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final details =
+        variant.optionValues ?? variant.attributes ?? const <String, String>{};
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            variant.resolvedLabel ?? 'Matched variant',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          if (details.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              details.entries
+                  .map((entry) => '${entry.key}: ${entry.value}')
+                  .join('  •  '),
+              style: theme.textTheme.bodyMedium,
+            ),
+          ],
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _SpecChip(label: 'Barcode', value: variant.barcode ?? '-'),
+              _SpecChip(
+                label: 'Purchase Price',
+                value: '৳${(variant.purchasePrice ?? 0).toString()}',
+              ),
+              _SpecChip(label: 'Stock', value: '${variant.currentStock ?? 0}'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ProductGalleryCardState extends State<_ProductGalleryCard> {
@@ -907,6 +971,45 @@ class _PriceMetric extends StatelessWidget {
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w800,
               color: toneColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SpecChip extends StatelessWidget {
+  const _SpecChip({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: theme.textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],

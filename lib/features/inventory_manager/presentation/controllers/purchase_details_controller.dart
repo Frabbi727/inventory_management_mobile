@@ -1,37 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../../../core/errors/api_exception.dart';
 import '../../../products/data/models/product_model.dart';
 import '../../../products/data/models/product_variant_model.dart';
 import '../../../products/data/repositories/product_repository.dart';
-import '../../data/models/create_or_update_purchase_request.dart';
-import '../../data/models/inventory_purchase_item_request.dart';
-import '../../data/models/purchase_response_model.dart';
-import '../../data/repositories/inventory_manager_repository.dart';
+import '../models/purchase_draft_item.dart';
+import '../models/purchase_line_editor_args.dart';
 
 class PurchaseDetailsController extends GetxController {
-  PurchaseDetailsController({
-    required InventoryManagerRepository inventoryManagerRepository,
-    required ProductRepository productRepository,
-  }) : _inventoryManagerRepository = inventoryManagerRepository,
-       _productRepository = productRepository;
+  PurchaseDetailsController({required ProductRepository productRepository})
+    : _productRepository = productRepository;
 
-  final InventoryManagerRepository _inventoryManagerRepository;
   final ProductRepository _productRepository;
 
   final quantityController = TextEditingController(text: '1');
   final unitCostController = TextEditingController();
-  final noteController = TextEditingController();
 
   final product = Rxn<ProductModel>();
-  final purchaseDate = DateTime.now().obs;
   final quantityError = RxnString();
   final unitCostError = RxnString();
   final submitError = RxnString();
-  final isSubmitting = false.obs;
   final isVariantLoading = false.obs;
   final selectedVariantId = RxnInt();
+  final initialItem = Rxn<PurchaseDraftItem>();
 
   int? get quantity => int.tryParse(quantityController.text.trim());
   double? get unitCost => double.tryParse(unitCostController.text.trim());
@@ -45,7 +36,7 @@ class PurchaseDetailsController extends GetxController {
     (variant) => variant.id == selectedVariantId.value,
   );
   String? get selectedVariantLabel {
-    return selectedVariant?.combinationLabel;
+    return selectedVariant?.resolvedLabel;
   }
 
   double get totalAmount {
@@ -61,19 +52,29 @@ class PurchaseDetailsController extends GetxController {
   void onInit() {
     super.onInit();
     final argument = Get.arguments;
-    if (argument is! ProductModel) {
+    final resolvedArgs = switch (argument) {
+      final PurchaseLineEditorArgs args => args,
+      final ProductModel product => PurchaseLineEditorArgs(product: product),
+      _ => null,
+    };
+    if (resolvedArgs == null) {
       throw ArgumentError(
-        'PurchaseDetailsPage requires a ProductModel argument.',
+        'PurchaseDetailsPage requires purchase line arguments.',
       );
     }
 
-    product.value = argument;
-    unitCostController.text = ((argument.purchasePrice ?? 0).toDouble())
-        .toStringAsFixed(2);
-    selectedVariantId.value = null;
+    product.value = resolvedArgs.product;
+    initialItem.value = resolvedArgs.initialItem;
+    final initialVariantId =
+        resolvedArgs.initialItem?.productVariantId ??
+        resolvedArgs.product.matchedVariant?.id;
+    selectedVariantId.value = initialVariantId;
+    quantityController.text = '${resolvedArgs.initialItem?.quantity ?? 1}';
+    unitCostController.text = _resolveInitialUnitCost(
+      resolvedArgs,
+    ).toStringAsFixed(2);
     quantityController.addListener(_handleInputChange);
     unitCostController.addListener(_handleInputChange);
-    noteController.addListener(_handleInputChange);
     _ensureVariantDetailsLoaded();
   }
 
@@ -83,9 +84,6 @@ class PurchaseDetailsController extends GetxController {
       ..removeListener(_handleInputChange)
       ..dispose();
     unitCostController
-      ..removeListener(_handleInputChange)
-      ..dispose();
-    noteController
       ..removeListener(_handleInputChange)
       ..dispose();
     super.onClose();
@@ -104,26 +102,7 @@ class PurchaseDetailsController extends GetxController {
     quantityController.text = '${currentQuantity + 1}';
   }
 
-  Future<void> pickDate(BuildContext context) async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: purchaseDate.value,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
-
-    if (picked != null) {
-      purchaseDate.value = picked;
-    }
-  }
-
-  String formatDate(DateTime date) {
-    final month = date.month.toString().padLeft(2, '0');
-    final day = date.day.toString().padLeft(2, '0');
-    return '${date.year}-$month-$day';
-  }
-
-  Future<void> submitPurchase() async {
+  void submitLine() {
     final currentProduct = product.value;
     if (currentProduct == null) {
       return;
@@ -137,44 +116,36 @@ class PurchaseDetailsController extends GetxController {
       return;
     }
 
-    isSubmitting.value = true;
-    submitError.value = null;
+    final selectedVariantModel = selectedVariant;
+    final optionValues =
+        selectedVariantModel?.optionValues ??
+        currentProduct.matchedVariant?.optionValues;
+    final variantLabel =
+        selectedVariantModel?.resolvedLabel ??
+        currentProduct.matchedVariant?.resolvedLabel;
+    final currentStock =
+        selectedVariantModel?.currentStock ?? currentProduct.currentStock ?? 0;
 
-    try {
-      final response = await _inventoryManagerRepository.createPurchase(
-        CreateOrUpdatePurchaseRequest(
-          purchaseDate: formatDate(purchaseDate.value),
-          note: noteController.text.trim().isEmpty
-              ? null
-              : noteController.text.trim(),
-          items: [
-            InventoryPurchaseItemRequest(
-              productId: currentProduct.id!,
-              productVariantId: selectedVariantId.value,
-              quantity: validation.quantity!,
-              unitCost: validation.unitCost!,
-            ),
-          ],
-        ),
-      );
-
-      Get.back(result: response);
-      Get.snackbar('Purchase created', buildPurchaseSavedMessage(response));
-    } on ApiException catch (error) {
-      submitError.value = _buildPurchaseError(error);
-    } catch (_) {
-      submitError.value = 'Unable to save the purchase right now.';
-    } finally {
-      isSubmitting.value = false;
-    }
-  }
-
-  String buildPurchaseSavedMessage(PurchaseResponseModel response) {
-    if (response.purchaseNo == null || response.purchaseNo!.isEmpty) {
-      return 'Purchase saved successfully.';
-    }
-
-    return 'Purchase ${response.purchaseNo} saved successfully.';
+    Get.back(
+      result: PurchaseDraftItem(
+        lineKey: _lineKeyFor(currentProduct.id!, selectedVariantId.value),
+        productId: currentProduct.id!,
+        productVariantId: selectedVariantId.value,
+        variantLabel: variantLabel,
+        optionValues: optionValues,
+        name: currentProduct.name ?? 'Unnamed product',
+        sku: selectedVariantModel?.sku ?? currentProduct.sku ?? '-',
+        barcode:
+            selectedVariantModel?.barcode ??
+            currentProduct.barcode ??
+            'No barcode',
+        quantity: validation.quantity!,
+        unitCost: validation.unitCost!,
+        currentStock: currentStock,
+        categoryName: currentProduct.category?.name ?? 'Uncategorized product',
+        product: currentProduct,
+      ),
+    );
   }
 
   PurchaseSubmissionValidation _validate(ProductModel product) {
@@ -198,30 +169,6 @@ class PurchaseDetailsController extends GetxController {
           ? 'Select a variant before submitting this purchase.'
           : null,
     );
-  }
-
-  String _buildPurchaseError(ApiException error) {
-    final errors = error.errors;
-    if (errors == null || errors.isEmpty) {
-      return error.message;
-    }
-
-    final itemsError = errors['items'];
-    if (itemsError is List && itemsError.isNotEmpty) {
-      return itemsError.first.toString();
-    }
-
-    for (final entry in errors.entries) {
-      final value = entry.value;
-      if (value is List && value.isNotEmpty) {
-        return value.first.toString();
-      }
-      if (value is String && value.isNotEmpty) {
-        return value;
-      }
-    }
-
-    return error.message;
   }
 
   void _handleInputChange() {
@@ -263,6 +210,24 @@ class PurchaseDetailsController extends GetxController {
     } finally {
       isVariantLoading.value = false;
     }
+  }
+
+  double _resolveInitialUnitCost(PurchaseLineEditorArgs args) {
+    final unitCostFromDraft = args.initialItem?.unitCost;
+    if (unitCostFromDraft != null) {
+      return unitCostFromDraft;
+    }
+
+    final matchedVariantPrice = args.product.matchedVariant?.purchasePrice;
+    if (matchedVariantPrice != null) {
+      return matchedVariantPrice.toDouble();
+    }
+
+    return (args.product.purchasePrice ?? 0).toDouble();
+  }
+
+  String _lineKeyFor(int productId, int? productVariantId) {
+    return '$productId:${productVariantId ?? 'base'}';
   }
 }
 

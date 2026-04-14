@@ -113,6 +113,13 @@ class EditPurchaseController extends GetxController {
   TextEditingController unitCostControllerFor(String lineKey) =>
       _unitCostControllers[lineKey]!;
 
+  void removeDraftItem(String lineKey) {
+    draftItems.removeWhere((item) => item.lineKey == lineKey);
+    _quantityControllers.remove(lineKey)?.dispose();
+    _unitCostControllers.remove(lineKey)?.dispose();
+    submitError.value = null;
+  }
+
   Future<void> submitUpdate() async {
     if (draftItems.isEmpty) {
       submitError.value = 'Add at least one valid purchase item.';
@@ -224,6 +231,7 @@ class EditPurchaseController extends GetxController {
             productId: item.productId!,
             productVariantId: item.productVariantId,
             variantLabel: item.variantLabel ?? item.product?.variant?.label,
+            optionValues: item.product?.variant?.optionValues,
             name: item.product?.name ?? item.productName ?? 'Unnamed product',
             sku: item.product?.sku ?? item.productBarcode ?? '-',
             barcode:

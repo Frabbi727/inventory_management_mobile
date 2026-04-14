@@ -97,10 +97,7 @@ class _TestProductFormController extends ProductFormController {
 }
 
 class _TestPurchaseDetailsController extends PurchaseDetailsController {
-  _TestPurchaseDetailsController({
-    required super.inventoryManagerRepository,
-    required super.productRepository,
-  });
+  _TestPurchaseDetailsController({required super.productRepository});
 
   @override
   void onInit() {
@@ -245,10 +242,7 @@ void main() {
     'purchase page shows explicit variant choices for variant products',
     (tester) async {
       Get.put<PurchaseDetailsController>(
-        _TestPurchaseDetailsController(
-          inventoryManagerRepository: inventoryRepo(),
-          productRepository: productRepo(),
-        ),
+        _TestPurchaseDetailsController(productRepository: productRepo()),
       );
 
       await tester.pumpWidget(
