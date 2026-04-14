@@ -68,9 +68,7 @@ class _NewOrderPageState extends State<NewOrderPage> {
                     ),
                     if (controller.infoMessage.value != null) ...[
                       const SizedBox(height: 12),
-                      InlineInfoBanner(
-                        message: controller.infoMessage.value!,
-                      ),
+                      InlineInfoBanner(message: controller.infoMessage.value!),
                     ],
                     if (controller.errorMessage.value != null) ...[
                       const SizedBox(height: 12),
@@ -112,7 +110,8 @@ class _NewOrderPageState extends State<NewOrderPage> {
         () => SummaryFooter(
           showTotals: false,
           primaryLabel: _primaryLabel(controller.currentStep.value),
-          tertiaryLabel: controller.currentStep.value == CartController.confirmStep
+          tertiaryLabel:
+              controller.currentStep.value == CartController.confirmStep
               ? (controller.hasSavedDraft ? 'Update Draft' : 'Save Draft')
               : null,
           onTertiaryPressed:
@@ -853,6 +852,13 @@ class _ProductsStepState extends State<_ProductsStep> {
     CartController cartController,
     ProductListController productController,
   ) async {
+    final resolvedProduct = await _resolveVariantProduct(product);
+    final variants = resolvedProduct.variants ?? const <ProductVariantModel>[];
+
+    if (!context.mounted) {
+      return;
+    }
+
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -868,21 +874,8 @@ class _ProductsStepState extends State<_ProductsStep> {
               20,
               20 + MediaQuery.of(sheetContext).viewInsets.bottom,
             ),
-            child: FutureBuilder<ProductModel>(
-              future: _resolveVariantProduct(product),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState != ConnectionState.done) {
-                  return const SizedBox(
-                    height: 220,
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-
-                final resolvedProduct = snapshot.data ?? product;
-                final variants = resolvedProduct.variants ?? const [];
-
-                if (snapshot.hasError || variants.isEmpty) {
-                  return Column(
+            child: variants.isEmpty
+                ? Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -924,167 +917,172 @@ class _ProductsStepState extends State<_ProductsStep> {
                         ],
                       ),
                     ],
-                  );
-                }
-
-                return Obx(
-                  () {
+                  )
+                : Obx(() {
                     final _ = cartController.items.length;
 
                     return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        resolvedProduct.name ?? 'Select Variant',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          resolvedProduct.name ?? 'Select Variant',
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Choose a variant and type the quantity you want to add.',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
+                        const SizedBox(height: 6),
+                        Text(
+                          'Choose a variant and type the quantity you want to add.',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      Flexible(
-                        child: ListView.separated(
-                          shrinkWrap: true,
-                          itemCount: variants.length,
-                          separatorBuilder: (_, _) => const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            final variant = variants[index];
-                            final availableStock = variant.currentStock ?? 0;
-                            final isUnavailable = availableStock <= 0;
-                            final quantity = cartController.quantityForLine(
-                              resolvedProduct.id,
-                              productVariantId: variant.id,
-                            );
+                        const SizedBox(height: 16),
+                        Flexible(
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: variants.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              final variant = variants[index];
+                              final availableStock = variant.currentStock ?? 0;
+                              final isUnavailable = availableStock <= 0;
+                              final quantity = cartController.quantityForLine(
+                                resolvedProduct.id,
+                                productVariantId: variant.id,
+                              );
 
-                            return Container(
-                              padding: const EdgeInsets.all(14),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.surfaceContainerLowest,
-                                borderRadius: BorderRadius.circular(18),
-                                border: Border.all(
-                                  color: theme.colorScheme.outlineVariant,
+                              return Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  color:
+                                      theme.colorScheme.surfaceContainerLowest,
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(
+                                    color: theme.colorScheme.outlineVariant,
+                                  ),
                                 ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              variant.combinationLabel ??
-                                                  variant.combinationKey ??
-                                                  'Variant',
-                                              style: theme.textTheme.titleSmall
-                                                  ?.copyWith(
-                                                    fontWeight: FontWeight.w800,
-                                                  ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              '${productController.formatPrice(variant.sellingPrice)} • Stock $availableStock',
-                                              style: theme.textTheme.bodySmall
-                                                  ?.copyWith(
-                                                    color: theme.colorScheme
-                                                        .onSurfaceVariant,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                            ),
-                                          ],
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                variant.combinationLabel ??
+                                                    variant.combinationKey ??
+                                                    'Variant',
+                                                style: theme
+                                                    .textTheme
+                                                    .titleSmall
+                                                    ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                    ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                '${productController.formatPrice(variant.sellingPrice)} • Stock $availableStock',
+                                                style: theme.textTheme.bodySmall
+                                                    ?.copyWith(
+                                                      color: theme
+                                                          .colorScheme
+                                                          .onSurfaceVariant,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
-                                      ),
-                                      QuantityStepper(
-                                        key: ValueKey(
-                                          'variant-qty-${resolvedProduct.id}-${variant.id}',
+                                        QuantityStepper(
+                                          key: ValueKey(
+                                            'variant-qty-${resolvedProduct.id}-${variant.id}',
+                                          ),
+                                          quantity: quantity,
+                                          onIncrement: isUnavailable
+                                              ? null
+                                              : () => _applyProductQuantity(
+                                                  cartController,
+                                                  resolvedProduct,
+                                                  quantity + 1,
+                                                  variant: variant,
+                                                ),
+                                          onDecrement: quantity <= 0
+                                              ? null
+                                              : () => _applyProductQuantity(
+                                                  cartController,
+                                                  resolvedProduct,
+                                                  quantity - 1,
+                                                  variant: variant,
+                                                ),
+                                          onSubmitted: isUnavailable
+                                              ? null
+                                              : (value) =>
+                                                    _applyProductQuantity(
+                                                      cartController,
+                                                      resolvedProduct,
+                                                      value,
+                                                      variant: variant,
+                                                    ),
+                                          canIncrement: !isUnavailable,
+                                          enabled: !isUnavailable,
                                         ),
-                                        quantity: quantity,
-                                        onIncrement: isUnavailable
-                                            ? null
-                                            : () => _applyProductQuantity(
-                                                cartController,
-                                                resolvedProduct,
-                                                quantity + 1,
-                                                variant: variant,
-                                              ),
-                                        onDecrement: quantity <= 0
-                                            ? null
-                                            : () => _applyProductQuantity(
-                                                cartController,
-                                                resolvedProduct,
-                                                quantity - 1,
-                                                variant: variant,
-                                              ),
-                                        onSubmitted: isUnavailable
-                                            ? null
-                                            : (value) => _applyProductQuantity(
-                                                cartController,
-                                                resolvedProduct,
-                                                value,
-                                                variant: variant,
-                                              ),
-                                        canIncrement: !isUnavailable,
-                                        enabled: !isUnavailable,
+                                      ],
+                                    ),
+                                    if (isUnavailable) ...[
+                                      const SizedBox(height: 10),
+                                      Text(
+                                        'This variant is out of stock.',
+                                        style: theme.textTheme.bodySmall
+                                            ?.copyWith(
+                                              color: theme.colorScheme.error,
+                                              fontWeight: FontWeight.w600,
+                                            ),
                                       ),
                                     ],
-                                  ),
-                                  if (isUnavailable) ...[
-                                    const SizedBox(height: 10),
-                                    Text(
-                                      'This variant is out of stock.',
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        color: theme.colorScheme.error,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
                                   ],
-                                ],
-                              ),
-                            );
-                          },
+                                ),
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: () {
-                                Navigator.of(sheetContext).pop();
-                                Get.toNamed(
-                                  AppRoutes.productDetails,
-                                  arguments: resolvedProduct,
-                                );
-                              },
-                              child: const Text('View Details'),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () {
+                                  Navigator.of(sheetContext).pop();
+                                  Get.toNamed(
+                                    AppRoutes.productDetails,
+                                    arguments: resolvedProduct,
+                                  );
+                                },
+                                child: const Text('View Details'),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: FilledButton(
-                              onPressed: () => Navigator.of(sheetContext).pop(),
-                              child: const Text('Done'),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: () =>
+                                    Navigator.of(sheetContext).pop(),
+                                child: const Text('Done'),
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  );
-                  },
-                );
-              },
-            ),
+                          ],
+                        ),
+                      ],
+                    );
+                  }),
           ),
         );
       },
@@ -1110,120 +1108,122 @@ class _ProductsStepState extends State<_ProductsStep> {
               20,
               20 + MediaQuery.of(sheetContext).viewInsets.bottom,
             ),
-            child: Obx(
-              () {
-                final categoryOptions = productController.categories
-                    .where((category) => category.id != null)
-                    .map(
-                      (category) => AppSearchableSelectOption<int>(
-                        value: category.id!,
-                        label: category.name ?? 'Category',
-                      ),
-                    )
-                    .toList(growable: false);
-                final subcategoryOptions = productController.subcategories
-                    .where((subcategory) => subcategory.id != null)
-                    .map(
-                      (subcategory) => AppSearchableSelectOption<int>(
-                        value: subcategory.id!,
-                        label: subcategory.name ?? 'Subcategory',
-                        searchTerms: [
-                          subcategory.name ?? '',
-                          productController.categories
-                                  .firstWhereOrNull(
-                                    (category) =>
-                                        category.id == subcategory.categoryId,
-                                  )
-                                  ?.name ??
-                              '',
-                        ],
-                      ),
-                    )
-                    .toList(growable: false);
-
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Filter Products',
-                      style: theme.textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+            child: Obx(() {
+              final categoryOptions = productController.categories
+                  .where((category) => category.id != null)
+                  .map(
+                    (category) => AppSearchableSelectOption<int>(
+                      value: category.id!,
+                      label: category.name ?? 'Category',
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Choose a category and subcategory to narrow the item list.',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    AppSearchableSelectField<int>(
-                      label: 'Category',
-                      searchHint: 'Search category',
-                      options: categoryOptions,
-                      value: productController.selectedCategoryId.value,
-                      placeholder: productController.categories.isEmpty
-                          ? 'No categories available'
-                          : 'All categories',
-                      prefixIcon: Icons.category_outlined,
-                      onChanged: productController.onCategoryChanged,
-                      enabled: productController.categories.isNotEmpty,
-                      isLoading: productController.isCategoriesLoading.value,
-                      helperText: 'Filter products by category.',
-                      clearLabel: 'All categories',
-                    ),
-                    const SizedBox(height: 12),
-                    AppSearchableSelectField<int>(
-                      label: 'Subcategory',
-                      searchHint: 'Search subcategory',
-                      options: subcategoryOptions,
-                      value: productController.selectedSubcategoryId.value,
-                      placeholder: productController.selectedCategoryId.value == null
-                          ? 'Select a category first'
-                          : productController.subcategories.isEmpty
-                          ? 'No subcategories available'
-                          : 'All subcategories',
-                      prefixIcon: Icons.account_tree_outlined,
-                      onChanged: productController.selectedCategoryId.value == null
-                          ? null
-                          : productController.onSubcategoryChanged,
-                      enabled: productController.selectedCategoryId.value != null,
-                      isLoading: productController.isSubcategoriesLoading.value,
-                      helperText: productController.selectedCategoryId.value == null
-                          ? 'Choose a category to load subcategories.'
-                          : 'Refine the selected category.',
-                      clearLabel: productController.selectedCategoryId.value == null
-                          ? null
-                          : 'All subcategories',
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () {
-                              productController.clearFilters();
-                              _searchController.clear();
-                              Navigator.of(sheetContext).pop();
-                            },
-                            child: const Text('Clear'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: FilledButton(
-                            onPressed: () => Navigator.of(sheetContext).pop(),
-                            child: const Text('Done'),
-                          ),
-                        ),
+                  )
+                  .toList(growable: false);
+              final subcategoryOptions = productController.subcategories
+                  .where((subcategory) => subcategory.id != null)
+                  .map(
+                    (subcategory) => AppSearchableSelectOption<int>(
+                      value: subcategory.id!,
+                      label: subcategory.name ?? 'Subcategory',
+                      searchTerms: [
+                        subcategory.name ?? '',
+                        productController.categories
+                                .firstWhereOrNull(
+                                  (category) =>
+                                      category.id == subcategory.categoryId,
+                                )
+                                ?.name ??
+                            '',
                       ],
                     ),
-                  ],
-                );
-              },
-            ),
+                  )
+                  .toList(growable: false);
+
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Filter Products',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Choose a category and subcategory to narrow the item list.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  AppSearchableSelectField<int>(
+                    label: 'Category',
+                    searchHint: 'Search category',
+                    options: categoryOptions,
+                    value: productController.selectedCategoryId.value,
+                    placeholder: productController.categories.isEmpty
+                        ? 'No categories available'
+                        : 'All categories',
+                    prefixIcon: Icons.category_outlined,
+                    onChanged: productController.onCategoryChanged,
+                    enabled: productController.categories.isNotEmpty,
+                    isLoading: productController.isCategoriesLoading.value,
+                    helperText: 'Filter products by category.',
+                    clearLabel: 'All categories',
+                  ),
+                  const SizedBox(height: 12),
+                  AppSearchableSelectField<int>(
+                    label: 'Subcategory',
+                    searchHint: 'Search subcategory',
+                    options: subcategoryOptions,
+                    value: productController.selectedSubcategoryId.value,
+                    placeholder:
+                        productController.selectedCategoryId.value == null
+                        ? 'Select a category first'
+                        : productController.subcategories.isEmpty
+                        ? 'No subcategories available'
+                        : 'All subcategories',
+                    prefixIcon: Icons.account_tree_outlined,
+                    onChanged:
+                        productController.selectedCategoryId.value == null
+                        ? null
+                        : productController.onSubcategoryChanged,
+                    enabled: productController.selectedCategoryId.value != null,
+                    isLoading: productController.isSubcategoriesLoading.value,
+                    helperText:
+                        productController.selectedCategoryId.value == null
+                        ? 'Choose a category to load subcategories.'
+                        : 'Refine the selected category.',
+                    clearLabel:
+                        productController.selectedCategoryId.value == null
+                        ? null
+                        : 'All subcategories',
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            productController.clearFilters();
+                            _searchController.clear();
+                            Navigator.of(sheetContext).pop();
+                          },
+                          child: const Text('Clear'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          child: const Text('Done'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            }),
           ),
         );
       },
@@ -1320,10 +1320,8 @@ class _ProductsStepState extends State<_ProductsStep> {
                     ),
                     const SizedBox(width: 12),
                     FilledButton.tonalIcon(
-                      onPressed: () => _openFilterSheet(
-                        context,
-                        productController,
-                      ),
+                      onPressed: () =>
+                          _openFilterSheet(context, productController),
                       icon: Stack(
                         clipBehavior: Clip.none,
                         children: [
@@ -1403,7 +1401,10 @@ class _ProductsStepState extends State<_ProductsStep> {
                           _searchController.clear();
                           productController.clearFilters();
                         },
-                        icon: const Icon(Icons.filter_alt_off_outlined, size: 18),
+                        icon: const Icon(
+                          Icons.filter_alt_off_outlined,
+                          size: 18,
+                        ),
                         label: const Text('Clear'),
                       ),
                   ],
@@ -1426,115 +1427,119 @@ class _ProductsStepState extends State<_ProductsStep> {
                 controller: _scrollController,
                 physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
-            if (showInitialLoader)
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (showErrorState)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: AppMessageState(
-                  icon: Icons.cloud_off_outlined,
-                  message: productController.errorMessage.value!,
-                  actionLabel: 'Retry',
-                  onAction: productController.retry,
-                ),
-              )
-            else if (showEmptyState)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: AppMessageState(
-                  icon: Icons.inventory_2_outlined,
-                  message:
-                      productController.infoMessage.value ??
-                      'No products matched your search.',
-                  actionLabel: productController.hasActiveFilter
-                      ? 'Clear Filters'
-                      : 'Refresh',
-                  onAction: productController.hasActiveFilter
-                      ? () async {
-                          _searchController.clear();
-                          productController.clearFilters();
-                        }
-                      : () async {
-                          await productController.retry();
-                        },
-                ),
-              )
-            else
-              SliverList.separated(
-                itemCount: products.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 12),
-                itemBuilder: (context, index) {
-                  final product = products[index];
-                  final selectedQuantity = cartController.quantityForProduct(
-                    product.id,
-                  );
-                  final unitLabel =
-                      product.unit?.shortName ?? product.unit?.name;
-                  final displayPrice = product.hasVariants == true
-                      ? product.lowestVariantSellingPrice
-                      : product.sellingPrice;
+                  if (showInitialLoader)
+                    const SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (showErrorState)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: AppMessageState(
+                        icon: Icons.cloud_off_outlined,
+                        message: productController.errorMessage.value!,
+                        actionLabel: 'Retry',
+                        onAction: productController.retry,
+                      ),
+                    )
+                  else if (showEmptyState)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: AppMessageState(
+                        icon: Icons.inventory_2_outlined,
+                        message:
+                            productController.infoMessage.value ??
+                            'No products matched your search.',
+                        actionLabel: productController.hasActiveFilter
+                            ? 'Clear Filters'
+                            : 'Refresh',
+                        onAction: productController.hasActiveFilter
+                            ? () async {
+                                _searchController.clear();
+                                productController.clearFilters();
+                              }
+                            : () async {
+                                await productController.retry();
+                              },
+                      ),
+                    )
+                  else
+                    SliverList.separated(
+                      itemCount: products.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final product = products[index];
+                        final selectedQuantity = cartController
+                            .quantityForProduct(product.id);
+                        final unitLabel =
+                            product.unit?.shortName ?? product.unit?.name;
+                        final displayPrice = product.hasVariants == true
+                            ? product.lowestVariantSellingPrice
+                            : product.sellingPrice;
 
-                  return ProductCard(
-                    key: ValueKey('product-card-${product.id}'),
-                    name: product.name ?? 'Unnamed product',
-                    sku: product.sku ?? '-',
-                    price: product.hasVariants == true
-                        ? 'From ${productController.formatPrice(displayPrice)}'
-                        : productController.formatPrice(displayPrice),
-                    stock: product.currentStock ?? 0,
-                    selectedQuantity: selectedQuantity,
-                    imageUrl: product.primaryPhotoUrl,
-                    unitLabel: unitLabel == null ? null : 'Unit $unitLabel',
-                    categoryLabel: product.category?.name,
-                    buttonLabel: 'Add',
-                    showQuantityControls: product.hasVariants != true,
-                    onViewDetails: () {
-                      Get.toNamed(AppRoutes.productDetails, arguments: product);
-                    },
-                    onAdd: () => product.hasVariants == true
-                        ? _openQuickAddSheet(
-                            context,
-                            product,
-                            cartController,
-                            productController,
-                          )
-                        : _openQuickAddSheet(
-                            context,
-                            product,
-                            cartController,
-                            productController,
-                          ),
-                    onIncrement: product.hasVariants == true
-                        ? null
-                        : () => cartController.incrementQuantity(
-                            '${product.id}:base',
-                          ),
-                    onDecrement: product.hasVariants == true
-                        ? null
-                        : () => cartController.decrementQuantity(
-                            '${product.id}:base',
-                          ),
-                    onQuantitySubmitted: product.hasVariants == true
-                        ? null
-                        : (value) => _applyProductQuantity(
-                            cartController,
-                            product,
-                            value,
-                          ),
-                  );
-                },
-              ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: productController.isLoadingMore.value
-                    ? const Center(child: CircularProgressIndicator())
-                    : const SizedBox.shrink(),
-              ),
-            ),
+                        return ProductCard(
+                          key: ValueKey('product-card-${product.id}'),
+                          name: product.name ?? 'Unnamed product',
+                          sku: product.sku ?? '-',
+                          price: product.hasVariants == true
+                              ? 'From ${productController.formatPrice(displayPrice)}'
+                              : productController.formatPrice(displayPrice),
+                          stock: product.currentStock ?? 0,
+                          selectedQuantity: selectedQuantity,
+                          imageUrl: product.primaryPhotoUrl,
+                          unitLabel: unitLabel == null
+                              ? null
+                              : 'Unit $unitLabel',
+                          categoryLabel: product.category?.name,
+                          buttonLabel: 'Add',
+                          showQuantityControls: product.hasVariants != true,
+                          onViewDetails: () {
+                            Get.toNamed(
+                              AppRoutes.productDetails,
+                              arguments: product,
+                            );
+                          },
+                          onAdd: () => product.hasVariants == true
+                              ? _openQuickAddSheet(
+                                  context,
+                                  product,
+                                  cartController,
+                                  productController,
+                                )
+                              : _openQuickAddSheet(
+                                  context,
+                                  product,
+                                  cartController,
+                                  productController,
+                                ),
+                          onIncrement: product.hasVariants == true
+                              ? null
+                              : () => cartController.incrementQuantity(
+                                  '${product.id}:base',
+                                ),
+                          onDecrement: product.hasVariants == true
+                              ? null
+                              : () => cartController.decrementQuantity(
+                                  '${product.id}:base',
+                                ),
+                          onQuantitySubmitted: product.hasVariants == true
+                              ? null
+                              : (value) => _applyProductQuantity(
+                                  cartController,
+                                  product,
+                                  value,
+                                ),
+                        );
+                      },
+                    ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      child: productController.isLoadingMore.value
+                          ? const Center(child: CircularProgressIndicator())
+                          : const SizedBox.shrink(),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -2069,7 +2074,9 @@ class _ConfirmStep extends StatelessWidget {
                   ),
                   child: _TotalRow(
                     label: 'Total',
-                    value: controller.formatCurrency(controller.displayGrandTotal),
+                    value: controller.formatCurrency(
+                      controller.displayGrandTotal,
+                    ),
                     strong: true,
                   ),
                 ),
