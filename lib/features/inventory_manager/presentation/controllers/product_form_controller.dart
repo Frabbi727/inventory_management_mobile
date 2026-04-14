@@ -42,6 +42,8 @@ class ProductFormController extends GetxController {
   late final TextEditingController minimumStockController;
   final _attributeNameControllers = <String, TextEditingController>{};
   final _attributeValuesControllers = <String, TextEditingController>{};
+  final _attributeNameFocusNodes = <String, FocusNode>{};
+  final _attributeValuesFocusNodes = <String, FocusNode>{};
   final _combinationQuantityControllers = <String, TextEditingController>{};
   final _combinationPurchasePriceControllers =
       <String, TextEditingController>{};
@@ -235,6 +237,8 @@ class ProductFormController extends GetxController {
   void removeVariantAttribute(String id) {
     _attributeNameControllers.remove(id)?.dispose();
     _attributeValuesControllers.remove(id)?.dispose();
+    _attributeNameFocusNodes.remove(id)?.dispose();
+    _attributeValuesFocusNodes.remove(id)?.dispose();
     variantAttributes.removeWhere((attribute) => attribute.id == id);
     _regenerateVariantCombinations();
   }
@@ -351,6 +355,14 @@ class ProductFormController extends GetxController {
       return TextEditingController();
     }
     return _ensureAttributeControllers(attribute).$2;
+  }
+
+  FocusNode attributeNameFocusNode(String id) {
+    return _attributeNameFocusNodes.putIfAbsent(id, FocusNode.new);
+  }
+
+  FocusNode attributeValuesFocusNode(String id) {
+    return _attributeValuesFocusNodes.putIfAbsent(id, FocusNode.new);
   }
 
   TextEditingController combinationQuantityController(String key) {
@@ -859,15 +871,23 @@ class ProductFormController extends GetxController {
       attribute.id,
       () => TextEditingController(text: attributeValuesLabel(attribute)),
     );
+    final nameFocusNode = _attributeNameFocusNodes.putIfAbsent(
+      attribute.id,
+      FocusNode.new,
+    );
+    final valuesFocusNode = _attributeValuesFocusNodes.putIfAbsent(
+      attribute.id,
+      FocusNode.new,
+    );
 
-    if (nameController.text != attribute.name) {
+    if (!nameFocusNode.hasFocus && nameController.text != attribute.name) {
       nameController.value = nameController.value.copyWith(
         text: attribute.name,
         selection: TextSelection.collapsed(offset: attribute.name.length),
       );
     }
     final valuesText = attributeValuesLabel(attribute);
-    if (valuesController.text != valuesText) {
+    if (!valuesFocusNode.hasFocus && valuesController.text != valuesText) {
       valuesController.value = valuesController.value.copyWith(
         text: valuesText,
         selection: TextSelection.collapsed(offset: valuesText.length),
@@ -966,6 +986,12 @@ class ProductFormController extends GetxController {
     for (final controller in _attributeValuesControllers.values) {
       controller.dispose();
     }
+    for (final focusNode in _attributeNameFocusNodes.values) {
+      focusNode.dispose();
+    }
+    for (final focusNode in _attributeValuesFocusNodes.values) {
+      focusNode.dispose();
+    }
     for (final controller in _combinationQuantityControllers.values) {
       controller.dispose();
     }
@@ -977,6 +1003,8 @@ class ProductFormController extends GetxController {
     }
     _attributeNameControllers.clear();
     _attributeValuesControllers.clear();
+    _attributeNameFocusNodes.clear();
+    _attributeValuesFocusNodes.clear();
     _combinationQuantityControllers.clear();
     _combinationPurchasePriceControllers.clear();
     _combinationSellingPriceControllers.clear();

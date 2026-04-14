@@ -31,6 +31,8 @@ class PurchaseRecordsPage extends GetView<PurchaseRecordsController> {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
           child: Column(
             children: [
+              _PurchaseOverviewBanner(controller: controller),
+              const SizedBox(height: 12),
               _PurchaseToolbar(controller: controller),
               const SizedBox(height: 10),
               Obx(
@@ -47,7 +49,8 @@ class PurchaseRecordsPage extends GetView<PurchaseRecordsController> {
                               if (controller.hasActiveSearch)
                                 _FilterChip(
                                   icon: Icons.search_rounded,
-                                  label: 'Search: ${controller.searchQuery.value}',
+                                  label:
+                                      'Search: ${controller.searchQuery.value}',
                                 ),
                               if (controller.hasActiveDateFilter)
                                 _FilterChip(
@@ -106,10 +109,9 @@ class PurchaseRecordsPage extends GetView<PurchaseRecordsController> {
                           displacement: 28,
                           child: controller.purchases.isEmpty
                               ? ListView(
-                                  physics:
-                                      const AlwaysScrollableScrollPhysics(
-                                        parent: BouncingScrollPhysics(),
-                                      ),
+                                  physics: const AlwaysScrollableScrollPhysics(
+                                    parent: BouncingScrollPhysics(),
+                                  ),
                                   children: [
                                     SizedBox(
                                       height:
@@ -126,8 +128,7 @@ class PurchaseRecordsPage extends GetView<PurchaseRecordsController> {
                                             controller.hasAnyQueryApplied
                                             ? 'Clear filters'
                                             : 'Refresh',
-                                        onAction:
-                                            controller.hasAnyQueryApplied
+                                        onAction: controller.hasAnyQueryApplied
                                             ? controller.clearAllCriteria
                                             : controller.retry,
                                       ),
@@ -136,10 +137,9 @@ class PurchaseRecordsPage extends GetView<PurchaseRecordsController> {
                                 )
                               : ListView.separated(
                                   controller: controller.scrollController,
-                                  physics:
-                                      const AlwaysScrollableScrollPhysics(
-                                        parent: BouncingScrollPhysics(),
-                                      ),
+                                  physics: const AlwaysScrollableScrollPhysics(
+                                    parent: BouncingScrollPhysics(),
+                                  ),
                                   padding: const EdgeInsets.only(
                                     top: 4,
                                     bottom: 112,
@@ -161,13 +161,15 @@ class PurchaseRecordsPage extends GetView<PurchaseRecordsController> {
                                       );
                                     }
 
-                                    final purchase = controller.purchases[index];
+                                    final purchase =
+                                        controller.purchases[index];
                                     return _PurchaseCard(
                                       purchase: purchase,
                                       formatDate: controller.formatDate,
-                                      formatCurrency:
-                                          controller.formatCurrency,
+                                      formatCurrency: controller.formatCurrency,
                                       onOpen: () => controller
+                                          .openPurchaseDetails(purchase),
+                                      onEdit: () => controller
                                           .openPurchaseEditor(purchase),
                                     );
                                   },
@@ -180,6 +182,80 @@ class PurchaseRecordsPage extends GetView<PurchaseRecordsController> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PurchaseOverviewBanner extends StatelessWidget {
+  const _PurchaseOverviewBanner({required this.controller});
+
+  final PurchaseRecordsController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Obx(
+      () => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              theme.colorScheme.primary.withValues(alpha: 0.95),
+              const Color(0xFF115E59),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: theme.colorScheme.primary.withValues(alpha: 0.22),
+              blurRadius: 28,
+              offset: const Offset(0, 16),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Purchase control',
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: Colors.white.withValues(alpha: 0.82),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Review purchase activity, filter by date, and open a draft-safe edit flow only when you need to correct stock movement.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.white.withValues(alpha: 0.92),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                _BannerStat(
+                  label: 'Loaded',
+                  value: '${controller.purchases.length}',
+                ),
+                _BannerStat(
+                  label: 'Filters',
+                  value: '${controller.activeFilterCount}',
+                ),
+                _BannerStat(
+                  label: 'Mode',
+                  value: controller.hasAnyQueryApplied ? 'Focused' : 'All',
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
@@ -296,10 +372,7 @@ class _PurchaseSearchBar extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(20),
-          borderSide: BorderSide(
-            color: theme.colorScheme.primary,
-            width: 1.6,
-          ),
+          borderSide: BorderSide(color: theme.colorScheme.primary, width: 1.6),
         ),
       ),
     );
@@ -404,10 +477,7 @@ class _PurchaseDateFilterRow extends StatelessWidget {
 }
 
 class _ResetFiltersButton extends StatelessWidget {
-  const _ResetFiltersButton({
-    required this.enabled,
-    required this.onPressed,
-  });
+  const _ResetFiltersButton({required this.enabled, required this.onPressed});
 
   final bool enabled;
   final Future<void> Function() onPressed;
@@ -473,12 +543,14 @@ class _PurchaseCard extends StatelessWidget {
     required this.formatDate,
     required this.formatCurrency,
     required this.onOpen,
+    required this.onEdit,
   });
 
   final InventoryPurchaseModel purchase;
   final String Function(String? value) formatDate;
   final String Function(num? value) formatCurrency;
   final VoidCallback onOpen;
+  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -535,23 +607,37 @@ class _PurchaseCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    FilledButton.tonalIcon(
-                      onPressed: onOpen,
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size(0, 46),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
+                    Column(
+                      children: [
+                        FilledButton.tonalIcon(
+                          onPressed: onOpen,
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size(0, 46),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 10,
+                            ),
+                            backgroundColor: theme.colorScheme.primaryContainer
+                                .withValues(alpha: 0.72),
+                            foregroundColor: theme.colorScheme.primary,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          icon: const Icon(Icons.visibility_outlined, size: 18),
+                          label: const Text('View'),
                         ),
-                        backgroundColor: theme.colorScheme.primaryContainer
-                            .withValues(alpha: 0.72),
-                        foregroundColor: theme.colorScheme.primary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                        const SizedBox(height: 8),
+                        OutlinedButton.icon(
+                          onPressed: onEdit,
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 44),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                          ),
+                          icon: const Icon(Icons.edit_outlined, size: 18),
+                          label: const Text('Edit'),
                         ),
-                      ),
-                      icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                      label: const Text('Open'),
+                      ],
                     ),
                   ],
                 ),
@@ -639,7 +725,9 @@ class _StatBox extends StatelessWidget {
       constraints: BoxConstraints(minWidth: isWide ? 150 : 110),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.48),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.48,
+        ),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: theme.colorScheme.outlineVariant.withValues(alpha: 0.72),
@@ -655,11 +743,7 @@ class _StatBox extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.75),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(
-              icon,
-              size: 18,
-              color: theme.colorScheme.primary,
-            ),
+            child: Icon(icon, size: 18, color: theme.colorScheme.primary),
           ),
           const SizedBox(width: 10),
           Flexible(
@@ -727,6 +811,47 @@ class _SummaryBadge extends StatelessWidget {
   }
 }
 
+class _BannerStat extends StatelessWidget {
+  const _BannerStat({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: Colors.white.withValues(alpha: 0.75),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _MetaRow extends StatelessWidget {
   const _MetaRow({required this.icon, required this.text});
 
@@ -740,11 +865,7 @@ class _MetaRow extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          icon,
-          size: 16,
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
+        Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
         const SizedBox(width: 6),
         Flexible(
           child: Text(
@@ -773,7 +894,9 @@ class _FilterChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.75),
+        color: theme.colorScheme.surfaceContainerHighest.withValues(
+          alpha: 0.75,
+        ),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
           color: theme.colorScheme.outlineVariant.withValues(alpha: 0.8),
@@ -782,11 +905,7 @@ class _FilterChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 16,
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
+          Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
           const SizedBox(width: 6),
           Text(
             label,

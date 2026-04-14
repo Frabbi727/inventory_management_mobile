@@ -26,6 +26,8 @@ class ProductFormPage extends GetView<ProductFormController> {
             () => ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
               children: [
+                _ProductFormHero(controller: controller),
+                const SizedBox(height: 16),
                 if (controller.errorMessage.value != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
@@ -35,6 +37,8 @@ class ProductFormPage extends GetView<ProductFormController> {
                   ),
                 _FormSection(
                   title: 'Product Details',
+                  subtitle:
+                      'Keep master data consistent. Category controls the available subcategories, and barcode stays tied to the scan flow.',
                   child: Column(
                     children: [
                       _FormField(
@@ -155,6 +159,8 @@ class ProductFormPage extends GetView<ProductFormController> {
                 const SizedBox(height: 16),
                 _FormSection(
                   title: 'Pricing & Stock',
+                  subtitle:
+                      'Simple products keep prices at the base level. Variant products move pricing into each generated combination.',
                   child: Column(
                     children: [
                       if (controller.showBasePriceFields) ...[
@@ -281,10 +287,11 @@ class ProductFormPage extends GetView<ProductFormController> {
 }
 
 class _FormSection extends StatelessWidget {
-  const _FormSection({required this.title, required this.child});
+  const _FormSection({required this.title, required this.child, this.subtitle});
 
   final String title;
   final Widget child;
+  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
@@ -312,9 +319,98 @@ class _FormSection extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
+          if ((subtitle ?? '').isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              subtitle!,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           child,
         ],
+      ),
+    );
+  }
+}
+
+class _ProductFormHero extends StatelessWidget {
+  const _ProductFormHero({required this.controller});
+
+  final ProductFormController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Obx(
+      () => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [theme.colorScheme.primary, const Color(0xFF115E59)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: theme.colorScheme.primary.withValues(alpha: 0.22),
+              blurRadius: 30,
+              offset: const Offset(0, 18),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              controller.isEdit
+                  ? 'Update product business data'
+                  : 'Create product from scan flow',
+              style: theme.textTheme.labelLarge?.copyWith(
+                color: Colors.white.withValues(alpha: 0.78),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              controller.isEdit
+                  ? 'Adjust pricing, master data, variants, and photos without breaking the barcode contract.'
+                  : 'Capture the scanned barcode, classify the product properly, and prepare variant combinations before saving.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.white.withValues(alpha: 0.94),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                _HeroTag(
+                  label: 'Mode',
+                  value: controller.isEdit ? 'Edit' : 'Create',
+                ),
+                _HeroTag(
+                  label: 'Product Type',
+                  value: controller.showVariantSection ? 'Variant' : 'Simple',
+                ),
+                _HeroTag(
+                  label: 'Photos',
+                  value: '${controller.selectedPhotos.length}',
+                ),
+                _HeroTag(
+                  label: 'Barcode',
+                  value: controller.barcodeController.text.trim().isEmpty
+                      ? 'Pending'
+                      : 'Ready',
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -662,6 +758,8 @@ class _VariantSection extends StatelessWidget {
 
     return _FormSection(
       title: 'Variants',
+      subtitle:
+          'Define attributes first, then review every generated combination before you save.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -695,6 +793,13 @@ class _VariantSection extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
+          _VariantStepCard(
+            step: 'Step 1',
+            title: 'Attributes',
+            description:
+                'Use clear business names such as Size, Color, Storage, or Pack Type. Values should be comma separated.',
+          ),
+          const SizedBox(height: 12),
           ...controller.variantAttributes.map(
             (attribute) => Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -717,6 +822,13 @@ class _VariantSection extends StatelessWidget {
           ],
           if (controller.variantCombinations.isNotEmpty) ...[
             const SizedBox(height: 18),
+            const _VariantStepCard(
+              step: 'Step 2',
+              title: 'Generated combinations',
+              description:
+                  'Review opening quantity and per-variant prices for every combination. These values become the backend payload.',
+            ),
+            const SizedBox(height: 12),
             Text(
               'Generated combinations',
               style: theme.textTheme.titleMedium?.copyWith(
@@ -767,7 +879,7 @@ class _VariantAttributeCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
@@ -778,6 +890,7 @@ class _VariantAttributeCard extends StatelessWidget {
               Expanded(
                 child: TextFormField(
                   controller: controller.attributeNameController(attribute.id),
+                  focusNode: controller.attributeNameFocusNode(attribute.id),
                   onChanged: (value) => controller.updateVariantAttributeName(
                     attribute.id,
                     value,
@@ -799,8 +912,41 @@ class _VariantAttributeCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
+          if (attribute.values.isNotEmpty)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: attribute.values
+                    .map(
+                      (value) => Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primaryContainer
+                              .withValues(alpha: 0.55),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          value,
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+          if (attribute.values.isNotEmpty) const SizedBox(height: 12),
           TextFormField(
             controller: controller.attributeValuesController(attribute.id),
+            focusNode: controller.attributeValuesFocusNode(attribute.id),
             onChanged: (value) =>
                 controller.updateVariantAttributeValues(attribute.id, value),
             decoration: _inputDecoration(
@@ -845,7 +991,7 @@ class _VariantCombinationCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFFFBFCFD),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
@@ -864,6 +1010,18 @@ class _VariantCombinationCard extends StatelessWidget {
             style: theme.textTheme.bodySmall?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _VariantMetaPill(label: 'Opening Qty', value: '$quantity'),
+              _VariantMetaPill(
+                label: 'Key',
+                value: label.isEmpty ? 'Generated' : 'Named',
+              ),
+            ],
           ),
           const SizedBox(height: 14),
           Row(
@@ -945,6 +1103,112 @@ class _VariantMetaPill extends StatelessWidget {
         style: theme.textTheme.labelMedium?.copyWith(
           fontWeight: FontWeight.w700,
         ),
+      ),
+    );
+  }
+}
+
+class _VariantStepCard extends StatelessWidget {
+  const _VariantStepCard({
+    required this.step,
+    required this.title,
+    required this.description,
+  });
+
+  final String step;
+  final String title;
+  final String description;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              step,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.primary,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroTag extends StatelessWidget {
+  const _HeroTag({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: theme.textTheme.labelMedium?.copyWith(
+              color: Colors.white.withValues(alpha: 0.76),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }
