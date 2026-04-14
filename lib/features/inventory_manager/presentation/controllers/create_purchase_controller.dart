@@ -198,7 +198,10 @@ class CreatePurchaseController extends InventoryProductCatalogController {
   void openCreateProduct(String barcode) {
     Get.toNamed(
       AppRoutes.inventoryProductForm,
-      arguments: ProductFormArgs.create(barcode: barcode),
+      arguments: ProductFormArgs.create(
+        barcode: barcode,
+        source: ProductFormSource.scan,
+      ),
     );
   }
 

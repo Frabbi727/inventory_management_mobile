@@ -45,9 +45,11 @@ class ProductFormController extends GetxController {
   final _attributeNameFocusNodes = <String, FocusNode>{};
   final _attributeValuesFocusNodes = <String, FocusNode>{};
   final _combinationQuantityControllers = <String, TextEditingController>{};
+  final _combinationSkuControllers = <String, TextEditingController>{};
   final _combinationPurchasePriceControllers =
       <String, TextEditingController>{};
   final _combinationSellingPriceControllers = <String, TextEditingController>{};
+  final _combinationStatusControllers = <String, String>{};
 
   final categories = <CategoryModel>[].obs;
   final subcategories = <ProductSubcategoryModel>[].obs;
@@ -67,19 +69,46 @@ class ProductFormController extends GetxController {
   final selectedSubcategoryId = RxnInt();
   final selectedUnitId = RxnInt();
   final selectedStatus = 'active'.obs;
+  final expandedVariantKey = RxnString();
 
   int _nextPhotoId = 0;
   int _nextAttributeId = 0;
+  int _nextVariantDraftId = 0;
 
   bool get isEdit => args.mode == ProductFormMode.edit;
+  bool get isScanCreate => !isEdit && args.source == ProductFormSource.scan;
+  bool get isManualCreate => !isEdit && args.source == ProductFormSource.manual;
   bool get hasPendingCompression =>
       selectedPhotos.any((photo) => photo.isCompressing);
   bool get showVariantSection => isVariantsEnabled.value;
   bool get showBasePriceFields => !isVariantsEnabled.value;
   bool get isSubcategoryEnabled =>
       !isSubcategoryLoading.value && selectedCategoryId.value != null;
+  String get selectedUnitLabel {
+    final unit = units.firstWhereOrNull(
+      (item) => item.id == selectedUnitId.value,
+    );
+    if (unit == null) {
+      return 'Unit not selected';
+    }
+    if (unit.shortName == null || unit.shortName!.trim().isEmpty) {
+      return unit.name ?? 'Unit';
+    }
+    return '${unit.name ?? 'Unit'} (${unit.shortName!.trim()})';
+  }
+
   int get variantAttributeCount => variantAttributes.length;
   int get variantCombinationCount => variantCombinations.length;
+  bool get canGenerateVariantRows => variantAttributes.any((attribute) {
+    final name =
+        (_attributeNameControllers[attribute.id]?.text ?? attribute.name)
+            .trim();
+    final valuesText =
+        (_attributeValuesControllers[attribute.id]?.text ??
+                attributeValuesLabel(attribute))
+            .trim();
+    return name.isNotEmpty && valuesText.isNotEmpty;
+  });
   bool get hasIncompleteVariantRows => variantAttributes.any(
     (attribute) =>
         attribute.name.trim().isEmpty ||
@@ -102,7 +131,9 @@ class ProductFormController extends GetxController {
         : const ProductFormArgs.create();
     nameController = TextEditingController(text: args.name ?? '');
     skuController = TextEditingController(text: args.sku ?? '');
-    barcodeController = TextEditingController(text: args.barcode ?? '');
+    barcodeController = TextEditingController(
+      text: _resolveInitialBaseBarcode(),
+    );
     purchasePriceController = TextEditingController(
       text: args.purchasePrice?.toString() ?? '',
     );
@@ -214,16 +245,56 @@ class ProductFormController extends GetxController {
     isVariantsEnabled.value = value;
     variantErrorMessage.value = null;
     if (value) {
-      if (variantAttributes.isEmpty) {
-        addVariantAttribute();
+      if (variantCombinations.isEmpty) {
+        addVariantRow();
       }
-      _regenerateVariantCombinations();
       return;
     }
 
     _disposeVariantControllers();
     variantAttributes.clear();
     variantCombinations.clear();
+  }
+
+  void addVariantRow() {
+    final key = _createManualVariantKey();
+    variantCombinations.add(
+      VariantCombinationDraft(
+        key: key,
+        label: 'New Variant',
+        attributes: const <String, String>{},
+        quantity: 0,
+        attributeNameDraft: '',
+        attributeValueDraft: '',
+        sku: _buildVariantSku(skuController.text.trim(), key),
+        barcode: _buildVariantBarcode(barcodeController.text.trim(), key),
+      ),
+    );
+    variantCombinations.refresh();
+    expandedVariantKey.value = key;
+    _syncCombinationControllers();
+    variantErrorMessage.value = null;
+    update(['variant_rows']);
+  }
+
+  void removeVariantRow(String key) {
+    variantCombinations.removeWhere((combination) => combination.key == key);
+    variantCombinations.refresh();
+    if (expandedVariantKey.value == key) {
+      expandedVariantKey.value = variantCombinations.isEmpty
+          ? null
+          : variantCombinations.last.key;
+    }
+    _syncCombinationControllers();
+    variantErrorMessage.value = null;
+    update(['variant_rows']);
+  }
+
+  bool isVariantExpanded(String key) => expandedVariantKey.value == key;
+
+  void toggleVariantExpanded(String key) {
+    expandedVariantKey.value = expandedVariantKey.value == key ? null : key;
+    update(['variant_rows']);
   }
 
   void addVariantAttribute() {
@@ -276,6 +347,17 @@ class ProductFormController extends GetxController {
     _regenerateVariantCombinations();
   }
 
+  void generateVariantRows() {
+    _syncAttributeDraftsFromControllers();
+    _regenerateVariantCombinations(syncInputs: false);
+    if (variantCombinations.isEmpty) {
+      variantErrorMessage.value =
+          'Add an attribute name and at least one value, then generate variant rows.';
+      return;
+    }
+    variantErrorMessage.value = null;
+  }
+
   String attributeValuesLabel(EditableVariantAttribute attribute) {
     if (attribute.values.isEmpty) {
       return '';
@@ -290,12 +372,71 @@ class ProductFormController extends GetxController {
     if (index == -1) {
       return;
     }
+    if (!variantCombinations[index].isActive) {
+      return;
+    }
     final quantity = int.tryParse(rawValue.trim()) ?? 0;
     if (variantCombinations[index].quantity == (quantity < 0 ? 0 : quantity)) {
       return;
     }
     variantCombinations[index] = variantCombinations[index].copyWith(
       quantity: quantity < 0 ? 0 : quantity,
+    );
+    variantCombinations.refresh();
+    variantErrorMessage.value = null;
+  }
+
+  void updateCombinationAttributeName(String key, String rawValue) {
+    final index = variantCombinations.indexWhere(
+      (combination) => combination.key == key,
+    );
+    if (index == -1) {
+      return;
+    }
+    final current = variantCombinations[index];
+    final currentValue = current.attributeValueDraft;
+    _updateCombinationAttributes(
+      index,
+      current,
+      attributeName: rawValue.trim(),
+      attributeValue: currentValue,
+    );
+  }
+
+  void updateCombinationAttributeValue(String key, String rawValue) {
+    final index = variantCombinations.indexWhere(
+      (combination) => combination.key == key,
+    );
+    if (index == -1) {
+      return;
+    }
+    final current = variantCombinations[index];
+    final currentName = current.attributeNameDraft;
+    _updateCombinationAttributes(
+      index,
+      current,
+      attributeName: currentName,
+      attributeValue: rawValue.trim(),
+    );
+  }
+
+  void updateCombinationSku(String key, String rawValue) {
+    final index = variantCombinations.indexWhere(
+      (combination) => combination.key == key,
+    );
+    if (index == -1) {
+      return;
+    }
+    final normalized = rawValue.trim();
+    final nextSku = normalized.isEmpty ? null : normalized;
+    final current = variantCombinations[index];
+    if (current.sku == nextSku && current.isSkuEdited) {
+      return;
+    }
+    variantCombinations[index] = current.copyWith(
+      sku: nextSku,
+      clearSku: nextSku == null,
+      isSkuEdited: true,
     );
     variantCombinations.refresh();
     variantErrorMessage.value = null;
@@ -309,11 +450,11 @@ class ProductFormController extends GetxController {
       return;
     }
     final parsed = num.tryParse(rawValue.trim());
-    if (variantCombinations[index].purchasePrice == parsed) {
+    if (variantCombinations[index].buyingPrice == parsed) {
       return;
     }
     variantCombinations[index] = variantCombinations[index].copyWith(
-      purchasePrice: parsed,
+      buyingPrice: parsed,
     );
     variantCombinations.refresh();
     variantErrorMessage.value = null;
@@ -335,6 +476,38 @@ class ProductFormController extends GetxController {
     );
     variantCombinations.refresh();
     variantErrorMessage.value = null;
+  }
+
+  void updateCombinationStatus(String key, String? value) {
+    if (value == null) {
+      return;
+    }
+    final index = variantCombinations.indexWhere(
+      (combination) => combination.key == key,
+    );
+    if (index == -1) {
+      return;
+    }
+
+    final nextQuantity = value == 'inactive'
+        ? 0
+        : variantCombinations[index].quantity;
+    variantCombinations[index] = variantCombinations[index].copyWith(
+      status: value,
+      quantity: nextQuantity,
+    );
+    variantCombinations.refresh();
+    variantErrorMessage.value = null;
+    _combinationStatusControllers[key] = value;
+
+    final quantityController = _combinationQuantityControllers[key];
+    if (quantityController != null &&
+        quantityController.text != '$nextQuantity') {
+      quantityController.value = quantityController.value.copyWith(
+        text: '$nextQuantity',
+        selection: TextSelection.collapsed(offset: '$nextQuantity'.length),
+      );
+    }
   }
 
   TextEditingController attributeNameController(String id) {
@@ -383,6 +556,56 @@ class ProductFormController extends GetxController {
     return controller;
   }
 
+  TextEditingController combinationSkuController(String key) {
+    final existing = _combinationSkuControllers[key];
+    if (existing != null) {
+      return existing;
+    }
+    final sku = variantCombinations
+        .firstWhereOrNull((combination) => combination.key == key)
+        ?.sku;
+    final controller = TextEditingController(text: sku ?? '');
+    controller.addListener(() => updateCombinationSku(key, controller.text));
+    _combinationSkuControllers[key] = controller;
+    return controller;
+  }
+
+  TextEditingController combinationAttributeNameController(String key) {
+    final existing = _attributeNameControllers[key];
+    if (existing != null) {
+      return existing;
+    }
+    final value =
+        variantCombinations
+            .firstWhereOrNull((combination) => combination.key == key)
+            ?.attributeNameDraft ??
+        '';
+    final controller = TextEditingController(text: value);
+    controller.addListener(
+      () => updateCombinationAttributeName(key, controller.text),
+    );
+    _attributeNameControllers[key] = controller;
+    return controller;
+  }
+
+  TextEditingController combinationAttributeValueController(String key) {
+    final existing = _attributeValuesControllers[key];
+    if (existing != null) {
+      return existing;
+    }
+    final value =
+        variantCombinations
+            .firstWhereOrNull((combination) => combination.key == key)
+            ?.attributeValueDraft ??
+        '';
+    final controller = TextEditingController(text: value);
+    controller.addListener(
+      () => updateCombinationAttributeValue(key, controller.text),
+    );
+    _attributeValuesControllers[key] = controller;
+    return controller;
+  }
+
   TextEditingController combinationPurchasePriceController(String key) {
     final existing = _combinationPurchasePriceControllers[key];
     if (existing != null) {
@@ -390,7 +613,7 @@ class ProductFormController extends GetxController {
     }
     final price = variantCombinations
         .firstWhereOrNull((combination) => combination.key == key)
-        ?.purchasePrice;
+        ?.buyingPrice;
     final controller = TextEditingController(
       text: price == null ? '' : '$price',
     );
@@ -419,6 +642,44 @@ class ProductFormController extends GetxController {
     return controller;
   }
 
+  String combinationStatusValue(String key) {
+    final existing = _combinationStatusControllers[key];
+    if (existing != null) {
+      return existing;
+    }
+    final value =
+        variantCombinations
+            .firstWhereOrNull((combination) => combination.key == key)
+            ?.status ??
+        'active';
+    _combinationStatusControllers[key] = value;
+    return value;
+  }
+
+  String generatedVariantBarcode(String key) {
+    final combination = variantCombinations.firstWhereOrNull(
+      (item) => item.key == key,
+    );
+    final existing = combination?.barcode;
+    if (existing != null && existing.trim().isNotEmpty) {
+      return existing.trim();
+    }
+    final identityKey = _variantIdentityKey(combination);
+    return _buildVariantBarcode(barcodeController.text.trim(), identityKey);
+  }
+
+  String generatedVariantSku(String key) {
+    final combination = variantCombinations.firstWhereOrNull(
+      (item) => item.key == key,
+    );
+    final existing = combination?.sku;
+    if (existing != null && existing.trim().isNotEmpty) {
+      return existing.trim();
+    }
+    final identityKey = _variantIdentityKey(combination);
+    return _buildVariantSku(skuController.text.trim(), identityKey);
+  }
+
   Future<void> submit() async {
     final currentState = formKey.currentState;
     if (currentState == null || !currentState.validate()) {
@@ -433,6 +694,14 @@ class ProductFormController extends GetxController {
     }
     if (unitId == null) {
       errorMessage.value = 'Unit is required.';
+      return;
+    }
+    final baseSku = skuController.text.trim();
+    final baseBarcode = barcodeController.text.trim();
+    if (baseSku.isNotEmpty &&
+        baseBarcode.isNotEmpty &&
+        baseSku == baseBarcode) {
+      errorMessage.value = 'Base product SKU and barcode must be different.';
       return;
     }
 
@@ -457,10 +726,7 @@ class ProductFormController extends GetxController {
       minimumStockAlert: int.parse(minimumStockController.text.trim()),
       status: selectedStatus.value,
       hasVariants: isVariantsEnabled.value ? true : null,
-      variantAttributes: variantPayload?.$1,
-      variantQuantities: variantPayload?.$2,
-      variantPurchasePrices: variantPayload?.$3,
-      variantSellingPrices: variantPayload?.$4,
+      variants: variantPayload,
     );
 
     isSubmitting.value = true;
@@ -475,7 +741,12 @@ class ProductFormController extends GetxController {
 
       final product = isEdit
           ? await _submitProductUpdate(request, readyPhotos)
-          : await _inventoryManagerRepository.createProductFromBarcode(
+          : isScanCreate
+          ? await _inventoryManagerRepository.createProductFromBarcode(
+              request,
+              photos: readyPhotos,
+            )
+          : await _inventoryManagerRepository.createProduct(
               request,
               photos: readyPhotos,
             );
@@ -680,59 +951,40 @@ class ProductFormController extends GetxController {
           (variant) => VariantCombinationDraft(
             key: variant.combinationKey ?? _fallbackVariantKey(variant),
             label: variant.combinationLabel ?? '',
-            optionValues: variant.optionValues ?? const <String, String>{},
+            attributes:
+                variant.optionValues ??
+                variant.attributes ??
+                const <String, String>{},
+            attributeNameDraft:
+                (variant.optionValues ?? variant.attributes)
+                    ?.keys
+                    .firstOrNull ??
+                '',
+            attributeValueDraft:
+                (variant.optionValues ?? variant.attributes)
+                    ?.values
+                    .firstOrNull ??
+                '',
+            sku: variant.sku,
+            barcode: variant.barcode,
             quantity: variant.currentStock ?? 0,
-            purchasePrice: variant.purchasePrice,
+            buyingPrice: variant.purchasePrice,
             sellingPrice: variant.sellingPrice,
             variantId: variant.id,
-            isActive: variant.isActive ?? true,
+            status: (variant.status?.isNotEmpty ?? false)
+                ? variant.status!
+                : ((variant.isActive ?? true) ? 'active' : 'inactive'),
           ),
         ),
       );
+      expandedVariantKey.value = variantCombinations.firstOrNull?.key;
       _syncCombinationControllers();
     }
   }
 
-  (
-    List<ProductVariantAttributePayload>,
-    Map<String, int>,
-    Map<String, num>,
-    Map<String, num>,
-  )?
-  _buildVariantPayload() {
+  List<ProductVariantRowPayload>? _buildVariantPayload() {
     variantErrorMessage.value = null;
     if (!isVariantsEnabled.value) {
-      return null;
-    }
-
-    final sanitizedAttributes = variantAttributes
-        .map(
-          (attribute) => ProductVariantAttributePayload(
-            name: attribute.name.trim(),
-            values: attribute.values
-                .map((value) => value.trim())
-                .where((value) => value.isNotEmpty)
-                .toSet()
-                .toList(),
-          ),
-        )
-        .where(
-          (attribute) =>
-              attribute.name.isNotEmpty && attribute.values.isNotEmpty,
-        )
-        .toList();
-
-    if (sanitizedAttributes.isEmpty) {
-      variantErrorMessage.value =
-          'Add at least one variant attribute with values.';
-      return null;
-    }
-
-    final uniqueNames = sanitizedAttributes
-        .map((attribute) => attribute.name.trim().toLowerCase())
-        .toSet();
-    if (uniqueNames.length != sanitizedAttributes.length) {
-      variantErrorMessage.value = 'Variant attribute names must be unique.';
       return null;
     }
 
@@ -741,13 +993,76 @@ class ProductFormController extends GetxController {
       return null;
     }
 
-    final quantities = <String, int>{};
-    final purchasePrices = <String, num>{};
-    final sellingPrices = <String, num>{};
+    final seenCombinations = <String>{};
+    final seenSkus = <String>{};
+    final seenBarcodes = <String>{};
+    final rows = <ProductVariantRowPayload>[];
+    final baseSku = skuController.text.trim();
+    final baseBarcode = barcodeController.text.trim();
+    if (baseSku.isNotEmpty &&
+        baseBarcode.isNotEmpty &&
+        baseSku == baseBarcode) {
+      variantErrorMessage.value =
+          'Base product SKU and barcode must be different.';
+      return null;
+    }
     for (final combination in variantCombinations) {
-      quantities[combination.key] = combination.quantity;
-      final purchasePrice = combination.purchasePrice;
-      if (purchasePrice == null || purchasePrice < 0) {
+      if (combination.attributes.isEmpty) {
+        variantErrorMessage.value =
+            'Every variant row must include at least one attribute.';
+        return null;
+      }
+      final attributeName =
+          combination.attributes.keys.firstOrNull?.trim() ?? '';
+      final attributeValue =
+          combination.attributes.values.firstOrNull?.trim() ?? '';
+      if (attributeName.isEmpty || attributeValue.isEmpty) {
+        variantErrorMessage.value =
+            'Every variant row needs an attribute name and a value.';
+        return null;
+      }
+      final derivedKey = _buildCombinationKey({attributeName: attributeValue});
+      if (!seenCombinations.add(derivedKey)) {
+        variantErrorMessage.value =
+            'Duplicate variant combinations are not allowed.';
+        return null;
+      }
+      final combinationSku = generatedVariantSku(combination.key).trim();
+      if (combinationSku.isNotEmpty) {
+        final normalizedSku = combinationSku.toLowerCase();
+        if (!seenSkus.add(normalizedSku)) {
+          variantErrorMessage.value = 'Duplicate variant SKUs are not allowed.';
+          return null;
+        }
+        if (normalizedSku == baseSku.toLowerCase() ||
+            normalizedSku == baseBarcode.toLowerCase()) {
+          variantErrorMessage.value =
+              'Variant SKU must not match the base product SKU or barcode.';
+          return null;
+        }
+      }
+      final combinationBarcode = generatedVariantBarcode(
+        combination.key,
+      ).trim();
+      if (combinationBarcode.isEmpty) {
+        variantErrorMessage.value =
+            'Every variant row must have an automatic barcode.';
+        return null;
+      }
+      final normalizedBarcode = combinationBarcode.toLowerCase();
+      if (!seenBarcodes.add(normalizedBarcode)) {
+        variantErrorMessage.value =
+            'Duplicate variant barcodes are not allowed.';
+        return null;
+      }
+      if (normalizedBarcode == baseSku.toLowerCase() ||
+          normalizedBarcode == baseBarcode.toLowerCase()) {
+        variantErrorMessage.value =
+            'Variant barcode must not match the base product SKU or barcode.';
+        return null;
+      }
+      final buyingPrice = combination.buyingPrice;
+      if (buyingPrice == null || buyingPrice < 0) {
         variantErrorMessage.value =
             'Enter a valid purchase price for every variant combination.';
         return null;
@@ -758,17 +1073,36 @@ class ProductFormController extends GetxController {
             'Enter a valid selling price for every variant combination.';
         return null;
       }
-      purchasePrices[combination.key] = purchasePrice;
-      sellingPrices[combination.key] = sellingPrice;
+      final quantity = combination.quantity < 0 ? 0 : combination.quantity;
+      if (!combination.isActive && quantity != 0) {
+        variantErrorMessage.value =
+            'Inactive variants must have quantity set to 0.';
+        return null;
+      }
+
+      rows.add(
+        ProductVariantRowPayload(
+          attributes: {attributeName: attributeValue},
+          sku: combinationSku,
+          barcode: combinationBarcode,
+          quantity: combination.isActive ? quantity : 0,
+          buyingPrice: buyingPrice,
+          sellingPrice: sellingPrice,
+          status: combination.status,
+        ),
+      );
     }
 
-    return (sanitizedAttributes, quantities, purchasePrices, sellingPrices);
+    return rows;
   }
 
-  void _regenerateVariantCombinations() {
+  void _regenerateVariantCombinations({bool syncInputs = true}) {
     if (!isVariantsEnabled.value) {
       variantCombinations.clear();
       return;
+    }
+    if (syncInputs) {
+      _syncAttributeDraftsFromControllers();
     }
 
     final sourceAttributes = variantAttributes
@@ -806,16 +1140,65 @@ class ProductFormController extends GetxController {
       return VariantCombinationDraft(
         key: key,
         label: optionValues.values.join(' / '),
-        optionValues: optionValues,
+        attributes: optionValues,
+        sku: existing?.sku,
+        barcode:
+            existing?.barcode ??
+            _buildVariantBarcode(barcodeController.text, key),
         quantity: existing?.quantity ?? 0,
-        purchasePrice: existing?.purchasePrice,
+        buyingPrice: existing?.buyingPrice,
         sellingPrice: existing?.sellingPrice,
         variantId: existing?.variantId,
-        isActive: existing?.isActive ?? true,
+        status: existing?.status ?? 'active',
+        isSkuEdited: existing?.isSkuEdited ?? false,
       );
     }).toList();
     variantCombinations.assignAll(generated);
     _syncCombinationControllers();
+  }
+
+  void _syncAttributeDraftsFromControllers() {
+    for (var index = 0; index < variantAttributes.length; index++) {
+      final attribute = variantAttributes[index];
+      final rawName = _attributeNameControllers[attribute.id]?.text;
+      final rawValues = _attributeValuesControllers[attribute.id]?.text;
+      final nextName = rawName == null || rawName.trim().isEmpty
+          ? attribute.name.trim()
+          : rawName.trim();
+      final nextValues = rawValues == null || rawValues.trim().isEmpty
+          ? attribute.values
+          : _parseVariantValues(rawValues);
+      if (attribute.name == nextName &&
+          _listEquals(attribute.values, nextValues)) {
+        continue;
+      }
+      variantAttributes[index] = attribute.copyWith(
+        name: nextName,
+        values: nextValues,
+      );
+    }
+    variantAttributes.refresh();
+  }
+
+  List<String> _parseVariantValues(String rawValue) {
+    return rawValue
+        .split(RegExp(r'[\n,;]+'))
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet()
+        .toList();
+  }
+
+  bool _listEquals(List<String> left, List<String> right) {
+    if (left.length != right.length) {
+      return false;
+    }
+    for (var index = 0; index < left.length; index++) {
+      if (left[index] != right[index]) {
+        return false;
+      }
+    }
+    return true;
   }
 
   List<Map<String, String>> _cartesianCombinations(
@@ -842,8 +1225,52 @@ class ProductFormController extends GetxController {
         .join('__');
   }
 
+  String _resolveInitialBaseBarcode() {
+    final existing = args.barcode?.trim();
+    if (existing != null && existing.isNotEmpty) {
+      return existing;
+    }
+    if (isManualCreate) {
+      return _buildAutomaticBaseBarcode();
+    }
+    return '';
+  }
+
+  String _buildAutomaticBaseBarcode() {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    return 'BC-$timestamp';
+  }
+
+  String _buildVariantBarcode(String baseBarcode, String key) {
+    final normalizedBase = baseBarcode.trim().isEmpty
+        ? _buildAutomaticBaseBarcode()
+        : baseBarcode.trim();
+    final suffix = key
+        .trim()
+        .toUpperCase()
+        .replaceAll('__', '-')
+        .replaceAll(RegExp(r'[^A-Z0-9-]+'), '-')
+        .replaceAll(RegExp(r'-+'), '-')
+        .replaceAll(RegExp(r'^-+|-+$'), '');
+    return suffix.isEmpty
+        ? '$normalizedBase-VARIANT'
+        : '$normalizedBase-$suffix';
+  }
+
+  String _buildVariantSku(String baseSku, String key) {
+    final normalizedBase = baseSku.trim().isEmpty ? 'VAR' : baseSku.trim();
+    final suffix = key
+        .trim()
+        .toUpperCase()
+        .replaceAll('__', '-')
+        .replaceAll(RegExp(r'[^A-Z0-9-]+'), '-')
+        .replaceAll(RegExp(r'-+'), '-')
+        .replaceAll(RegExp(r'^-+|-+$'), '');
+    return suffix.isEmpty ? normalizedBase : '$normalizedBase-$suffix';
+  }
+
   String _fallbackVariantKey(ProductVariantModel variant) {
-    final optionValues = variant.optionValues;
+    final optionValues = variant.optionValues ?? variant.attributes;
     if (optionValues == null || optionValues.isEmpty) {
       return variant.combinationKey ?? 'variant-${variant.id ?? 0}';
     }
@@ -859,6 +1286,43 @@ class ProductFormController extends GetxController {
   }
 
   String _createPhotoId() => 'photo-${_nextPhotoId++}';
+  String _createManualVariantKey() => 'variant-row-${_nextVariantDraftId++}';
+
+  void _updateCombinationAttributes(
+    int index,
+    VariantCombinationDraft current, {
+    required String attributeName,
+    required String attributeValue,
+  }) {
+    final trimmedName = attributeName.trim();
+    final trimmedValue = attributeValue.trim();
+    final nextAttributes = trimmedName.isEmpty || trimmedValue.isEmpty
+        ? const <String, String>{}
+        : <String, String>{trimmedName: trimmedValue};
+    variantCombinations[index] = current.copyWith(
+      label: trimmedValue.isEmpty ? 'New Variant' : trimmedValue,
+      attributes: nextAttributes,
+      attributeNameDraft: trimmedName,
+      attributeValueDraft: trimmedValue,
+    );
+    variantCombinations.refresh();
+    variantErrorMessage.value = null;
+    update(['variant_rows']);
+  }
+
+  String _variantIdentityKey(VariantCombinationDraft? combination) {
+    if (combination == null) {
+      return 'variant';
+    }
+    final attributeName = combination.attributeNameDraft.trim();
+    final attributeValue = combination.attributeValueDraft.trim();
+    if (attributeName.isEmpty || attributeValue.isEmpty) {
+      return combination.key;
+    }
+    return _buildCombinationKey(<String, String>{
+      attributeName: attributeValue,
+    });
+  }
 
   (TextEditingController, TextEditingController) _ensureAttributeControllers(
     EditableVariantAttribute attribute,
@@ -899,6 +1363,19 @@ class ProductFormController extends GetxController {
 
   void _syncCombinationControllers() {
     final validKeys = variantCombinations.map((item) => item.key).toSet();
+    final staleAttributeNameKeys = _attributeNameControllers.keys
+        .where(
+          (key) => !key.startsWith('attribute-') && !validKeys.contains(key),
+        )
+        .toList();
+    final staleAttributeValueKeys = _attributeValuesControllers.keys
+        .where(
+          (key) => !key.startsWith('attribute-') && !validKeys.contains(key),
+        )
+        .toList();
+    final staleSkuKeys = _combinationSkuControllers.keys
+        .where((key) => !validKeys.contains(key))
+        .toList();
     final staleKeys = _combinationQuantityControllers.keys
         .where((key) => !validKeys.contains(key))
         .toList();
@@ -908,6 +1385,18 @@ class ProductFormController extends GetxController {
     final staleSellingPriceKeys = _combinationSellingPriceControllers.keys
         .where((key) => !validKeys.contains(key))
         .toList();
+    final staleStatusKeys = _combinationStatusControllers.keys
+        .where((key) => !validKeys.contains(key))
+        .toList();
+    for (final key in staleAttributeNameKeys) {
+      _attributeNameControllers.remove(key)?.dispose();
+    }
+    for (final key in staleAttributeValueKeys) {
+      _attributeValuesControllers.remove(key)?.dispose();
+    }
+    for (final key in staleSkuKeys) {
+      _combinationSkuControllers.remove(key)?.dispose();
+    }
     for (final key in staleKeys) {
       _combinationQuantityControllers.remove(key)?.dispose();
     }
@@ -917,8 +1406,71 @@ class ProductFormController extends GetxController {
     for (final key in staleSellingPriceKeys) {
       _combinationSellingPriceControllers.remove(key)?.dispose();
     }
+    for (final key in staleStatusKeys) {
+      _combinationStatusControllers.remove(key);
+    }
 
     for (final combination in variantCombinations) {
+      final attributeNameController = _attributeNameControllers.putIfAbsent(
+        combination.key,
+        () {
+          final next = TextEditingController(
+            text: combination.attributeNameDraft,
+          );
+          next.addListener(
+            () => updateCombinationAttributeName(combination.key, next.text),
+          );
+          return next;
+        },
+      );
+      final nextAttributeNameText = combination.attributeNameDraft;
+      if (attributeNameController.text != nextAttributeNameText) {
+        attributeNameController.value = attributeNameController.value.copyWith(
+          text: nextAttributeNameText,
+          selection: TextSelection.collapsed(
+            offset: nextAttributeNameText.length,
+          ),
+        );
+      }
+      final attributeValueController = _attributeValuesControllers.putIfAbsent(
+        combination.key,
+        () {
+          final next = TextEditingController(
+            text: combination.attributeValueDraft,
+          );
+          next.addListener(
+            () => updateCombinationAttributeValue(combination.key, next.text),
+          );
+          return next;
+        },
+      );
+      final nextAttributeValueText = combination.attributeValueDraft;
+      if (attributeValueController.text != nextAttributeValueText) {
+        attributeValueController.value = attributeValueController.value
+            .copyWith(
+              text: nextAttributeValueText,
+              selection: TextSelection.collapsed(
+                offset: nextAttributeValueText.length,
+              ),
+            );
+      }
+      final skuController = _combinationSkuControllers.putIfAbsent(
+        combination.key,
+        () {
+          final next = TextEditingController(
+            text: generatedVariantSku(combination.key),
+          );
+          return next;
+        },
+      );
+      final nextSkuText = generatedVariantSku(combination.key);
+      if (skuController.text != nextSkuText) {
+        skuController.value = skuController.value.copyWith(
+          text: nextSkuText,
+          selection: TextSelection.collapsed(offset: nextSkuText.length),
+        );
+      }
+
       final controller = _combinationQuantityControllers.putIfAbsent(
         combination.key,
         () {
@@ -940,14 +1492,14 @@ class ProductFormController extends GetxController {
       final purchasePriceController = _combinationPurchasePriceControllers
           .putIfAbsent(combination.key, () {
             final next = TextEditingController(
-              text: combination.purchasePrice?.toString() ?? '',
+              text: combination.buyingPrice?.toString() ?? '',
             );
             next.addListener(
               () => updateCombinationPurchasePrice(combination.key, next.text),
             );
             return next;
           });
-      final nextPurchasePriceText = combination.purchasePrice?.toString() ?? '';
+      final nextPurchasePriceText = combination.buyingPrice?.toString() ?? '';
       if (purchasePriceController.text != nextPurchasePriceText) {
         purchasePriceController.value = purchasePriceController.value.copyWith(
           text: nextPurchasePriceText,
@@ -976,6 +1528,8 @@ class ProductFormController extends GetxController {
           ),
         );
       }
+
+      _combinationStatusControllers[combination.key] = combination.status;
     }
   }
 
@@ -995,6 +1549,9 @@ class ProductFormController extends GetxController {
     for (final controller in _combinationQuantityControllers.values) {
       controller.dispose();
     }
+    for (final controller in _combinationSkuControllers.values) {
+      controller.dispose();
+    }
     for (final controller in _combinationPurchasePriceControllers.values) {
       controller.dispose();
     }
@@ -1006,8 +1563,10 @@ class ProductFormController extends GetxController {
     _attributeNameFocusNodes.clear();
     _attributeValuesFocusNodes.clear();
     _combinationQuantityControllers.clear();
+    _combinationSkuControllers.clear();
     _combinationPurchasePriceControllers.clear();
     _combinationSellingPriceControllers.clear();
+    _combinationStatusControllers.clear();
   }
 
   void _showPhotoPickerError(String message) {

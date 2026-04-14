@@ -15,12 +15,26 @@ void main() {
       minimumStockAlert: 10,
       status: 'active',
       hasVariants: true,
-      variantAttributes: [
-        ProductVariantAttributePayload(name: 'Storage', values: ['128', '256']),
+      variants: [
+        ProductVariantRowPayload(
+          attributes: {'Storage': '128'},
+          sku: 'SKU-128',
+          barcode: 'BC-001-128',
+          quantity: 5,
+          buyingPrice: 120000.89,
+          sellingPrice: 150000.88,
+          status: 'active',
+        ),
+        ProductVariantRowPayload(
+          attributes: {'Storage': '256'},
+          sku: 'SKU-256',
+          barcode: 'BC-001-256',
+          quantity: 2,
+          buyingPrice: 135000,
+          sellingPrice: 170000,
+          status: 'inactive',
+        ),
       ],
-      variantQuantities: {'storage-128': 5, 'storage-256': 2},
-      variantPurchasePrices: {'storage-128': 120000.89, 'storage-256': 135000},
-      variantSellingPrices: {'storage-128': 150000.88, 'storage-256': 170000},
     );
 
     final json = request.toJson();
@@ -30,16 +44,22 @@ void main() {
     expect(json['has_variants'], true);
     expect(json['purchase_price'], isNull);
     expect(json['selling_price'], isNull);
-    expect((json['variant_attributes'] as List).length, 1);
-    expect((json['variant_quantities'] as Map)['storage-128'], 5);
-    expect((json['variant_purchase_prices'] as Map)['storage-128'], 120000.89);
-    expect((json['variant_selling_prices'] as Map)['storage-256'], 170000);
-    expect(multipart['variant_attributes[0][name]'], 'Storage');
-    expect(multipart['variant_attributes[0][values][1]'], '256');
-    expect(multipart['variant_quantities[storage-128]'], '5');
+    expect((json['variants'] as List).length, 2);
+    expect((json['variants'] as List).first['sku'], 'SKU-128');
+    expect((json['variants'] as List).first['barcode'], 'BC-001-128');
+    expect((json['variants'] as List).first['quantity'], 5);
+    expect((json['variants'] as List).first['buying_price'], 120000.89);
+    expect((json['variants'] as List).last['selling_price'], 170000);
+    expect((json['variants'] as List).last['status'], 'inactive');
+    expect(multipart['variants[0][attributes][Storage]'], '128');
+    expect(multipart['variants[1][attributes][Storage]'], '256');
+    expect(multipart['variants[0][sku]'], 'SKU-128');
+    expect(multipart['variants[1][barcode]'], 'BC-001-256');
+    expect(multipart['variants[0][quantity]'], '5');
     expect(multipart['purchase_price'], '');
     expect(multipart['selling_price'], '');
-    expect(multipart['variant_purchase_prices[storage-128]'], '120000.89');
-    expect(multipart['variant_selling_prices[storage-256]'], '170000');
+    expect(multipart['variants[0][buying_price]'], '120000.89');
+    expect(multipart['variants[1][selling_price]'], '170000');
+    expect(multipart['variants[1][status]'], 'inactive');
   });
 }

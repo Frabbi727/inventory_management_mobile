@@ -93,7 +93,14 @@ class _InventoryProductsPageState extends State<InventoryProductsPage>
               padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
               child: Column(
                 children: [
-                  const AppPageHeader(title: 'Products'),
+                  AppPageHeader(
+                    title: 'Products',
+                    trailing: FilledButton.icon(
+                      onPressed: controller.openManualCreate,
+                      icon: const Icon(Icons.add_rounded),
+                      label: const Text('Add Product'),
+                    ),
+                  ),
                   const SizedBox(height: 14),
                   InventorySearchPanel(
                     searchController: controller.searchTextController,

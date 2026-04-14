@@ -100,9 +100,7 @@ class BarcodeScanController extends GetxController {
       }
 
       if (scanContext.value == BarcodeScanContext.salesOrderLookup) {
-        final product = await _productRepository.fetchProductByBarcode(
-          barcode,
-        );
+        final product = await _productRepository.fetchProductByBarcode(barcode);
         Get.back(
           result: BarcodeScanResult(barcode: barcode, product: product),
         );
@@ -132,8 +130,7 @@ class BarcodeScanController extends GetxController {
   ) async {
     final action = response.action.trim().toLowerCase();
     final shouldCreate = action == 'create' || !response.exists;
-    final shouldOpenExisting =
-        action == 'view_or_update' || response.exists;
+    final shouldOpenExisting = action == 'view_or_update' || response.exists;
 
     if (shouldCreate) {
       await _openExistingProductIfAvailable(response.barcode);
@@ -184,7 +181,10 @@ class BarcodeScanController extends GetxController {
     if (!showErrorOnFailure) {
       Get.offNamed(
         AppRoutes.inventoryProductForm,
-        arguments: ProductFormArgs.create(barcode: barcode),
+        arguments: ProductFormArgs.create(
+          barcode: barcode,
+          source: ProductFormSource.scan,
+        ),
       );
     }
     return false;

@@ -1,0 +1,522 @@
+# Inventory Manager Mobile Product Add Flow
+
+This document is the focused implementation guide for a separate Flutter mobile app used by the `inventory_manager` role.
+
+Use it for these mobile features:
+
+- manual add product
+- scan barcode and resolve product
+- create product from scanned barcode when not found
+- view product details after barcode match
+- edit product from detail screen
+- create simple products
+- create variant products
+
+This document matches the current Laravel backend contract in this repository.
+
+## 1. Purpose
+
+The inventory manager product flow has 2 main entry paths:
+
+1. manual `Add Product`
+2. `Scan Barcode`
+
+Expected business behavior:
+
+- if scanned barcode already exists, show product details
+- if scanned barcode does not exist, open create-product form with barcode prefilled
+- if the barcode belongs to a variant, show the parent product details and highlight the matched variant
+
+## 2. Required Headers
+
+Protected mobile requests should send:
+
+```http
+Accept: application/json
+Content-Type: application/json
+X-Authorization: Bearer <token>
+```
+
+If your environment supports it reliably, this also works:
+
+```http
+Authorization: Bearer <token>
+```
+
+## 3. Screen Flow
+
+### A. Manual Add Product
+
+Use this flow when the inventory manager taps `Add Product`.
+
+1. open empty product form
+2. load categories
+3. load units
+4. load subcategories only after category is selected
+5. choose product type:
+   - simple product
+   - variant product
+6. fill form
+7. submit create request
+8. on success, open product detail screen
+
+### B. Barcode Scan Flow
+
+Use this flow when the inventory manager scans a product barcode.
+
+1. scan barcode
+2. call `GET /api/inventory-manager/barcode/products/{barcode}/resolve`
+3. inspect response:
+
+If `exists = true`:
+
+- open product detail screen
+- allow edit from that screen
+- if `match_type = variant`, show parent product data and highlight the returned matched variant
+
+If `exists = false`:
+
+- open create-product form immediately
+- prefill `barcode` with scanned value
+- optionally keep barcode read-only, or editable if you want to allow correction
+- submit through barcode create endpoint
+
+## 4. Master Data To Load
+
+Load these before or during the form flow:
+
+- `GET /api/categories`
+- `GET /api/units`
+- `GET /api/subcategories?category_id={categoryId}`
+
+Business rules:
+
+- category is required
+- subcategory is optional
+- subcategory must belong to selected category
+- unit is required
+
+## 5. Product Form Design
+
+### Common Fields
+
+Show these for both simple and variant products:
+
+- `name`
+- `sku` optional
+- `barcode` optional for manual add, prefilled for scan-create
+- `category_id`
+- `subcategory_id` optional
+- `unit_id`
+- `minimum_stock_alert`
+- `status`
+
+Validation notes:
+
+- `name` is required
+- `category_id` is required
+- `unit_id` is required
+- `minimum_stock_alert` is required
+- `status` is required
+- `sku` and `barcode` must be different if both are provided
+- `sku` must be globally unique across product and variant identifiers
+- `barcode` must be globally unique across product and variant identifiers
+
+### Simple Product Fields
+
+When `has_variants = false`:
+
+- show `purchase_price`
+- show `selling_price`
+- hide variant builder
+
+Rules:
+
+- `purchase_price` is required
+- `selling_price` is required
+- do not send variant rows
+
+Stock note:
+
+- simple product create does not include a separate opening stock field in the current backend contract
+
+### Simple Product Example Payload
+
+```json
+{
+  "name": "Detergent 500ml",
+  "sku": "DET-500",
+  "barcode": "9876543210123",
+  "category_id": 1,
+  "subcategory_id": 3,
+  "has_variants": false,
+  "unit_id": 2,
+  "purchase_price": 120,
+  "selling_price": 150,
+  "minimum_stock_alert": 10,
+  "status": "active"
+}
+```
+
+### Variant Product Fields
+
+When `has_variants = true`:
+
+- hide simple-only pricing section
+- show variant builder
+- require at least one variant row
+
+Each variant row should contain:
+
+- `attributes`
+- `quantity`
+- `buying_price`
+- `selling_price`
+- `sku` optional
+- `barcode` optional
+- `status`
+
+### Variant Rules
+
+- at least one variant is required
+- each variant must include at least one attribute
+- duplicate attribute combinations are not allowed
+- duplicate variant SKUs are not allowed in the same request
+- duplicate variant barcodes are not allowed in the same request
+- variant SKU must not match base product SKU or barcode
+- variant barcode must not match base product SKU or barcode
+- inactive variant must have quantity `0`
+
+### Variant Product Example Payload
+
+```json
+{
+  "name": "Classic T-Shirt",
+  "sku": "TSHIRT-001",
+  "barcode": "1234567890123",
+  "category_id": 4,
+  "subcategory_id": 7,
+  "has_variants": true,
+  "unit_id": 2,
+  "minimum_stock_alert": 5,
+  "status": "active",
+  "variants": [
+    {
+      "sku": "TSHIRT-RED-M",
+      "barcode": "1234567890124",
+      "attributes": {
+        "Color": "Red",
+        "Size": "M"
+      },
+      "quantity": 5,
+      "buying_price": 220,
+      "selling_price": 350,
+      "status": "active"
+    },
+    {
+      "sku": "TSHIRT-RED-L",
+      "barcode": "1234567890125",
+      "attributes": {
+        "Color": "Red",
+        "Size": "L"
+      },
+      "quantity": 2,
+      "buying_price": 220,
+      "selling_price": 350,
+      "status": "active"
+    }
+  ]
+}
+```
+
+## 6. Endpoint Usage
+
+### Manual Flow
+
+### Create product
+
+`POST /api/products`
+
+Use for manual add-product flow.
+
+### Load product details
+
+`GET /api/products/{id}`
+
+Use this as the source of truth for detail and edit screens.
+
+### Update product
+
+`PUT /api/products/{id}`
+
+Use when the app already has the numeric product id.
+
+### Barcode Flow
+
+### Resolve scanned barcode
+
+`GET /api/inventory-manager/barcode/products/{barcode}/resolve`
+
+This is the first call after scan.
+
+Possible behavior:
+
+- barcode matches base product
+- barcode matches active variant
+- barcode does not exist
+
+### Example resolve response when product exists
+
+```json
+{
+  "message": "Barcode resolved successfully.",
+  "exists": true,
+  "action": "view_or_update",
+  "barcode": "1234567890123",
+  "match_type": "product",
+  "data": {
+    "id": 10,
+    "name": "Classic T-Shirt",
+    "sku": "TSHIRT-001",
+    "barcode": "1234567890123",
+    "purchase_price": 220,
+    "selling_price": 350,
+    "minimum_stock_alert": 5,
+    "status": "active",
+    "has_variants": true,
+    "current_stock": 8,
+    "stock_status": "in_stock"
+  },
+  "variant": null
+}
+```
+
+### Example resolve response when variant barcode exists
+
+```json
+{
+  "message": "Barcode resolved successfully.",
+  "exists": true,
+  "action": "view_or_update",
+  "barcode": "1234567890991",
+  "match_type": "variant",
+  "data": {
+    "id": 10,
+    "name": "Classic T-Shirt",
+    "barcode": "1234567890123",
+    "has_variants": true
+  },
+  "variant": {
+    "id": 11,
+    "sku": "TSHIRT-RED-M",
+    "barcode": "1234567890991",
+    "attributes": {
+      "Color": "Red",
+      "Size": "M"
+    },
+    "quantity": 5,
+    "buying_price": 220,
+    "selling_price": 350,
+    "stock_status": "in_stock",
+    "status": "active",
+    "display_name": "Red / M"
+  }
+}
+```
+
+### Example resolve response when barcode does not exist
+
+```json
+{
+  "message": "Barcode not found. Product can be created.",
+  "exists": false,
+  "action": "create",
+  "barcode": "1234567899999",
+  "match_type": null,
+  "data": null,
+  "variant": null
+}
+```
+
+### Create product from barcode flow
+
+`POST /api/inventory-manager/barcode/products`
+
+Use this after scan when `exists = false`.
+
+Request body uses the same product payload contract as manual create.
+
+### Load full product by barcode
+
+`GET /api/inventory-manager/barcode/products/{barcode}`
+
+Use when you already know the base product barcode exists and you want the full product payload again.
+
+### Update product by barcode
+
+`PUT /api/inventory-manager/barcode/products/{barcode}`
+
+Use when the screen started from a known base product barcode and you want barcode-based update.
+
+Important note:
+
+- this endpoint updates by base product barcode
+- variant barcode may resolve the parent product for viewing, but mutation by barcode should use the parent product barcode
+
+## 7. Product Detail Response Fields To Use In Flutter
+
+The product resource can include:
+
+- `id`
+- `name`
+- `sku`
+- `barcode`
+- `barcode_image_url`
+- `purchase_price`
+- `selling_price`
+- `minimum_stock_alert`
+- `status`
+- `has_variants`
+- `current_stock`
+- `stock_status`
+- `price_summary`
+- `variant_summary`
+- `variant_attributes`
+- `matched_variant`
+- `variants`
+- `primary_photo`
+- `photo_count`
+- `photos`
+- `category`
+- `subcategory`
+- `unit`
+
+Mobile rules:
+
+- treat backend `current_stock` as the source of truth
+- treat backend `stock_status` as the source of truth
+- do not calculate stock or stock status in Flutter
+
+## 8. Recommended Flutter Navigation Logic
+
+### Scan handler
+
+```dart
+Future<void> onBarcodeScanned(String barcode) async {
+  final result = await repository.resolveBarcode(barcode);
+
+  if (result.exists) {
+    navigator.pushNamed(
+      '/product-details',
+      arguments: ProductDetailsArgs(
+        productId: result.data.id,
+        matchedVariant: result.variant,
+        resolvedFromBarcode: barcode,
+      ),
+    );
+    return;
+  }
+
+  navigator.pushNamed(
+    '/product-create',
+    arguments: ProductCreateArgs(
+      initialBarcode: barcode,
+      openedFromScan: true,
+    ),
+  );
+}
+```
+
+### Detail screen behavior
+
+- show basic product info
+- show stock and prices
+- if `matched_variant` exists, show a highlighted variant card
+- provide `Edit Product` action
+
+### Create form behavior
+
+- if opened from scan and `initialBarcode` exists, prefill barcode
+- show top banner such as `Barcode not found. Create new product.`
+- on submit success, navigate to product detail
+
+## 9. Recommended Flutter Endpoint Map
+
+```dart
+static const products = '${ApiConfig.apiPrefix}/products';
+static const categories = '${ApiConfig.apiPrefix}/categories';
+static const subcategories = '${ApiConfig.apiPrefix}/subcategories';
+static const units = '${ApiConfig.apiPrefix}/units';
+static const inventoryManagerBarcodeBase =
+    '${ApiConfig.apiPrefix}/inventory-manager/barcode';
+
+static String productDetails(int id) => '$products/$id';
+static String subcategoriesByCategory(int categoryId) =>
+    '$subcategories?category_id=$categoryId';
+static String resolveBarcodeProduct(String barcode) =>
+    '$inventoryManagerBarcodeBase/products/$barcode/resolve';
+static String barcodeProductDetails(String barcode) =>
+    '$inventoryManagerBarcodeBase/products/$barcode';
+static String barcodeProducts() => '$inventoryManagerBarcodeBase/products';
+static String updateBarcodeProduct(String barcode) =>
+    '$inventoryManagerBarcodeBase/products/$barcode';
+```
+
+## 10. Error Handling
+
+Handle these response classes directly in Flutter:
+
+- `401` unauthenticated or expired token
+- `403` inactive account or role not allowed
+- `404` product or barcode target not found
+- `422` validation or business rule failure
+
+Important `422` examples:
+
+- duplicate product barcode
+- duplicate product SKU
+- barcode conflicts with an existing SKU
+- SKU conflicts with an existing barcode
+- invalid subcategory for selected category
+- missing simple product price fields
+- duplicate variant combinations
+- duplicate variant SKU
+- duplicate variant barcode
+- inactive variant with quantity greater than `0`
+
+Recommended Flutter behavior:
+
+- map backend field errors directly onto form fields
+- keep general `message` for top-level snack bar or banner
+- do not replace backend validation with custom business assumptions
+
+## 11. Test Checklist
+
+Verify these cases in the mobile app:
+
+1. scan existing base product barcode -> detail screen opens
+2. scan existing variant barcode -> parent product detail opens with matched variant highlighted
+3. scan unknown barcode -> create form opens with barcode prefilled
+4. create simple product successfully
+5. create variant product successfully
+6. create fails for duplicate barcode
+7. create fails for duplicate SKU
+8. create fails for invalid subcategory/category relation
+9. variant create fails for duplicate combination
+10. variant create fails when inactive variant has quantity above zero
+11. manual update by product id succeeds
+12. barcode-based update by base product barcode succeeds
+
+## 12. Practical Recommendation
+
+For the Flutter app, keep the product feature split into 3 screens:
+
+1. `ProductScannerScreen`
+2. `ProductFormScreen`
+3. `ProductDetailsScreen`
+
+That separation matches the backend business cleanly:
+
+- scan decides `view` or `create`
+- form handles manual and barcode-prefilled create/edit
+- details screen is the stable place for review and edit entry

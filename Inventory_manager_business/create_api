@@ -1,0 +1,604 @@
+# Inventory Manager Mobile API
+
+## Overview
+
+This document is the current mobile contract for the `inventory_manager` role.
+It is based on the live Laravel API and replaces earlier notes that treated purchase as simple-product only.
+
+For a focused Flutter implementation guide for add-product, barcode scan, and variant product create/edit, see:
+
+- [docs/inventory_manager_mobile_product_add_flow.md](/Users/fazlerabbi/Desktop/Projects/tonmoy/inventory_management_system_tnmy/docs/inventory_manager_mobile_product_add_flow.md)
+
+Current inventory-manager mobile scope:
+
+- authentication
+- master data preload
+- product list and detail
+- manual product create/update
+- barcode-driven product create/update
+- purchase list/detail
+- purchase create/update
+- purchase barcode lookup
+
+Default protected header for production:
+
+```http
+Accept: application/json
+X-Authorization: Bearer {token}
+```
+
+Use standard `Authorization: Bearer {token}` only if your target environment passes it through correctly.
+
+## Auth
+
+### POST `/api/login`
+
+Request:
+
+```json
+{
+  "login": "inventory@example.com",
+  "password": "secret123",
+  "device_name": "flutter-inventory-manager"
+}
+```
+
+Success response:
+
+```json
+{
+  "message": "Login successful.",
+  "data": {
+    "token": "1|sanctum-token",
+    "token_type": "Bearer",
+    "user": {
+      "id": 7,
+      "name": "Inventory Manager",
+      "email": "inventory@example.com",
+      "phone": "01700000000",
+      "status": "active",
+      "role": {
+        "id": 4,
+        "name": "Inventory Manager",
+        "slug": "inventory_manager"
+      }
+    }
+  }
+}
+```
+
+### GET `/api/me`
+
+Use this after login to confirm the account is active and the role is correct.
+
+### POST `/api/logout`
+
+Revokes the current token only.
+
+## Master Data
+
+Load these before product create/edit and purchase flows.
+
+### GET `/api/categories`
+
+Response shape:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "name": "Beverages"
+    }
+  ]
+}
+```
+
+### GET `/api/subcategories`
+### GET `/api/subcategories?category_id={category_id}`
+
+Business rules:
+
+- if `category_id` is present, only subcategories for that category are returned
+- if `category_id` is absent, all subcategories are returned
+- use this for the dependent subcategory dropdown
+
+Response shape:
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 3,
+      "name": "Soft Drinks",
+      "category_id": 1
+    }
+  ]
+}
+```
+
+### GET `/api/units`
+
+Only active units are returned.
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 2,
+      "name": "Piece",
+      "short_name": "pc",
+      "status": "active"
+    }
+  ]
+}
+```
+
+## Product API
+
+### GET `/api/products`
+
+Supported query params:
+
+- `q`
+- `status`
+- `category_id`
+- `subcategory_id`
+- `unit_id`
+- `stock_status`
+- `sort`
+- `page`
+
+Important behavior:
+
+- response is paginated
+- backend returns aggregate stock for simple and variant products
+- Flutter should not calculate `current_stock` or `stock_status`
+- `q` supports partial match for `name`, `sku`, and `barcode`
+- exact scanner-style barcode lookup should still use the dedicated barcode endpoints
+
+Product list item shape:
+
+```json
+{
+  "id": 10,
+  "name": "Classic T-Shirt",
+  "sku": "TSHIRT-001",
+  "barcode": "1234567890123",
+  "barcode_image_url": "https://example.com/storage/products/barcode.svg",
+  "purchase_price": 220,
+  "selling_price": 350,
+  "minimum_stock_alert": 5,
+  "status": "active",
+  "has_variants": true,
+  "current_stock": 8,
+  "stock_status": "in_stock",
+  "variant_summary": {
+    "total_variants": 4,
+    "in_stock_count": 2,
+    "low_stock_count": 1,
+    "out_of_stock_count": 1
+  },
+  "primary_photo": null,
+  "photo_count": 0,
+  "category": {
+    "id": 4,
+    "name": "Apparel"
+  },
+  "subcategory": {
+    "id": 7,
+    "name": "T-Shirts",
+    "category_id": 4
+  },
+  "unit": {
+    "id": 2,
+    "name": "Piece",
+    "short_name": "pc"
+  }
+}
+```
+
+### GET `/api/products/{id}`
+
+Use detail as the source of truth for edit screens.
+
+Extra detail fields for variant products:
+
+- `variant_attributes`
+- `variants`
+
+Example additions:
+
+```json
+{
+  "has_variants": true,
+  "variant_attributes": [
+    {
+      "id": 1,
+      "name": "Color",
+      "values": ["Red", "Blue"]
+    },
+    {
+      "id": 2,
+      "name": "Size",
+      "values": ["M", "L"]
+    }
+  ],
+  "variants": [
+    {
+      "id": 11,
+      "combination_key": "color-red__size-m",
+      "combination_label": "Red / M",
+      "option_values": {
+        "Color": "Red",
+        "Size": "M"
+      },
+      "is_active": true,
+      "current_stock": 5,
+      "stock_status": "in_stock"
+    }
+  ]
+}
+```
+
+### POST `/api/products`
+### PUT `/api/products/{id}`
+### PATCH `/api/products/{id}`
+
+Allowed roles:
+
+- `admin`
+- `inventory_manager`
+
+Core fields:
+
+- `name`
+- `sku`
+- `barcode`
+- `category_id`
+- nullable `subcategory_id`
+- `unit_id`
+- `purchase_price`
+- `selling_price`
+- `minimum_stock_alert`
+- `status`
+
+Variant fields:
+
+- nullable `has_variants`
+- nullable `variant_attributes`
+- nullable `variant_quantities`
+
+Simple product example:
+
+```json
+{
+  "name": "Detergent Powder",
+  "sku": "DET-500",
+  "barcode": "9876543210123",
+  "category_id": 2,
+  "subcategory_id": 5,
+  "unit_id": 2,
+  "purchase_price": 120.00,
+  "selling_price": 155.00,
+  "minimum_stock_alert": 10,
+  "status": "active"
+}
+```
+
+Variant product example:
+
+```json
+{
+  "name": "Classic T-Shirt",
+  "sku": "TSHIRT-001",
+  "barcode": "1234567890123",
+  "category_id": 4,
+  "subcategory_id": 7,
+  "unit_id": 2,
+  "purchase_price": 220.00,
+  "selling_price": 350.00,
+  "minimum_stock_alert": 5,
+  "status": "active",
+  "has_variants": true,
+  "variant_attributes": [
+    {
+      "name": "Color",
+      "values": ["Red", "Blue"]
+    },
+    {
+      "name": "Size",
+      "values": ["M", "L"]
+    }
+  ],
+  "variant_quantities": {
+    "color-red__size-m": 5,
+    "color-red__size-l": 2,
+    "color-blue__size-m": 1,
+    "color-blue__size-l": 0
+  }
+}
+```
+
+Validation notes:
+
+- `subcategory_id` must belong to `category_id`
+- `sku` and `barcode` must not collide with each other or existing product identifiers
+- `variant_attributes` names must be distinct
+- each variant attribute must have at least one distinct value
+
+## Barcode Product API
+
+These endpoints are inventory-manager only.
+
+### GET `/api/inventory-manager/barcode/products/{barcode}/resolve`
+
+Use this first for any scan.
+
+If product exists:
+
+```json
+{
+  "message": "Barcode resolved successfully.",
+  "exists": true,
+  "action": "view_or_update",
+  "barcode": "1234567890123",
+  "data": {
+    "id": 10,
+    "name": "Classic T-Shirt"
+  }
+}
+```
+
+If product does not exist:
+
+```json
+{
+  "message": "Barcode not found. Product can be created.",
+  "exists": false,
+  "action": "create",
+  "barcode": "1234567890123",
+  "data": null
+}
+```
+
+### GET `/api/inventory-manager/barcode/products/{barcode}`
+
+Use when the app already knows the barcode exists and needs the full product again.
+
+### POST `/api/inventory-manager/barcode/products`
+
+Create product after a missing-barcode scan.
+Uses the same product payload contract as manual product create.
+
+### PUT `/api/inventory-manager/barcode/products/{barcode}`
+
+Update product by scanned barcode.
+Uses the same payload contract as manual product update.
+
+### GET `/api/inventory-manager/barcode/purchase-products/{barcode}`
+
+Use during receiving to quickly resolve a purchase line candidate by barcode.
+Returns the same `ProductResource` shape under `data`.
+
+## Purchase API
+
+Purchase is now variant-aware.
+
+### GET `/api/purchases`
+
+Allowed roles:
+
+- `admin`
+- `inventory_manager`
+
+Supported query params:
+
+- `q`
+- `start_date`
+- `end_date`
+- `page`
+
+Collection item shape:
+
+```json
+{
+  "id": 14,
+  "purchase_no": "PUR-20260412-00014",
+  "purchase_date": "2026-04-12",
+  "total_amount": 1550,
+  "note": "April restock",
+  "creator": {
+    "id": 7,
+    "name": "Inventory Manager"
+  },
+  "items_count": 2
+}
+```
+
+### GET `/api/purchases/{id}`
+
+Purchase detail includes items with variant-aware line data:
+
+```json
+{
+  "id": 14,
+  "purchase_no": "PUR-20260412-00014",
+  "purchase_date": "2026-04-12",
+  "total_amount": 1550,
+  "note": "April restock",
+  "creator": {
+    "id": 7,
+    "name": "Inventory Manager"
+  },
+  "items_count": 2,
+  "items": [
+    {
+      "id": 41,
+      "product_id": 10,
+      "product_variant_id": 11,
+      "product_name": "Classic T-Shirt",
+      "variant_label": "Red / M",
+      "product_barcode": "1234567890123",
+      "quantity": 5,
+      "unit_cost": 220,
+      "line_total": 1100
+    }
+  ]
+}
+```
+
+### POST `/api/purchases`
+### PUT `/api/purchases/{id}`
+
+Request shape:
+
+```json
+{
+  "purchase_date": "2026-04-12",
+  "note": "April restock",
+  "items": [
+    {
+      "product_id": 10,
+      "product_variant_id": 11,
+      "quantity": 5,
+      "unit_cost": 220.00
+    }
+  ]
+}
+```
+
+Business rules:
+
+- `product_id` is always required
+- `quantity` must be greater than zero
+- `unit_cost` must be zero or greater
+- for simple products, `product_variant_id` must be omitted or null
+- for variant products, `product_variant_id` is required
+- selected variant must belong to selected product and be active
+- duplicate `product_id + product_variant_id` line combinations are rejected
+- totals and stock updates are calculated by backend
+
+Simple product example line:
+
+```json
+{
+  "product_id": 8,
+  "quantity": 10,
+  "unit_cost": 90.00
+}
+```
+
+Variant product example line:
+
+```json
+{
+  "product_id": 10,
+  "product_variant_id": 11,
+  "quantity": 5,
+  "unit_cost": 220.00
+}
+```
+
+## Mobile Implementation Flow
+
+### 1. App start
+
+1. login
+2. save token
+3. call `/api/me`
+4. confirm role slug is `inventory_manager`
+
+### 2. Product create/edit
+
+1. load `/api/categories`
+2. load `/api/units`
+3. when category changes, call `/api/subcategories?category_id={id}`
+4. clear previous `subcategory_id` when category changes
+5. if product has variants, render variant attributes and generated combinations from backend data
+6. submit product through manual product API or barcode product API
+
+### 3. Barcode-first product workflow
+
+1. scan barcode
+2. call `/api/inventory-manager/barcode/products/{barcode}/resolve`
+3. if `exists=false`, open create form with barcode prefilled
+4. if `exists=true`, open product detail or edit using returned product data
+
+### 4. Purchase receiving workflow
+
+1. search product manually from `/api/products` or scan barcode
+2. if scanning, call `/api/inventory-manager/barcode/purchase-products/{barcode}`
+3. use returned product `id` as `product_id`
+4. if `has_variants=true`, force user to select one variant combination
+5. collect `quantity` and `unit_cost`
+6. submit `/api/purchases`
+7. use `/api/purchases/{id}` to show final saved document
+
+## Flutter `ApiEndpoints` Update
+
+Add:
+
+```dart
+static const subcategories = '${ApiConfig.apiPrefix}/subcategories';
+static String subcategoriesByCategory(int categoryId) =>
+    '$subcategories?category_id=$categoryId';
+```
+
+Current inventory-manager endpoint map:
+
+```dart
+static const login = '${ApiConfig.apiPrefix}/login';
+static const logout = '${ApiConfig.apiPrefix}/logout';
+static const me = '${ApiConfig.apiPrefix}/me';
+static const products = '${ApiConfig.apiPrefix}/products';
+static const purchases = '${ApiConfig.apiPrefix}/purchases';
+static const categories = '${ApiConfig.apiPrefix}/categories';
+static const subcategories = '${ApiConfig.apiPrefix}/subcategories';
+static const units = '${ApiConfig.apiPrefix}/units';
+static const inventoryManagerBarcodeBase =
+    '${ApiConfig.apiPrefix}/inventory-manager/barcode';
+
+static String productDetails(int id) => '$products/$id';
+static String purchaseDetails(int id) => '$purchases/$id';
+static String subcategoriesByCategory(int categoryId) =>
+    '$subcategories?category_id=$categoryId';
+static String resolveBarcodeProduct(String barcode) =>
+    '$inventoryManagerBarcodeBase/products/$barcode/resolve';
+static String barcodeProductDetails(String barcode) =>
+    '$inventoryManagerBarcodeBase/products/$barcode';
+static String barcodeProducts() => '$inventoryManagerBarcodeBase/products';
+static String updateBarcodeProduct(String barcode) =>
+    '$inventoryManagerBarcodeBase/products/$barcode';
+static String purchaseProductByBarcode(String barcode) =>
+    '$inventoryManagerBarcodeBase/purchase-products/$barcode';
+```
+
+Recommended service usage:
+
+- manual product create: `POST /api/products`
+- manual product update: `PUT /api/products/{id}`
+- purchase create: `POST /api/purchases`
+- purchase update: `PUT /api/purchases/{id}`
+- barcode create: `POST /api/inventory-manager/barcode/products`
+- barcode update: `PUT /api/inventory-manager/barcode/products/{barcode}`
+
+## Error Contract
+
+Handle these as first-class mobile cases:
+
+- `401` unauthenticated or expired token
+- `403` inactive account or role not allowed
+- `404` product, purchase, or barcode target not found
+- `422` validation/business rule errors
+
+Important `422` examples:
+
+- invalid `subcategory_id` for selected category
+- missing `product_variant_id` for a variant product purchase line
+- variant does not belong to selected product
+- duplicate purchase line for the same product and variant combination
+- invalid product identifier conflicts for SKU/barcode

@@ -4,6 +4,7 @@ import '../../../../core/routes/app_routes.dart';
 import '../../../products/data/models/product_model.dart';
 import '../../../products/data/models/product_stock_status.dart';
 import '../models/barcode_scan_models.dart';
+import '../models/product_form_args.dart';
 import 'inventory_product_catalog_controller.dart';
 
 class InventoryProductsController extends InventoryProductCatalogController {
@@ -81,6 +82,13 @@ class InventoryProductsController extends InventoryProductCatalogController {
       arguments: const BarcodeScanArgs(
         context: BarcodeScanContext.productLookup,
       ),
+    );
+  }
+
+  void openManualCreate() {
+    Get.toNamed(
+      AppRoutes.inventoryProductForm,
+      arguments: const ProductFormArgs.create(source: ProductFormSource.manual),
     );
   }
 

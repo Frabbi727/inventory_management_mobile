@@ -32,7 +32,11 @@ class _TestProductFormController extends ProductFormController {
     args = formArgs;
     nameController = TextEditingController(text: args.name ?? '');
     skuController = TextEditingController(text: args.sku ?? '');
-    barcodeController = TextEditingController(text: args.barcode ?? 'BC-1');
+    barcodeController = TextEditingController(
+      text:
+          args.barcode ??
+          (args.source == ProductFormSource.manual ? 'BC-AUTO-1' : 'BC-1'),
+    );
     purchasePriceController = TextEditingController(
       text: args.purchasePrice?.toString() ?? '',
     );
@@ -83,12 +87,29 @@ class _TestProductFormController extends ProductFormController {
           (variant) => VariantCombinationDraft(
             key: variant.combinationKey ?? 'variant-${variant.id ?? 0}',
             label: variant.combinationLabel ?? '',
-            optionValues: variant.optionValues ?? const <String, String>{},
+            attributes:
+                variant.optionValues ??
+                variant.attributes ??
+                const <String, String>{},
+            attributeNameDraft:
+                (variant.optionValues ?? variant.attributes)
+                    ?.keys
+                    .firstOrNull ??
+                '',
+            attributeValueDraft:
+                (variant.optionValues ?? variant.attributes)
+                    ?.values
+                    .firstOrNull ??
+                '',
+            sku: variant.sku,
+            barcode: variant.barcode,
             quantity: variant.currentStock ?? 0,
-            purchasePrice: variant.purchasePrice,
+            buyingPrice: variant.purchasePrice,
             sellingPrice: variant.sellingPrice,
             variantId: variant.id,
-            isActive: variant.isActive ?? true,
+            status: (variant.status?.isNotEmpty ?? false)
+                ? variant.status!
+                : ((variant.isActive ?? true) ? 'active' : 'inactive'),
           ),
         ),
       );
@@ -167,10 +188,53 @@ void main() {
     controller.onInit();
 
     expect(controller.showVariantSection, isTrue);
-    expect(controller.variantAttributeCount, 1);
-    expect(controller.variantCombinationCount, 2);
-    expect(controller.hasIncompleteVariantRows, isFalse);
+    expect(controller.variantCombinationCount, 1);
+    expect(controller.variantCombinations.first.attributes, isEmpty);
+    expect(controller.variantCombinations.first.label, 'New Variant');
   });
+
+  test('product form controller can add another manual variant row', () {
+    final controller = _TestProductFormController(
+      inventoryManagerRepository: inventoryRepo(),
+    );
+
+    controller.onInit();
+    controller.addVariantRow();
+
+    expect(controller.variantCombinationCount, 2);
+    expect(
+      controller.variantCombinations.map((item) => item.key).toSet().length,
+      2,
+    );
+  });
+
+  test(
+    'product form controller generates variant rows from current text inputs',
+    () {
+      final controller = _TestProductFormController(
+        inventoryManagerRepository: inventoryRepo(),
+        formArgs: const ProductFormArgs.create(hasVariants: true),
+      );
+
+      controller.onInit();
+      controller
+              .attributeNameController(controller.variantAttributes.first.id)
+              .text =
+          'Size';
+      controller
+              .attributeValuesController(controller.variantAttributes.first.id)
+              .text =
+          '1,2,3';
+
+      controller.generateVariantRows();
+
+      expect(controller.variantCombinationCount, 3);
+      expect(
+        controller.variantCombinations.map((item) => item.label).toList(),
+        ['1', '2', '3'],
+      );
+    },
+  );
 
   test('product form controller preserves variant edit prefills', () {
     final controller = _TestProductFormController(
@@ -195,6 +259,8 @@ void main() {
             id: 4,
             combinationKey: 'size-50-ml',
             combinationLabel: '50 ml',
+            sku: 'SEP-50',
+            barcode: '8941100506066-SIZE-50-ML',
             optionValues: {'Size': '50 ml'},
             purchasePrice: 30,
             sellingPrice: 40,
@@ -205,6 +271,8 @@ void main() {
             id: 5,
             combinationKey: 'size-100-ml',
             combinationLabel: '100 ml',
+            sku: 'SEP-100',
+            barcode: '8941100506066-SIZE-100-ML',
             optionValues: {'Size': '100 ml'},
             purchasePrice: 38,
             sellingPrice: 50,
@@ -234,9 +302,119 @@ void main() {
       'size-50-ml',
       'size-100-ml',
     ]);
-    expect(controller.variantCombinations.first.purchasePrice, 30);
+    expect(controller.variantCombinations.first.buyingPrice, 30);
     expect(controller.variantCombinations.first.sellingPrice, 40);
+    expect(controller.variantCombinations.first.sku, 'SEP-50');
+    expect(
+      controller.variantCombinations.first.barcode,
+      '8941100506066-SIZE-50-ML',
+    );
+    expect(controller.variantCombinations.first.status, 'active');
   });
+
+  test('product form controller keeps variant row state on regeneration', () {
+    final controller = _TestProductFormController(
+      inventoryManagerRepository: inventoryRepo(),
+      formArgs: const ProductFormArgs.edit(
+        productId: 2,
+        name: 'Phone',
+        barcode: 'BC-BASE-1',
+        categoryId: 2,
+        unitId: 1,
+        hasVariants: true,
+        variantAttributes: [
+          ProductVariantAttributeModel(
+            id: 5,
+            name: 'Storage',
+            values: ['128', '256'],
+          ),
+        ],
+        variants: [
+          ProductVariantModel(
+            id: 4,
+            combinationKey: 'storage-128',
+            combinationLabel: '128',
+            sku: 'PH-128',
+            barcode: 'BC-BASE-1-STORAGE-128',
+            optionValues: {'Storage': '128'},
+            purchasePrice: 30,
+            sellingPrice: 40,
+            currentStock: 5,
+            isActive: true,
+          ),
+        ],
+      ),
+    );
+
+    controller.onInit();
+    controller.updateCombinationPurchasePrice('storage-128', '35');
+    controller.updateCombinationSellingPrice('storage-128', '45');
+    controller.updateCombinationQuantity('storage-128', '7');
+    controller
+            .attributeValuesController(controller.variantAttributes.first.id)
+            .text =
+        '128,256,512';
+
+    controller.generateVariantRows();
+
+    final preserved = controller.variantCombinations.firstWhere(
+      (item) => item.key == 'storage-128',
+    );
+    final added = controller.variantCombinations.firstWhere(
+      (item) => item.key == 'storage-512',
+    );
+
+    expect(preserved.sku, 'PH-128');
+    expect(preserved.barcode, 'BC-BASE-1-STORAGE-128');
+    expect(preserved.buyingPrice, 35);
+    expect(preserved.sellingPrice, 45);
+    expect(preserved.quantity, 7);
+    expect(added.barcode, 'BC-BASE-1-STORAGE-512');
+  });
+
+  test(
+    'product form controller forces inactive variant quantities to zero',
+    () {
+      final controller = _TestProductFormController(
+        inventoryManagerRepository: inventoryRepo(),
+        formArgs: const ProductFormArgs.edit(
+          productId: 2,
+          name: 'Sepnil',
+          barcode: '8941100506066',
+          categoryId: 2,
+          subcategoryId: 5,
+          unitId: 1,
+          hasVariants: true,
+          variantAttributes: [
+            ProductVariantAttributeModel(
+              id: 5,
+              name: 'Size',
+              values: ['50 ml'],
+            ),
+          ],
+          variants: [
+            ProductVariantModel(
+              id: 4,
+              combinationKey: 'size-50-ml',
+              combinationLabel: '50 ml',
+              optionValues: {'Size': '50 ml'},
+              purchasePrice: 30,
+              sellingPrice: 40,
+              currentStock: 12,
+              isActive: true,
+            ),
+          ],
+        ),
+      );
+
+      controller.onInit();
+      controller.updateCombinationStatus('size-50-ml', 'inactive');
+
+      expect(controller.variantCombinations.first.status, 'inactive');
+      expect(controller.variantCombinations.first.quantity, 0);
+      expect(controller.combinationQuantityController('size-50-ml').text, '0');
+    },
+  );
 
   testWidgets(
     'purchase page shows explicit variant choices for variant products',

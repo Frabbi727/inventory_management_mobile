@@ -1,10 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../../products/data/models/category_response_model.dart';
-import '../models/editable_variant_attribute.dart';
 import '../controllers/product_form_controller.dart';
 import '../models/selected_product_photo.dart';
 
@@ -48,11 +48,17 @@ class ProductFormPage extends GetView<ProductFormController> {
                         validator: controller.requiredField,
                       ),
                       const SizedBox(height: 14),
+                      _FormField(
+                        controller: controller.skuController,
+                        label: 'Base SKU',
+                        prefixIcon: Icons.qr_code_scanner_rounded,
+                      ),
+                      const SizedBox(height: 14),
                       _ReadOnlyInfoCard(
                         label: 'Barcode',
                         icon: Icons.qr_code_2_rounded,
                         value: controller.barcodeController.text.trim().isEmpty
-                            ? 'Barcode will be assigned from the scanner flow.'
+                            ? 'Barcode will be assigned automatically.'
                             : controller.barcodeController.text.trim(),
                         preview:
                             controller.barcodeController.text.trim().isEmpty
@@ -67,7 +73,9 @@ class ProductFormPage extends GetView<ProductFormController> {
                                   borderRadius: BorderRadius.circular(999),
                                 ),
                                 child: Text(
-                                  'Read only',
+                                  controller.isScanCreate
+                                      ? 'Scanned'
+                                      : 'Auto-generated',
                                   style: theme.textTheme.labelMedium?.copyWith(
                                     color: const Color(0xFF0F766E),
                                     fontWeight: FontWeight.w700,
@@ -369,7 +377,9 @@ class _ProductFormHero extends StatelessWidget {
             Text(
               controller.isEdit
                   ? 'Update product business data'
-                  : 'Create product from scan flow',
+                  : controller.isScanCreate
+                  ? 'Create product from scan flow'
+                  : 'Create inventory product',
               style: theme.textTheme.labelLarge?.copyWith(
                 color: Colors.white.withValues(alpha: 0.78),
                 fontWeight: FontWeight.w700,
@@ -379,7 +389,9 @@ class _ProductFormHero extends StatelessWidget {
             Text(
               controller.isEdit
                   ? 'Adjust pricing, master data, variants, and photos without breaking the barcode contract.'
-                  : 'Capture the scanned barcode, classify the product properly, and prepare variant combinations before saving.',
+                  : controller.isScanCreate
+                  ? 'Capture the scanned barcode, classify the product properly, and prepare variant combinations before saving.'
+                  : 'Create a product manually with automatic barcode assignment, clear variant setup, and business-safe pricing.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: Colors.white.withValues(alpha: 0.94),
               ),
@@ -403,9 +415,11 @@ class _ProductFormHero extends StatelessWidget {
                 ),
                 _HeroTag(
                   label: 'Barcode',
-                  value: controller.barcodeController.text.trim().isEmpty
+                  value: controller.isScanCreate
+                      ? 'Scanned'
+                      : controller.barcodeController.text.trim().isEmpty
                       ? 'Pending'
-                      : 'Ready',
+                      : 'Auto',
                 ),
               ],
             ),
@@ -759,12 +773,12 @@ class _VariantSection extends StatelessWidget {
     return _FormSection(
       title: 'Variants',
       subtitle:
-          'Define attributes first, then review every generated combination before you save.',
+          'Add each variant row manually. SKU and barcode are generated automatically from the row data.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Create attributes and values, then review the generated combinations and opening quantities.',
+            'Tap Add Variant, then enter one row at a time, for example Size / 1L / qty / price. This is easier for products where you want to add variants one by one.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
             ),
@@ -775,186 +789,134 @@ class _VariantSection extends StatelessWidget {
             runSpacing: 8,
             children: [
               _VariantMetaPill(
-                label: 'Attributes',
-                value: '${controller.variantAttributeCount}',
-              ),
-              _VariantMetaPill(
-                label: 'Combinations',
+                label: 'Variants',
                 value: '${controller.variantCombinationCount}',
               ),
               _VariantMetaPill(
                 label: 'State',
-                value: controller.hasIncompleteVariantRows
-                    ? 'Needs input'
-                    : controller.hasDuplicateVariantNames
-                    ? 'Duplicate names'
+                value: controller.variantCombinations.isEmpty
+                    ? 'Empty'
                     : 'Ready',
               ),
             ],
           ),
           const SizedBox(height: 16),
-          _VariantStepCard(
-            step: 'Step 1',
-            title: 'Attributes',
-            description:
-                'Use clear business names such as Size, Color, Storage, or Pack Type. Values should be comma separated.',
-          ),
-          const SizedBox(height: 12),
-          ...controller.variantAttributes.map(
-            (attribute) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _VariantAttributeCard(
-                attribute: attribute,
-                controller: controller,
-              ),
-            ),
-          ),
-          OutlinedButton.icon(
+          FilledButton.icon(
             onPressed: controller.isSubmitting.value
                 ? null
-                : controller.addVariantAttribute,
+                : controller.addVariantRow,
             icon: const Icon(Icons.add_rounded),
-            label: const Text('Add Attribute'),
+            label: const Text('Add Variant'),
           ),
           if (controller.variantErrorMessage.value != null) ...[
             const SizedBox(height: 14),
             _InlineErrorMessage(message: controller.variantErrorMessage.value!),
           ],
-          if (controller.variantCombinations.isNotEmpty) ...[
+          if (controller.variantCombinations.isEmpty) ...[
             const SizedBox(height: 18),
-            const _VariantStepCard(
-              step: 'Step 2',
-              title: 'Generated combinations',
-              description:
-                  'Review opening quantity and per-variant prices for every combination. These values become the backend payload.',
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Generated combinations',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'No variants added yet',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Tap Add Variant and enter one row like Size / 1L / quantity / price.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 12),
-            ...controller.variantCombinations.map(
-              (combination) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _VariantCombinationCard(
-                  combinationKey: combination.key,
-                  label: combination.label,
-                  quantity: combination.quantity,
-                  quantityController: controller.combinationQuantityController(
-                    combination.key,
-                  ),
-                  purchasePriceController: controller
-                      .combinationPurchasePriceController(combination.key),
-                  sellingPriceController: controller
-                      .combinationSellingPriceController(combination.key),
-                  onQuantityChanged: controller.updateCombinationQuantity,
-                  onPurchasePriceChanged:
-                      controller.updateCombinationPurchasePrice,
-                  onSellingPriceChanged:
-                      controller.updateCombinationSellingPrice,
+          ] else ...[
+            const SizedBox(height: 18),
+            GetBuilder<ProductFormController>(
+              id: 'variant_rows',
+              builder: (controller) => Column(
+                key: ValueKey(
+                  'variant-list-${controller.variantCombinations.map((item) => item.key).join('|')}-${controller.expandedVariantKey.value ?? 'none'}',
                 ),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const _VariantStepCard(
+                    step: 'Manual Entry',
+                    title: 'Variant rows',
+                    description:
+                        'Each row is one sellable variant. Fill the attribute and value, then stock and price. SKU and barcode are generated automatically.',
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Variant rows',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ...controller.variantCombinations.map(
+                    (combination) => Padding(
+                      key: ValueKey('variant-row-${combination.key}'),
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _VariantCombinationCard(
+                        combinationKey: combination.key,
+                        label: combination.label,
+                        attributes: combination.attributes,
+                        quantity: combination.quantity,
+                        isExpanded: controller.isVariantExpanded(
+                          combination.key,
+                        ),
+                        attributeNameController: controller
+                            .combinationAttributeNameController(
+                              combination.key,
+                            ),
+                        attributeValueController: controller
+                            .combinationAttributeValueController(
+                              combination.key,
+                            ),
+                        barcode: controller.generatedVariantBarcode(
+                          combination.key,
+                        ),
+                        sku: controller.generatedVariantSku(combination.key),
+                        status: controller.combinationStatusValue(
+                          combination.key,
+                        ),
+                        hasExistingRecord: combination.variantId != null,
+                        unitLabel: controller.selectedUnitLabel,
+                        quantityController: controller
+                            .combinationQuantityController(combination.key),
+                        purchasePriceController: controller
+                            .combinationPurchasePriceController(
+                              combination.key,
+                            ),
+                        sellingPriceController: controller
+                            .combinationSellingPriceController(combination.key),
+                        onToggleExpanded: controller.toggleVariantExpanded,
+                        onRemove: controller.removeVariantRow,
+                        onQuantityChanged: controller.updateCombinationQuantity,
+                        onPurchasePriceChanged:
+                            controller.updateCombinationPurchasePrice,
+                        onSellingPriceChanged:
+                            controller.updateCombinationSellingPrice,
+                        onStatusChanged: controller.updateCombinationStatus,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-class _VariantAttributeCard extends StatelessWidget {
-  const _VariantAttributeCard({
-    required this.attribute,
-    required this.controller,
-  });
-
-  final EditableVariantAttribute attribute;
-  final ProductFormController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: TextFormField(
-                  controller: controller.attributeNameController(attribute.id),
-                  focusNode: controller.attributeNameFocusNode(attribute.id),
-                  onChanged: (value) => controller.updateVariantAttributeName(
-                    attribute.id,
-                    value,
-                  ),
-                  decoration: _inputDecoration(
-                    context,
-                    label: 'Attribute Name',
-                    prefixIcon: Icons.tune_rounded,
-                  ).copyWith(helperText: 'Example: Color, Size, Storage'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              IconButton.outlined(
-                onPressed: controller.isSubmitting.value
-                    ? null
-                    : () => controller.removeVariantAttribute(attribute.id),
-                icon: const Icon(Icons.delete_outline_rounded),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (attribute.values.isNotEmpty)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: attribute.values
-                    .map(
-                      (value) => Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.primaryContainer
-                              .withValues(alpha: 0.55),
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          value,
-                          style: Theme.of(context).textTheme.labelMedium
-                              ?.copyWith(
-                                color: Theme.of(context).colorScheme.primary,
-                                fontWeight: FontWeight.w700,
-                              ),
-                        ),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ),
-          if (attribute.values.isNotEmpty) const SizedBox(height: 12),
-          TextFormField(
-            controller: controller.attributeValuesController(attribute.id),
-            focusNode: controller.attributeValuesFocusNode(attribute.id),
-            onChanged: (value) =>
-                controller.updateVariantAttributeValues(attribute.id, value),
-            decoration: _inputDecoration(
-              context,
-              label: 'Values',
-              prefixIcon: Icons.list_alt_rounded,
-            ).copyWith(helperText: 'Enter comma-separated values'),
-          ),
         ],
       ),
     );
@@ -965,117 +927,309 @@ class _VariantCombinationCard extends StatelessWidget {
   const _VariantCombinationCard({
     required this.combinationKey,
     required this.label,
+    required this.attributes,
     required this.quantity,
+    required this.isExpanded,
+    required this.attributeNameController,
+    required this.attributeValueController,
+    required this.sku,
+    required this.barcode,
+    required this.status,
+    required this.hasExistingRecord,
+    required this.unitLabel,
     required this.quantityController,
     required this.purchasePriceController,
     required this.sellingPriceController,
+    required this.onToggleExpanded,
+    required this.onRemove,
     required this.onQuantityChanged,
     required this.onPurchasePriceChanged,
     required this.onSellingPriceChanged,
+    required this.onStatusChanged,
   });
 
   final String combinationKey;
   final String label;
+  final Map<String, String> attributes;
   final int quantity;
+  final bool isExpanded;
+  final TextEditingController attributeNameController;
+  final TextEditingController attributeValueController;
+  final String sku;
+  final String barcode;
+  final String status;
+  final bool hasExistingRecord;
+  final String unitLabel;
   final TextEditingController quantityController;
   final TextEditingController purchasePriceController;
   final TextEditingController sellingPriceController;
+  final void Function(String key) onToggleExpanded;
+  final void Function(String key) onRemove;
   final void Function(String key, String value) onQuantityChanged;
   final void Function(String key, String value) onPurchasePriceChanged;
   final void Function(String key, String value) onSellingPriceChanged;
+  final void Function(String key, String? value) onStatusChanged;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isInactive = status.toLowerCase() == 'inactive';
 
-    return Container(
+    return AnimatedContainer(
+      key: ValueKey(
+        'variant-card-$combinationKey-${isExpanded ? 'open' : 'closed'}',
+      ),
+      duration: const Duration(milliseconds: 180),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xFFFBFCFD),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(
+          color: isExpanded
+              ? theme.colorScheme.primary
+              : const Color(0xFFE2E8F0),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label.isEmpty ? combinationKey : label,
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            combinationKey,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _VariantMetaPill(label: 'Opening Qty', value: '$quantity'),
-              _VariantMetaPill(
-                label: 'Key',
-                value: label.isEmpty ? 'Generated' : 'Named',
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
-                child: TextFormField(
-                  controller: quantityController,
-                  key: ValueKey('variant-$combinationKey-qty'),
-                  keyboardType: TextInputType.number,
-                  onChanged: (value) =>
-                      onQuantityChanged(combinationKey, value),
-                  decoration: _inputDecoration(
-                    context,
-                    label: 'Qty',
-                    prefixIcon: Icons.inventory_2_outlined,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => onToggleExpanded(combinationKey),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          label.isEmpty ? 'New Variant' : label,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          isExpanded ? 'Tap to collapse' : 'Tap to expand',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TextFormField(
-                  controller: purchasePriceController,
-                  key: ValueKey('variant-$combinationKey-purchase-price'),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  onChanged: (value) =>
-                      onPurchasePriceChanged(combinationKey, value),
-                  decoration: _inputDecoration(
-                    context,
-                    label: 'Buy Price',
-                    prefixIcon: Icons.payments_outlined,
-                  ),
+              IconButton(
+                onPressed: () => onToggleExpanded(combinationKey),
+                icon: Icon(
+                  isExpanded
+                      ? Icons.keyboard_arrow_up_rounded
+                      : Icons.keyboard_arrow_down_rounded,
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TextFormField(
-                  controller: sellingPriceController,
-                  key: ValueKey('variant-$combinationKey-selling-price'),
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  onChanged: (value) =>
-                      onSellingPriceChanged(combinationKey, value),
-                  decoration: _inputDecoration(
-                    context,
-                    label: 'Sell Price',
-                    prefixIcon: Icons.sell_outlined,
-                  ),
-                ),
+              IconButton.outlined(
+                onPressed: () => onRemove(combinationKey),
+                icon: const Icon(Icons.delete_outline_rounded),
               ),
             ],
           ),
+          if (attributes.isNotEmpty && !isExpanded) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: attributes.entries
+                  .map(
+                    (entry) =>
+                        _VariantMetaPill(label: entry.key, value: entry.value),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 10),
+          ],
+          if (isExpanded) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: attributeNameController,
+                    decoration: _inputDecoration(
+                      context,
+                      label: 'Attribute',
+                      prefixIcon: Icons.tune_rounded,
+                    ).copyWith(helperText: 'Example: Size'),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextFormField(
+                    controller: attributeValueController,
+                    decoration: _inputDecoration(
+                      context,
+                      label: 'Value',
+                      prefixIcon: Icons.category_outlined,
+                    ).copyWith(helperText: 'Example: 1L'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            _ReadOnlyInfoCard(
+              label: 'Variant SKU',
+              icon: Icons.sell_outlined,
+              value: sku,
+            ),
+            const SizedBox(height: 10),
+            _ReadOnlyInfoCard(
+              label: 'Variant Barcode',
+              icon: Icons.qr_code_2_rounded,
+              value: barcode,
+              preview: IconButton(
+                tooltip: 'Copy barcode',
+                onPressed: () async {
+                  final messenger = ScaffoldMessenger.maybeOf(context);
+                  await Clipboard.setData(ClipboardData(text: barcode));
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    messenger?.showSnackBar(
+                      const SnackBar(content: Text('Variant barcode copied.')),
+                    );
+                  });
+                },
+                icon: const Icon(Icons.copy_rounded),
+              ),
+            ),
+            if (attributes.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: attributes.entries
+                    .map(
+                      (entry) => Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primaryContainer.withValues(
+                            alpha: 0.45,
+                          ),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          '${entry.key}: ${entry.value}',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _VariantMetaPill(
+                  label: 'Row',
+                  value: hasExistingRecord ? 'Existing' : 'New',
+                ),
+                _VariantMetaPill(label: 'Opening Qty', value: '$quantity'),
+                _VariantMetaPill(label: 'Status', value: status),
+                _VariantMetaPill(label: 'Unit', value: unitLabel),
+              ],
+            ),
+            const SizedBox(height: 14),
+            DropdownButtonFormField<String>(
+              initialValue: status,
+              decoration: _inputDecoration(
+                context,
+                label: 'Variant Status',
+                prefixIcon: Icons.toggle_on_outlined,
+              ),
+              items: const [
+                DropdownMenuItem(value: 'active', child: Text('Active')),
+                DropdownMenuItem(value: 'inactive', child: Text('Inactive')),
+              ],
+              onChanged: (value) => onStatusChanged(combinationKey, value),
+            ),
+            if (isInactive) ...[
+              const SizedBox(height: 10),
+              Text(
+                'Inactive variants cannot hold stock. Quantity is locked to 0.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: TextFormField(
+                    controller: quantityController,
+                    key: ValueKey('variant-$combinationKey-qty'),
+                    keyboardType: TextInputType.number,
+                    enabled: !isInactive,
+                    onChanged: (value) =>
+                        onQuantityChanged(combinationKey, value),
+                    decoration: _inputDecoration(
+                      context,
+                      label: 'Qty',
+                      prefixIcon: Icons.inventory_2_outlined,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: purchasePriceController,
+                    key: ValueKey('variant-$combinationKey-purchase-price'),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    onChanged: (value) =>
+                        onPurchasePriceChanged(combinationKey, value),
+                    decoration: _inputDecoration(
+                      context,
+                      label: 'Buy Price',
+                      prefixIcon: Icons.payments_outlined,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextFormField(
+                    controller: sellingPriceController,
+                    key: ValueKey('variant-$combinationKey-selling-price'),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    onChanged: (value) =>
+                        onSellingPriceChanged(combinationKey, value),
+                    decoration: _inputDecoration(
+                      context,
+                      label: 'Sell Price',
+                      prefixIcon: Icons.sell_outlined,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

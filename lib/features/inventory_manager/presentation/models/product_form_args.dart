@@ -3,9 +3,12 @@ import '../../../products/data/models/product_variant_model.dart';
 
 enum ProductFormMode { create, edit }
 
+enum ProductFormSource { manual, scan }
+
 class ProductFormArgs {
   const ProductFormArgs({
     required this.mode,
+    this.source = ProductFormSource.manual,
     this.productId,
     this.name,
     this.sku,
@@ -23,6 +26,7 @@ class ProductFormArgs {
   });
 
   const ProductFormArgs.create({
+    this.source = ProductFormSource.manual,
     this.productId,
     this.name,
     this.sku,
@@ -40,6 +44,7 @@ class ProductFormArgs {
   }) : mode = ProductFormMode.create;
 
   const ProductFormArgs.edit({
+    this.source = ProductFormSource.manual,
     this.productId,
     this.name,
     this.sku,
@@ -57,6 +62,7 @@ class ProductFormArgs {
   }) : mode = ProductFormMode.edit;
 
   final ProductFormMode mode;
+  final ProductFormSource source;
   final int? productId;
   final String? name;
   final String? sku;
