@@ -117,9 +117,39 @@ class _InventoryProductsPageState extends State<InventoryProductsPage>
                         activeFilterCount: activeFilterCount,
                         onTap: _openFiltersSheet,
                       ),
+
                     ],
                   ),
                   const SizedBox(height: 8),
+                  InventoryCatalogHeader(
+                    totalProducts: controller.visibleProducts.length,
+                    hasActiveFilter: controller.hasActiveFilter,
+                    selectedCategoryName:
+                    controller.selectedCategoryId.value == null
+                        ? null
+                        : controller.categories
+                        .firstWhereOrNull(
+                          (category) =>
+                      category.id ==
+                          controller.selectedCategoryId.value,
+                    )
+                        ?.name,
+                    selectedSubcategoryName:
+                    controller.selectedSubcategoryId.value == null
+                        ? null
+                        : controller.subcategories
+                        .firstWhereOrNull(
+                          (subcategory) =>
+                      subcategory.id ==
+                          controller.selectedSubcategoryId.value,
+                    )
+                        ?.name,
+                    selectedStockStatusLabel:
+                    controller.selectedStockStatus.value?.displayLabel,
+                    searchQuery: controller.searchQuery.value,
+                    onClearFilters: controller.clearFilters,
+                  ),
+
                 ],
               ),
             ),
@@ -131,34 +161,6 @@ class _InventoryProductsPageState extends State<InventoryProductsPage>
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
                   physics: const AlwaysScrollableScrollPhysics(),
                   children: [
-                    InventoryCatalogHeader(
-                      totalProducts: controller.visibleProducts.length,
-                      hasActiveFilter: controller.hasActiveFilter,
-                      selectedCategoryName:
-                          controller.selectedCategoryId.value == null
-                          ? null
-                          : controller.categories
-                                .firstWhereOrNull(
-                                  (category) =>
-                                      category.id ==
-                                      controller.selectedCategoryId.value,
-                                )
-                                ?.name,
-                      selectedSubcategoryName:
-                          controller.selectedSubcategoryId.value == null
-                          ? null
-                          : controller.subcategories
-                                .firstWhereOrNull(
-                                  (subcategory) =>
-                                      subcategory.id ==
-                                      controller.selectedSubcategoryId.value,
-                                )
-                                ?.name,
-                      selectedStockStatusLabel:
-                          controller.selectedStockStatus.value?.displayLabel,
-                      searchQuery: controller.searchQuery.value,
-                      onClearFilters: controller.clearFilters,
-                    ),
                     const SizedBox(height: 8),
                     if (controller.showInlineLoader)
                       const Padding(
