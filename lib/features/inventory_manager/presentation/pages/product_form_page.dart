@@ -25,8 +25,6 @@ class ProductFormPage extends GetView<ProductFormController> {
             () => ListView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
               children: [
-                _ProductFormHero(controller: controller),
-                const SizedBox(height: 16),
                 if (controller.errorMessage.value != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
@@ -36,9 +34,7 @@ class ProductFormPage extends GetView<ProductFormController> {
                   ),
                 _FormSection(
                   title: 'Product Details',
-                  subtitle:
-                      'Keep master data consistent. Category controls the available subcategories, and barcode comes from the scan flow or is assigned by the backend.',
-                  child: Column(
+                   child: Column(
                     children: [
                       _FormField(
                         controller: controller.nameController,
@@ -51,7 +47,7 @@ class ProductFormPage extends GetView<ProductFormController> {
                         label: 'Barcode',
                         icon: Icons.qr_code_2_rounded,
                         value: controller.barcodeController.text.trim().isEmpty
-                            ? 'Barcode will be assigned by the backend.'
+                            ? 'Barcode will be auto generated'
                             : controller.barcodeController.text.trim(),
                         preview:
                             controller.barcodeController.text.trim().isEmpty
@@ -160,9 +156,7 @@ class ProductFormPage extends GetView<ProductFormController> {
                 const SizedBox(height: 16),
                 _FormSection(
                   title: 'Pricing & Stock',
-                  subtitle:
-                      'Simple products keep prices at the base level. Variant products move pricing into each generated combination.',
-                  child: Column(
+                    child: Column(
                     children: [
                       if (controller.showBasePriceFields) ...[
                         Row(
@@ -288,9 +282,9 @@ class ProductFormPage extends GetView<ProductFormController> {
 }
 
 class _FormSection extends StatelessWidget {
-  const _FormSection({required this.title, required this.child, this.subtitle});
+  const _FormSection({ this.title, required this.child, this.subtitle});
 
-  final String title;
+  final String? title;
   final Widget child;
   final String? subtitle;
 
@@ -315,7 +309,7 @@ class _FormSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            title,
+            title??'',
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w800,
             ),
