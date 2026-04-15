@@ -35,7 +35,6 @@ class ProductFormController extends GetxController {
 
   late final ProductFormArgs args;
   late final TextEditingController nameController;
-  late final TextEditingController skuController;
   late final TextEditingController barcodeController;
   late final TextEditingController purchasePriceController;
   late final TextEditingController sellingPriceController;
@@ -45,7 +44,6 @@ class ProductFormController extends GetxController {
   final _attributeNameFocusNodes = <String, FocusNode>{};
   final _attributeValuesFocusNodes = <String, FocusNode>{};
   final _combinationQuantityControllers = <String, TextEditingController>{};
-  final _combinationSkuControllers = <String, TextEditingController>{};
   final _combinationPurchasePriceControllers =
       <String, TextEditingController>{};
   final _combinationSellingPriceControllers = <String, TextEditingController>{};
@@ -130,7 +128,6 @@ class ProductFormController extends GetxController {
         ? argument
         : const ProductFormArgs.create();
     nameController = TextEditingController(text: args.name ?? '');
-    skuController = TextEditingController(text: args.sku ?? '');
     barcodeController = TextEditingController(
       text: _resolveInitialBaseBarcode(),
     );
@@ -155,7 +152,6 @@ class ProductFormController extends GetxController {
   @override
   void onClose() {
     nameController.dispose();
-    skuController.dispose();
     barcodeController.dispose();
     purchasePriceController.dispose();
     sellingPriceController.dispose();
@@ -266,8 +262,6 @@ class ProductFormController extends GetxController {
         quantity: 0,
         attributeNameDraft: '',
         attributeValueDraft: '',
-        sku: _buildVariantSku(skuController.text.trim(), key),
-        barcode: _buildVariantBarcode(barcodeController.text.trim(), key),
       ),
     );
     variantCombinations.refresh();
@@ -420,28 +414,6 @@ class ProductFormController extends GetxController {
     );
   }
 
-  void updateCombinationSku(String key, String rawValue) {
-    final index = variantCombinations.indexWhere(
-      (combination) => combination.key == key,
-    );
-    if (index == -1) {
-      return;
-    }
-    final normalized = rawValue.trim();
-    final nextSku = normalized.isEmpty ? null : normalized;
-    final current = variantCombinations[index];
-    if (current.sku == nextSku && current.isSkuEdited) {
-      return;
-    }
-    variantCombinations[index] = current.copyWith(
-      sku: nextSku,
-      clearSku: nextSku == null,
-      isSkuEdited: true,
-    );
-    variantCombinations.refresh();
-    variantErrorMessage.value = null;
-  }
-
   void updateCombinationPurchasePrice(String key, String rawValue) {
     final index = variantCombinations.indexWhere(
       (combination) => combination.key == key,
@@ -556,20 +528,6 @@ class ProductFormController extends GetxController {
     return controller;
   }
 
-  TextEditingController combinationSkuController(String key) {
-    final existing = _combinationSkuControllers[key];
-    if (existing != null) {
-      return existing;
-    }
-    final sku = variantCombinations
-        .firstWhereOrNull((combination) => combination.key == key)
-        ?.sku;
-    final controller = TextEditingController(text: sku ?? '');
-    controller.addListener(() => updateCombinationSku(key, controller.text));
-    _combinationSkuControllers[key] = controller;
-    return controller;
-  }
-
   TextEditingController combinationAttributeNameController(String key) {
     final existing = _attributeNameControllers[key];
     if (existing != null) {
@@ -656,30 +614,6 @@ class ProductFormController extends GetxController {
     return value;
   }
 
-  String generatedVariantBarcode(String key) {
-    final combination = variantCombinations.firstWhereOrNull(
-      (item) => item.key == key,
-    );
-    final existing = combination?.barcode;
-    if (existing != null && existing.trim().isNotEmpty) {
-      return existing.trim();
-    }
-    final identityKey = _variantIdentityKey(combination);
-    return _buildVariantBarcode(barcodeController.text.trim(), identityKey);
-  }
-
-  String generatedVariantSku(String key) {
-    final combination = variantCombinations.firstWhereOrNull(
-      (item) => item.key == key,
-    );
-    final existing = combination?.sku;
-    if (existing != null && existing.trim().isNotEmpty) {
-      return existing.trim();
-    }
-    final identityKey = _variantIdentityKey(combination);
-    return _buildVariantSku(skuController.text.trim(), identityKey);
-  }
-
   Future<void> submit() async {
     final currentState = formKey.currentState;
     if (currentState == null || !currentState.validate()) {
@@ -696,15 +630,6 @@ class ProductFormController extends GetxController {
       errorMessage.value = 'Unit is required.';
       return;
     }
-    final baseSku = skuController.text.trim();
-    final baseBarcode = barcodeController.text.trim();
-    if (baseSku.isNotEmpty &&
-        baseBarcode.isNotEmpty &&
-        baseSku == baseBarcode) {
-      errorMessage.value = 'Base product SKU and barcode must be different.';
-      return;
-    }
-
     final variantPayload = _buildVariantPayload();
     if (isVariantsEnabled.value && variantPayload == null) {
       return;
@@ -712,8 +637,9 @@ class ProductFormController extends GetxController {
 
     final request = CreateOrUpdateBarcodeProductRequest(
       name: nameController.text.trim(),
-      sku: skuController.text.trim().isEmpty ? null : skuController.text.trim(),
-      barcode: barcodeController.text.trim(),
+      barcode: barcodeController.text.trim().isEmpty
+          ? null
+          : barcodeController.text.trim(),
       categoryId: categoryId,
       subcategoryId: selectedSubcategoryId.value,
       unitId: unitId,
@@ -994,18 +920,7 @@ class ProductFormController extends GetxController {
     }
 
     final seenCombinations = <String>{};
-    final seenSkus = <String>{};
-    final seenBarcodes = <String>{};
     final rows = <ProductVariantRowPayload>[];
-    final baseSku = skuController.text.trim();
-    final baseBarcode = barcodeController.text.trim();
-    if (baseSku.isNotEmpty &&
-        baseBarcode.isNotEmpty &&
-        baseSku == baseBarcode) {
-      variantErrorMessage.value =
-          'Base product SKU and barcode must be different.';
-      return null;
-    }
     for (final combination in variantCombinations) {
       if (combination.attributes.isEmpty) {
         variantErrorMessage.value =
@@ -1025,40 +940,6 @@ class ProductFormController extends GetxController {
       if (!seenCombinations.add(derivedKey)) {
         variantErrorMessage.value =
             'Duplicate variant combinations are not allowed.';
-        return null;
-      }
-      final combinationSku = generatedVariantSku(combination.key).trim();
-      if (combinationSku.isNotEmpty) {
-        final normalizedSku = combinationSku.toLowerCase();
-        if (!seenSkus.add(normalizedSku)) {
-          variantErrorMessage.value = 'Duplicate variant SKUs are not allowed.';
-          return null;
-        }
-        if (normalizedSku == baseSku.toLowerCase() ||
-            normalizedSku == baseBarcode.toLowerCase()) {
-          variantErrorMessage.value =
-              'Variant SKU must not match the base product SKU or barcode.';
-          return null;
-        }
-      }
-      final combinationBarcode = generatedVariantBarcode(
-        combination.key,
-      ).trim();
-      if (combinationBarcode.isEmpty) {
-        variantErrorMessage.value =
-            'Every variant row must have an automatic barcode.';
-        return null;
-      }
-      final normalizedBarcode = combinationBarcode.toLowerCase();
-      if (!seenBarcodes.add(normalizedBarcode)) {
-        variantErrorMessage.value =
-            'Duplicate variant barcodes are not allowed.';
-        return null;
-      }
-      if (normalizedBarcode == baseSku.toLowerCase() ||
-          normalizedBarcode == baseBarcode.toLowerCase()) {
-        variantErrorMessage.value =
-            'Variant barcode must not match the base product SKU or barcode.';
         return null;
       }
       final buyingPrice = combination.buyingPrice;
@@ -1083,8 +964,6 @@ class ProductFormController extends GetxController {
       rows.add(
         ProductVariantRowPayload(
           attributes: {attributeName: attributeValue},
-          sku: combinationSku,
-          barcode: combinationBarcode,
           quantity: combination.isActive ? quantity : 0,
           buyingPrice: buyingPrice,
           sellingPrice: sellingPrice,
@@ -1141,16 +1020,11 @@ class ProductFormController extends GetxController {
         key: key,
         label: optionValues.values.join(' / '),
         attributes: optionValues,
-        sku: existing?.sku,
-        barcode:
-            existing?.barcode ??
-            _buildVariantBarcode(barcodeController.text, key),
         quantity: existing?.quantity ?? 0,
         buyingPrice: existing?.buyingPrice,
         sellingPrice: existing?.sellingPrice,
         variantId: existing?.variantId,
         status: existing?.status ?? 'active',
-        isSkuEdited: existing?.isSkuEdited ?? false,
       );
     }).toList();
     variantCombinations.assignAll(generated);
@@ -1230,43 +1104,7 @@ class ProductFormController extends GetxController {
     if (existing != null && existing.isNotEmpty) {
       return existing;
     }
-    if (isManualCreate) {
-      return _buildAutomaticBaseBarcode();
-    }
     return '';
-  }
-
-  String _buildAutomaticBaseBarcode() {
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    return 'BC-$timestamp';
-  }
-
-  String _buildVariantBarcode(String baseBarcode, String key) {
-    final normalizedBase = baseBarcode.trim().isEmpty
-        ? _buildAutomaticBaseBarcode()
-        : baseBarcode.trim();
-    final suffix = key
-        .trim()
-        .toUpperCase()
-        .replaceAll('__', '-')
-        .replaceAll(RegExp(r'[^A-Z0-9-]+'), '-')
-        .replaceAll(RegExp(r'-+'), '-')
-        .replaceAll(RegExp(r'^-+|-+$'), '');
-    return suffix.isEmpty
-        ? '$normalizedBase-VARIANT'
-        : '$normalizedBase-$suffix';
-  }
-
-  String _buildVariantSku(String baseSku, String key) {
-    final normalizedBase = baseSku.trim().isEmpty ? 'VAR' : baseSku.trim();
-    final suffix = key
-        .trim()
-        .toUpperCase()
-        .replaceAll('__', '-')
-        .replaceAll(RegExp(r'[^A-Z0-9-]+'), '-')
-        .replaceAll(RegExp(r'-+'), '-')
-        .replaceAll(RegExp(r'^-+|-+$'), '');
-    return suffix.isEmpty ? normalizedBase : '$normalizedBase-$suffix';
   }
 
   String _fallbackVariantKey(ProductVariantModel variant) {
@@ -1308,20 +1146,6 @@ class ProductFormController extends GetxController {
     variantCombinations.refresh();
     variantErrorMessage.value = null;
     update(['variant_rows']);
-  }
-
-  String _variantIdentityKey(VariantCombinationDraft? combination) {
-    if (combination == null) {
-      return 'variant';
-    }
-    final attributeName = combination.attributeNameDraft.trim();
-    final attributeValue = combination.attributeValueDraft.trim();
-    if (attributeName.isEmpty || attributeValue.isEmpty) {
-      return combination.key;
-    }
-    return _buildCombinationKey(<String, String>{
-      attributeName: attributeValue,
-    });
   }
 
   (TextEditingController, TextEditingController) _ensureAttributeControllers(
@@ -1373,9 +1197,6 @@ class ProductFormController extends GetxController {
           (key) => !key.startsWith('attribute-') && !validKeys.contains(key),
         )
         .toList();
-    final staleSkuKeys = _combinationSkuControllers.keys
-        .where((key) => !validKeys.contains(key))
-        .toList();
     final staleKeys = _combinationQuantityControllers.keys
         .where((key) => !validKeys.contains(key))
         .toList();
@@ -1393,9 +1214,6 @@ class ProductFormController extends GetxController {
     }
     for (final key in staleAttributeValueKeys) {
       _attributeValuesControllers.remove(key)?.dispose();
-    }
-    for (final key in staleSkuKeys) {
-      _combinationSkuControllers.remove(key)?.dispose();
     }
     for (final key in staleKeys) {
       _combinationQuantityControllers.remove(key)?.dispose();
@@ -1454,23 +1272,6 @@ class ProductFormController extends GetxController {
               ),
             );
       }
-      final skuController = _combinationSkuControllers.putIfAbsent(
-        combination.key,
-        () {
-          final next = TextEditingController(
-            text: generatedVariantSku(combination.key),
-          );
-          return next;
-        },
-      );
-      final nextSkuText = generatedVariantSku(combination.key);
-      if (skuController.text != nextSkuText) {
-        skuController.value = skuController.value.copyWith(
-          text: nextSkuText,
-          selection: TextSelection.collapsed(offset: nextSkuText.length),
-        );
-      }
-
       final controller = _combinationQuantityControllers.putIfAbsent(
         combination.key,
         () {
@@ -1549,9 +1350,6 @@ class ProductFormController extends GetxController {
     for (final controller in _combinationQuantityControllers.values) {
       controller.dispose();
     }
-    for (final controller in _combinationSkuControllers.values) {
-      controller.dispose();
-    }
     for (final controller in _combinationPurchasePriceControllers.values) {
       controller.dispose();
     }
@@ -1563,7 +1361,6 @@ class ProductFormController extends GetxController {
     _attributeNameFocusNodes.clear();
     _attributeValuesFocusNodes.clear();
     _combinationQuantityControllers.clear();
-    _combinationSkuControllers.clear();
     _combinationPurchasePriceControllers.clear();
     _combinationSellingPriceControllers.clear();
     _combinationStatusControllers.clear();

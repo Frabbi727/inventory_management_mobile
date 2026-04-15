@@ -1,8 +1,7 @@
 class CreateOrUpdateBarcodeProductRequest {
   const CreateOrUpdateBarcodeProductRequest({
     required this.name,
-    this.sku,
-    required this.barcode,
+    this.barcode,
     required this.categoryId,
     this.subcategoryId,
     required this.unitId,
@@ -15,8 +14,7 @@ class CreateOrUpdateBarcodeProductRequest {
   });
 
   final String name;
-  final String? sku;
-  final String barcode;
+  final String? barcode;
   final int categoryId;
   final int? subcategoryId;
   final int unitId;
@@ -33,8 +31,7 @@ class CreateOrUpdateBarcodeProductRequest {
     final rawVariants = json['variants'];
     return CreateOrUpdateBarcodeProductRequest(
       name: json['name'] as String? ?? '',
-      sku: json['sku'] as String?,
-      barcode: json['barcode'] as String? ?? '',
+      barcode: json['barcode'] as String?,
       categoryId: _asInt(json['category_id']) ?? 0,
       subcategoryId: _asInt(json['subcategory_id']),
       unitId: _asInt(json['unit_id']) ?? 0,
@@ -55,8 +52,7 @@ class CreateOrUpdateBarcodeProductRequest {
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
       'name': name,
-      if (sku != null) 'sku': sku,
-      'barcode': barcode,
+      if (barcode != null && barcode!.trim().isNotEmpty) 'barcode': barcode,
       'category_id': categoryId,
       if (subcategoryId != null) 'subcategory_id': subcategoryId,
       'unit_id': unitId,
@@ -73,7 +69,6 @@ class CreateOrUpdateBarcodeProductRequest {
   Map<String, String> toMultipartFields() {
     final fields = <String, String>{
       'name': name,
-      'barcode': barcode,
       'category_id': '$categoryId',
       if (subcategoryId != null) 'subcategory_id': '$subcategoryId',
       'unit_id': '$unitId',
@@ -83,8 +78,8 @@ class CreateOrUpdateBarcodeProductRequest {
       'status': status,
     };
 
-    if (sku != null) {
-      fields['sku'] = sku!;
+    if (barcode != null && barcode!.trim().isNotEmpty) {
+      fields['barcode'] = barcode!;
     }
 
     if (hasVariants != null) {
@@ -97,12 +92,6 @@ class CreateOrUpdateBarcodeProductRequest {
       variant.attributes.forEach((key, value) {
         fields['variants[$index][attributes][$key]'] = value;
       });
-      if (variant.sku != null && variant.sku!.isNotEmpty) {
-        fields['variants[$index][sku]'] = variant.sku!;
-      }
-      if (variant.barcode != null && variant.barcode!.isNotEmpty) {
-        fields['variants[$index][barcode]'] = variant.barcode!;
-      }
       fields['variants[$index][quantity]'] = '${variant.quantity}';
       fields['variants[$index][buying_price]'] = '${variant.buyingPrice}';
       fields['variants[$index][selling_price]'] = '${variant.sellingPrice}';
@@ -158,8 +147,6 @@ class CreateOrUpdateBarcodeProductRequest {
 class ProductVariantRowPayload {
   const ProductVariantRowPayload({
     required this.attributes,
-    this.sku,
-    this.barcode,
     required this.quantity,
     required this.buyingPrice,
     required this.sellingPrice,
@@ -167,8 +154,6 @@ class ProductVariantRowPayload {
   });
 
   final Map<String, String> attributes;
-  final String? sku;
-  final String? barcode;
   final int quantity;
   final num buyingPrice;
   final num sellingPrice;
@@ -177,8 +162,6 @@ class ProductVariantRowPayload {
   factory ProductVariantRowPayload.fromJson(Map<String, dynamic> json) {
     return ProductVariantRowPayload(
       attributes: _asStringMap(json['attributes']),
-      sku: json['sku'] as String?,
-      barcode: json['barcode'] as String?,
       quantity:
           CreateOrUpdateBarcodeProductRequest._asInt(json['quantity']) ?? 0,
       buyingPrice:
@@ -196,8 +179,6 @@ class ProductVariantRowPayload {
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
       'attributes': attributes,
-      if (sku != null) 'sku': sku,
-      if (barcode != null) 'barcode': barcode,
       'quantity': quantity,
       'buying_price': buyingPrice,
       'selling_price': sellingPrice,

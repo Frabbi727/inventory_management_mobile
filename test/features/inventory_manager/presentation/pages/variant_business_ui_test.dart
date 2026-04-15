@@ -31,11 +31,9 @@ class _TestProductFormController extends ProductFormController {
   void onInit() {
     args = formArgs;
     nameController = TextEditingController(text: args.name ?? '');
-    skuController = TextEditingController(text: args.sku ?? '');
     barcodeController = TextEditingController(
       text:
-          args.barcode ??
-          (args.source == ProductFormSource.manual ? 'BC-AUTO-1' : 'BC-1'),
+          args.barcode ?? (args.source == ProductFormSource.scan ? 'BC-1' : ''),
     );
     purchasePriceController = TextEditingController(
       text: args.purchasePrice?.toString() ?? '',
@@ -364,12 +362,12 @@ void main() {
       (item) => item.key == 'storage-512',
     );
 
-    expect(preserved.sku, 'PH-128');
-    expect(preserved.barcode, 'BC-BASE-1-STORAGE-128');
     expect(preserved.buyingPrice, 35);
     expect(preserved.sellingPrice, 45);
     expect(preserved.quantity, 7);
-    expect(added.barcode, 'BC-BASE-1-STORAGE-512');
+    expect(added.buyingPrice, isNull);
+    expect(added.sellingPrice, isNull);
+    expect(added.quantity, 0);
   });
 
   test(

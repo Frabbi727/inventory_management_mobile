@@ -7,6 +7,7 @@ import '../../../products/data/models/product_model.dart';
 import '../../../products/data/models/product_subcategory_model.dart';
 import '../../../products/data/models/subcategory_list_response_model.dart';
 import '../../../products/data/models/product_unit_model.dart';
+import '../../../products/data/models/product_details_response_model.dart';
 import '../../../products/data/repositories/product_repository.dart';
 import '../models/barcode_resolve_response.dart';
 import '../models/create_or_update_barcode_product_request.dart';
@@ -65,14 +66,15 @@ class InventoryManagerRepository {
     List<ProductPhotoUploadFile> photos = const <ProductPhotoUploadFile>[],
   }) async {
     final token = await _requireToken();
+    late final Map<String, dynamic> response;
     if (photos.isEmpty) {
-      await _apiClient.post(
+      response = await _apiClient.post(
         ApiEndpoints.barcodeProducts(),
         token: token,
         body: request.toJson(),
       );
     } else {
-      await _apiClient.postMultipart(
+      response = await _apiClient.postMultipart(
         ApiEndpoints.barcodeProducts(),
         token: token,
         fields: request.toMultipartFields(),
@@ -87,7 +89,7 @@ class InventoryManagerRepository {
             .toList(),
       );
     }
-    return getProductByBarcode(request.barcode);
+    return _resolveSavedProduct(response, request.barcode);
   }
 
   Future<ProductModel> createProduct(
@@ -95,14 +97,15 @@ class InventoryManagerRepository {
     List<ProductPhotoUploadFile> photos = const <ProductPhotoUploadFile>[],
   }) async {
     final token = await _requireToken();
+    late final Map<String, dynamic> response;
     if (photos.isEmpty) {
-      await _apiClient.post(
+      response = await _apiClient.post(
         ApiEndpoints.products,
         token: token,
         body: request.toJson(),
       );
     } else {
-      await _apiClient.postMultipart(
+      response = await _apiClient.postMultipart(
         ApiEndpoints.products,
         token: token,
         fields: request.toMultipartFields(),
@@ -117,7 +120,7 @@ class InventoryManagerRepository {
             .toList(),
       );
     }
-    return getProductByBarcode(request.barcode);
+    return _resolveSavedProduct(response, request.barcode);
   }
 
   Future<ProductModel> updateProductByBarcode(
@@ -126,14 +129,15 @@ class InventoryManagerRepository {
     List<ProductPhotoUploadFile> photos = const <ProductPhotoUploadFile>[],
   }) async {
     final token = await _requireToken();
+    late final Map<String, dynamic> response;
     if (photos.isEmpty) {
-      await _apiClient.put(
+      response = await _apiClient.put(
         ApiEndpoints.updateBarcodeProduct(_normalizeBarcode(barcode)),
         token: token,
         body: request.toJson(),
       );
     } else {
-      await _apiClient.putMultipart(
+      response = await _apiClient.putMultipart(
         ApiEndpoints.updateBarcodeProduct(_normalizeBarcode(barcode)),
         token: token,
         fields: request.toMultipartFields(),
@@ -148,7 +152,7 @@ class InventoryManagerRepository {
             .toList(),
       );
     }
-    return getProductByBarcode(request.barcode);
+    return _resolveSavedProduct(response, request.barcode ?? barcode);
   }
 
   Future<ProductModel> updateProduct(
@@ -157,14 +161,15 @@ class InventoryManagerRepository {
     List<ProductPhotoUploadFile> photos = const <ProductPhotoUploadFile>[],
   }) async {
     final token = await _requireToken();
+    late final Map<String, dynamic> response;
     if (photos.isEmpty) {
-      await _apiClient.put(
+      response = await _apiClient.put(
         ApiEndpoints.productDetails(productId),
         token: token,
         body: request.toJson(),
       );
     } else {
-      await _apiClient.putMultipart(
+      response = await _apiClient.putMultipart(
         ApiEndpoints.productDetails(productId),
         token: token,
         fields: request.toMultipartFields(),
@@ -179,7 +184,7 @@ class InventoryManagerRepository {
             .toList(),
       );
     }
-    return getProductByBarcode(request.barcode);
+    return _resolveSavedProduct(response, request.barcode);
   }
 
   Future<List<CategoryModel>> fetchCategories() async {
@@ -293,6 +298,20 @@ class InventoryManagerRepository {
     }
 
     return token;
+  }
+
+  Future<ProductModel> _resolveSavedProduct(
+    Map<String, dynamic> response,
+    String? fallbackBarcode,
+  ) async {
+    final parsed = ProductDetailsResponseModel.fromJson(response);
+    if (parsed.data != null) {
+      return parsed.data!;
+    }
+    if (fallbackBarcode != null && fallbackBarcode.trim().isNotEmpty) {
+      return getProductByBarcode(fallbackBarcode);
+    }
+    throw ApiException(message: 'Product details were not returned.');
   }
 
   String _normalizeBarcode(String value) {
