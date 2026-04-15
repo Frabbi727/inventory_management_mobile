@@ -71,13 +71,13 @@ class InventoryManagerRepository {
       response = await _apiClient.post(
         ApiEndpoints.barcodeProducts(),
         token: token,
-        body: request.toJson(),
+        body: request.toJson(isCreate: true),
       );
     } else {
       response = await _apiClient.postMultipart(
         ApiEndpoints.barcodeProducts(),
         token: token,
-        fields: request.toMultipartFields(),
+        fields: request.toMultipartFields(isCreate: true),
         files: photos
             .map(
               (photo) => MultipartFileData(
@@ -102,13 +102,13 @@ class InventoryManagerRepository {
       response = await _apiClient.post(
         ApiEndpoints.products,
         token: token,
-        body: request.toJson(),
+        body: request.toJson(isCreate: true),
       );
     } else {
       response = await _apiClient.postMultipart(
         ApiEndpoints.products,
         token: token,
-        fields: request.toMultipartFields(),
+        fields: request.toMultipartFields(isCreate: true),
         files: photos
             .map(
               (photo) => MultipartFileData(

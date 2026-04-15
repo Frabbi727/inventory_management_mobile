@@ -963,6 +963,7 @@ class ProductFormController extends GetxController {
 
       rows.add(
         ProductVariantRowPayload(
+          id: combination.variantId,
           attributes: {attributeName: attributeValue},
           quantity: combination.isActive ? quantity : 0,
           buyingPrice: buyingPrice,

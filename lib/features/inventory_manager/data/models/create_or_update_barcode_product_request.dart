@@ -49,10 +49,11 @@ class CreateOrUpdateBarcodeProductRequest {
     );
   }
 
-  Map<String, dynamic> toJson() {
+  Map<String, dynamic> toJson({bool isCreate = false}) {
     return <String, dynamic>{
       'name': name,
-      if (barcode != null && barcode!.trim().isNotEmpty) 'barcode': barcode,
+      if (isCreate && barcode != null && barcode!.trim().isNotEmpty)
+        'barcode': barcode,
       'category_id': categoryId,
       if (subcategoryId != null) 'subcategory_id': subcategoryId,
       'unit_id': unitId,
@@ -66,7 +67,7 @@ class CreateOrUpdateBarcodeProductRequest {
     };
   }
 
-  Map<String, String> toMultipartFields() {
+  Map<String, String> toMultipartFields({bool isCreate = false}) {
     final fields = <String, String>{
       'name': name,
       'category_id': '$categoryId',
@@ -78,7 +79,7 @@ class CreateOrUpdateBarcodeProductRequest {
       'status': status,
     };
 
-    if (barcode != null && barcode!.trim().isNotEmpty) {
+    if (isCreate && barcode != null && barcode!.trim().isNotEmpty) {
       fields['barcode'] = barcode!;
     }
 
@@ -89,6 +90,9 @@ class CreateOrUpdateBarcodeProductRequest {
     final rows = variants ?? const <ProductVariantRowPayload>[];
     for (var index = 0; index < rows.length; index++) {
       final variant = rows[index];
+      if (variant.id != null) {
+        fields['variants[$index][id]'] = '${variant.id}';
+      }
       variant.attributes.forEach((key, value) {
         fields['variants[$index][attributes][$key]'] = value;
       });
@@ -146,6 +150,7 @@ class CreateOrUpdateBarcodeProductRequest {
 
 class ProductVariantRowPayload {
   const ProductVariantRowPayload({
+    this.id,
     required this.attributes,
     required this.quantity,
     required this.buyingPrice,
@@ -153,6 +158,9 @@ class ProductVariantRowPayload {
     required this.status,
   });
 
+  /// Server-assigned variant id. Present for existing variants (update),
+  /// null for newly added variants (create).
+  final int? id;
   final Map<String, String> attributes;
   final int quantity;
   final num buyingPrice;
@@ -161,6 +169,7 @@ class ProductVariantRowPayload {
 
   factory ProductVariantRowPayload.fromJson(Map<String, dynamic> json) {
     return ProductVariantRowPayload(
+      id: CreateOrUpdateBarcodeProductRequest._asInt(json['id']),
       attributes: _asStringMap(json['attributes']),
       quantity:
           CreateOrUpdateBarcodeProductRequest._asInt(json['quantity']) ?? 0,
@@ -176,8 +185,12 @@ class ProductVariantRowPayload {
     );
   }
 
+  /// Serialises for API submission.
+  /// – [id] is included when present (identifies an existing variant on update).
+  /// – sku and barcode are never sent.
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
+      if (id != null) 'id': id,
       'attributes': attributes,
       'quantity': quantity,
       'buying_price': buyingPrice,
