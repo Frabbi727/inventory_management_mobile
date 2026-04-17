@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import '../../../../shared/widgets/app_message_state.dart';
 import '../../../../shared/widgets/app_page_header.dart';
 import '../../../cart_orders/data/models/order_status.dart';
-import '../../../cart_orders/presentation/controllers/cart_controller.dart';
 import '../../../dashboard/data/models/dashboard_order_preview_model.dart';
 import '../../../dashboard/data/models/dashboard_range.dart';
 import '../../../dashboard/presentation/controllers/home_dashboard_controller.dart';
@@ -16,7 +15,6 @@ class HomeDashboardPage extends GetView<HomeDashboardController> {
   @override
   Widget build(BuildContext context) {
     final homeController = Get.find<HomeController>();
-    final cartController = Get.find<CartController>();
 
     return SafeArea(
       child: Obx(() {
@@ -38,140 +36,255 @@ class HomeDashboardPage extends GetView<HomeDashboardController> {
           );
         }
 
-        return RefreshIndicator(
-          onRefresh: controller.refresh,
-          edgeOffset: 12,
-          displacement: 28,
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(
-              parent: BouncingScrollPhysics(),
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: Column(
+                children: [
+                  AppPageHeader(
+                    title: 'Home',
+                    subtitle:
+                        'Track today first, then jump straight into action.',
+                    trailing: CircleAvatar(
+                      child: Text(
+                        (homeController.user.value?.name ?? 'S')[0]
+                            .toUpperCase(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    child: controller.showInlineLoader
+                        ? const Padding(
+                            padding: EdgeInsets.only(bottom: 12),
+                            child: LinearProgressIndicator(minHeight: 3),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                  if (controller.errorMessage.value != null && hasDashboardData)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _InlineErrorBanner(
+                        message: controller.errorMessage.value!,
+                        onRetry: controller.retry,
+                      ),
+                    ),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Summary',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Order date based',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              _SummaryFilterButton(controller: controller),
+                            ],
+                          ),
+                          if (controller.appliedFilters.value?.startDate !=
+                                  null &&
+                              controller.appliedFilters.value?.endDate !=
+                                  null) ...[
+                            const SizedBox(height: 10),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest
+                                    .withValues(alpha: 0.55),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.date_range_outlined,
+                                    size: 16,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      '${controller.formatDate(controller.appliedFilters.value?.startDate)} - ${controller.formatDate(controller.appliedFilters.value?.endDate)}',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.bodySmall,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              ),
             ),
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-            children: [
-              AppPageHeader(
-                title: 'Home',
-                subtitle: 'Track today first, then jump straight into action.',
-                trailing: CircleAvatar(
-                  child: Text(
-                    (homeController.user.value?.name ?? 'S')[0].toUpperCase(),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: controller.refresh,
+                edgeOffset: 12,
+                displacement: 28,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
                   ),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 180),
-                child: controller.showInlineLoader
-                    ? const Padding(
-                        padding: EdgeInsets.only(bottom: 12),
-                        child: LinearProgressIndicator(minHeight: 3),
-                      )
-                    : const SizedBox.shrink(),
-              ),
-              if (controller.errorMessage.value != null && hasDashboardData)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _InlineErrorBanner(
-                    message: controller.errorMessage.value!,
-                    onRetry: controller.retry,
-                  ),
-                ),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Summary',
-                              style: Theme.of(context).textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.w800),
-                            ),
-                          ),
-                          Text(
-                            'Order date based',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          for (final range in DashboardRange.values)
-                            ChoiceChip(
-                              label: Text(range.label),
-                              selected: controller.selectedRange.value == range,
-                              onSelected: (_) async {
-                                if (range == DashboardRange.custom) {
-                                  final picked = await controller
-                                      .pickCustomDateRange(context);
-                                  if (picked == null) {
-                                    return;
-                                  }
-                                  await controller.applyRange(
-                                    range,
-                                    startDate: picked.start,
-                                    endDate: picked.end,
-                                  );
-                                  return;
-                                }
-                                await controller.applyRange(range);
-                              },
-                            ),
-                        ],
-                      ),
-                      if (controller.appliedFilters.value?.startDate != null &&
-                          controller.appliedFilters.value?.endDate != null) ...[
-                        const SizedBox(height: 10),
-                        Text(
-                          '${controller.formatDate(controller.appliedFilters.value?.startDate)} - ${controller.formatDate(controller.appliedFilters.value?.endDate)}',
-                          style: Theme.of(context).textTheme.bodySmall,
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
+                  children: [
+                    _SummaryGrid(controller: controller),
+                    const SizedBox(height: 16),
+                    _OrderPreviewSection(
+                      title: 'Next Due Orders',
+                      subtitle: 'Upcoming draft deliveries for this salesman.',
+                      orders: controller.nextDueOrders,
+                      emptyMessage: 'No upcoming due orders.',
+                      controller: controller,
+                    ),
+                    const SizedBox(height: 16),
+                    _OrderPreviewSection(
+                      title: 'Recent Orders',
+                      subtitle: 'Latest order updates for this salesman.',
+                      orders: controller.recentOrders,
+                      emptyMessage: 'No recent orders found.',
+                      controller: controller,
+                    ),
+                    if (controller.infoMessage.value != null &&
+                        !hasDashboardData &&
+                        controller.errorMessage.value == null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 24),
+                        child: AppMessageState(
+                          icon: Icons.dashboard_customize_outlined,
+                          message: controller.infoMessage.value!,
+                          actionLabel: 'Refresh',
+                          onAction: controller.refresh,
                         ),
-                      ],
-                    ],
-                  ),
+                      ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 12),
-              _SummaryGrid(controller: controller),
-              const SizedBox(height: 16),
-              _OrderPreviewSection(
-                title: 'Next Due Orders',
-                subtitle: 'Upcoming draft deliveries for this salesman.',
-                orders: controller.nextDueOrders,
-                emptyMessage: 'No upcoming due orders.',
-                controller: controller,
+            ),
+          ],
+        );
+      }),
+    );
+  }
+}
+
+class _SummaryFilterButton extends StatelessWidget {
+  const _SummaryFilterButton({required this.controller});
+
+  final HomeDashboardController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return OutlinedButton.icon(
+      onPressed: () => _openRangeSheet(context),
+      icon: const Icon(Icons.tune),
+      label: Text(controller.selectedRange.value.label),
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        side: BorderSide(color: theme.colorScheme.outlineVariant),
+      ),
+    );
+  }
+
+  Future<void> _openRangeSheet(BuildContext context) async {
+    final selected = await showModalBottomSheet<DashboardRange>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Summary range',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 16),
-              _OrderPreviewSection(
-                title: 'Recent Orders',
-                subtitle: 'Latest order updates for this salesman.',
-                orders: controller.recentOrders,
-                emptyMessage: 'No recent orders found.',
-                controller: controller,
-              ),
-              if (controller.infoMessage.value != null &&
-                  !hasDashboardData &&
-                  controller.errorMessage.value == null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 24),
-                  child: AppMessageState(
-                    icon: Icons.dashboard_customize_outlined,
-                    message: controller.infoMessage.value!,
-                    actionLabel: 'Refresh',
-                    onAction: controller.refresh,
+              for (final range in DashboardRange.values)
+                ListTile(
+                  leading: Icon(
+                    controller.selectedRange.value == range
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_off,
                   ),
+                  title: Text(range.label),
+                  onTap: () => Navigator.of(context).pop(range),
                 ),
             ],
           ),
         );
-      }),
+      },
     );
+
+    if (selected == null) {
+      return;
+    }
+
+    if (selected == DashboardRange.custom) {
+      if (!context.mounted) {
+        return;
+      }
+      final picked = await controller.pickCustomDateRange(context);
+      if (picked == null) {
+        return;
+      }
+      await controller.applyRange(
+        selected,
+        startDate: picked.start,
+        endDate: picked.end,
+      );
+      return;
+    }
+
+    await controller.applyRange(selected);
   }
 }
 
@@ -184,47 +297,97 @@ class _SummaryGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final summary = controller.summary.value;
 
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 1.2,
-      physics: const NeverScrollableScrollPhysics(),
-      children: [
-        _SummaryCard(
-          title: 'Sales Amount',
-          value: controller.formatCurrency(summary?.salesAmount),
-          icon: Icons.payments_outlined,
-          onTap: () => controller.openSummaryMetric('sales_amount'),
+    final items = [
+      _SummaryItem(
+        title: 'Sales Amount (Confirm Order Only)',
+        value: controller.formatCurrency(summary?.salesAmount),
+        icon: Icons.payments_outlined,
+        onTap: () => controller.openSummaryMetric('sales_amount'),
+      ),
+      _SummaryItem(
+        title: 'Total Orders',
+        value: '${summary?.totalOrdersCount ?? 0}',
+        icon: Icons.receipt_long_outlined,
+        onTap: () => controller.openSummaryMetric('total_orders_count'),
+      ),
+      _SummaryItem(
+        title: 'Draft Orders',
+        value: '${summary?.draftOrdersCount ?? 0}',
+        icon: Icons.edit_note_outlined,
+        accent: const _SummaryAccent(
+          background: Color(0xFFFFF4D6),
+          foreground: Color(0xFF92400E),
         ),
-        _SummaryCard(
-          title: 'Total Orders',
-          value: '${summary?.totalOrdersCount ?? 0}',
-          icon: Icons.receipt_long_outlined,
-          onTap: () => controller.openSummaryMetric('total_orders_count'),
+        onTap: () => controller.openSummaryMetric('draft_orders_count'),
+      ),
+      _SummaryItem(
+        title: 'Confirmed',
+        value: '${summary?.confirmedOrdersCount ?? 0}',
+        icon: Icons.verified_outlined,
+        accent: const _SummaryAccent(
+          background: Color(0xFFDFF7EA),
+          foreground: Color(0xFF166534),
         ),
-        _SummaryCard(
-          title: 'Draft Orders',
-          value: '${summary?.draftOrdersCount ?? 0}',
-          icon: Icons.edit_note_outlined,
-          onTap: () => controller.openSummaryMetric('draft_orders_count'),
-        ),
-        _SummaryCard(
-          title: 'Confirmed',
-          value: '${summary?.confirmedOrdersCount ?? 0}',
-          icon: Icons.verified_outlined,
-          onTap: () => controller.openSummaryMetric('confirmed_orders_count'),
-        ),
-        _SummaryCard(
-          title: 'Overdue',
-          value: '${summary?.overdueDeliveriesCount ?? 0}',
-          icon: Icons.alarm_outlined,
-          onTap: () => controller.openSummaryMetric('overdue_deliveries_count'),
-        ),
-      ],
+        onTap: () => controller.openSummaryMetric('confirmed_orders_count'),
+      ),
+      _SummaryItem(
+        title: 'Overdue',
+        value: '${summary?.overdueDeliveriesCount ?? 0}',
+        icon: Icons.alarm_outlined,
+        onTap: () => controller.openSummaryMetric('overdue_deliveries_count'),
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final crossAxisCount = constraints.maxWidth >= 420 ? 3 : 2;
+        return GridView.builder(
+          shrinkWrap: true,
+          itemCount: items.length,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: crossAxisCount,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: constraints.maxWidth >= 420 ? 2.0 : 1.9,
+          ),
+          itemBuilder: (context, index) {
+            final item = items[index];
+            return _SummaryCard(
+              title: item.title,
+              value: item.value,
+              icon: item.icon,
+              accent: item.accent,
+              onTap: item.onTap,
+            );
+          },
+        );
+      },
     );
   }
+}
+
+class _SummaryItem {
+  const _SummaryItem({
+    required this.title,
+    required this.value,
+    required this.icon,
+    this.accent,
+    required this.onTap,
+  });
+
+  final String title;
+  final String value;
+  final IconData icon;
+  final _SummaryAccent? accent;
+  final VoidCallback onTap;
+}
+
+class _SummaryAccent {
+  const _SummaryAccent({required this.background, required this.foreground});
+
+  final Color background;
+  final Color foreground;
 }
 
 class _SummaryCard extends StatelessWidget {
@@ -232,40 +395,73 @@ class _SummaryCard extends StatelessWidget {
     required this.title,
     required this.value,
     required this.icon,
+    this.accent,
     required this.onTap,
   });
 
   final String title;
   final String value;
   final IconData icon;
+  final _SummaryAccent? accent;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final effectiveAccent =
+        accent ??
+        _SummaryAccent(
+          background: theme.colorScheme.surfaceContainerHighest,
+          foreground: theme.colorScheme.primary,
+        );
 
     return Card(
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, color: theme.colorScheme.primary),
+              Row(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: effectiveAccent.background,
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(
+                      icon,
+                      size: 16,
+                      color: effectiveAccent.foreground,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
               const Spacer(),
               Text(
-                title,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
                 value,
-                style: theme.textTheme.titleLarge?.copyWith(
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w800,
+                  color: effectiveAccent.foreground,
                 ),
               ),
             ],
@@ -388,7 +584,7 @@ class _OrderPreviewTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
-                _StatusPill(label: order.status?.label ?? '-'),
+                _StatusPill(status: order.status, label: order.status?.label ?? '-'),
               ],
             ),
           ],
@@ -399,29 +595,66 @@ class _OrderPreviewTile extends StatelessWidget {
 }
 
 class _StatusPill extends StatelessWidget {
-  const _StatusPill({required this.label});
+  const _StatusPill({required this.label, this.status});
 
   final String label;
+  final OrderStatus? status;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tone = _statusTone(theme.colorScheme);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer,
+        color: tone.backgroundColor,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
         style: theme.textTheme.labelMedium?.copyWith(
-          color: theme.colorScheme.onPrimaryContainer,
+          color: tone.foregroundColor,
           fontWeight: FontWeight.w700,
         ),
       ),
     );
   }
+
+  _StatusTone _statusTone(ColorScheme colorScheme) {
+    switch (status) {
+      case OrderStatus.confirmed:
+        return const _StatusTone(
+          backgroundColor: Color(0xFFDFF7EA),
+          foregroundColor: Color(0xFF166534),
+        );
+      case OrderStatus.draft:
+        return const _StatusTone(
+          backgroundColor: Color(0xFFFFF4D6),
+          foregroundColor: Color(0xFF92400E),
+        );
+      case OrderStatus.cancelled:
+        return const _StatusTone(
+          backgroundColor: Color(0xFFFFE1E1),
+          foregroundColor: Color(0xFFB42318),
+        );
+      case null:
+        return _StatusTone(
+          backgroundColor: colorScheme.surfaceContainerHighest,
+          foregroundColor: colorScheme.onSurfaceVariant,
+        );
+    }
+  }
+}
+
+class _StatusTone {
+  const _StatusTone({
+    required this.backgroundColor,
+    required this.foregroundColor,
+  });
+
+  final Color backgroundColor;
+  final Color foregroundColor;
 }
 
 class _InlineErrorBanner extends StatelessWidget {
