@@ -16,6 +16,7 @@ import 'package:inventory_management_sales/features/cart_orders/presentation/con
 import 'package:inventory_management_sales/features/cart_orders/presentation/widgets/order_flow_widgets.dart';
 import 'package:inventory_management_sales/features/customers/data/models/customer_model.dart';
 import 'package:inventory_management_sales/features/customers/data/repositories/customer_repository.dart';
+import 'package:inventory_management_sales/features/dashboard/data/repositories/salesman_dashboard_repository.dart';
 import 'package:inventory_management_sales/features/products/data/models/product_model.dart';
 import 'package:inventory_management_sales/features/products/data/repositories/product_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -58,6 +59,15 @@ void main() {
     Future<http.Response> Function(http.Request request) handler,
   ) {
     return OrderRepository(
+      apiClient: ApiClient(httpClient: MockClient(handler)),
+      tokenStorage: TokenStorage(),
+    );
+  }
+
+  SalesmanDashboardRepository createDashboardRepository(
+    Future<http.Response> Function(http.Request request) handler,
+  ) {
+    return SalesmanDashboardRepository(
       apiClient: ApiClient(httpClient: MockClient(handler)),
       tokenStorage: TokenStorage(),
     );
@@ -346,6 +356,67 @@ void main() {
       }),
       permanent: true,
     );
+    if (!Get.isRegistered<SalesmanDashboardRepository>()) {
+      Get.put<SalesmanDashboardRepository>(
+        createDashboardRepository((request) async {
+          return http.Response(
+            jsonEncode({
+              'success': true,
+              'data': {
+                'filters': {
+                  'range': 'today',
+                  'start_date': '2026-04-17',
+                  'end_date': '2026-04-17',
+                },
+                'summary': {
+                  'sales_amount': 0,
+                  'total_orders_count': 0,
+                  'draft_orders_count': 0,
+                  'confirmed_orders_count': 0,
+                  'overdue_deliveries_count': 0,
+                },
+                'next_due_orders': const [],
+                'recent_orders': const [],
+              },
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        permanent: true,
+      );
+    }
+
+    if (!Get.isRegistered<SalesmanDashboardRepository>()) {
+      Get.put<SalesmanDashboardRepository>(
+        createDashboardRepository((request) async {
+          return http.Response(
+            jsonEncode({
+              'success': true,
+              'data': {
+                'filters': {
+                  'range': 'today',
+                  'start_date': '2026-04-17',
+                  'end_date': '2026-04-17',
+                },
+                'summary': {
+                  'sales_amount': 0,
+                  'total_orders_count': 0,
+                  'draft_orders_count': 0,
+                  'confirmed_orders_count': 0,
+                  'overdue_deliveries_count': 0,
+                },
+                'next_due_orders': const [],
+                'recent_orders': const [],
+              },
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        permanent: true,
+      );
+    }
   }
 
   testWidgets('app boots into splash screen first', (
@@ -441,6 +512,36 @@ void main() {
       }),
       permanent: true,
     );
+    if (!Get.isRegistered<SalesmanDashboardRepository>()) {
+      Get.put<SalesmanDashboardRepository>(
+        createDashboardRepository((request) async {
+          return http.Response(
+            jsonEncode({
+              'success': true,
+              'data': {
+                'filters': {
+                  'range': 'today',
+                  'start_date': '2026-04-17',
+                  'end_date': '2026-04-17',
+                },
+                'summary': {
+                  'sales_amount': 0,
+                  'total_orders_count': 0,
+                  'draft_orders_count': 0,
+                  'confirmed_orders_count': 0,
+                  'overdue_deliveries_count': 0,
+                },
+                'next_due_orders': const [],
+                'recent_orders': const [],
+              },
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+        permanent: true,
+      );
+    }
 
     await tester.pumpWidget(const SalesApp());
     await tester.pump(const Duration(milliseconds: 700));
@@ -1281,14 +1382,19 @@ void main() {
       await tester.pump();
       await tester.pumpAndSettle();
 
-      expect(find.text('Choose a variant and type the quantity you want to add.'), findsOneWidget);
+      expect(
+        find.text('Choose a variant and type the quantity you want to add.'),
+        findsOneWidget,
+      );
       expect(find.text('500ml'), findsOneWidget);
       expect(find.text('1 Liter'), findsOneWidget);
 
-      final quantityField = find.descendant(
-        of: find.byType(QuantityStepper).first,
-        matching: find.byType(TextField),
-      ).first;
+      final quantityField = find
+          .descendant(
+            of: find.byType(QuantityStepper).first,
+            matching: find.byType(TextField),
+          )
+          .first;
 
       await tester.enterText(quantityField, '12');
       await tester.tap(find.widgetWithText(FilledButton, 'Done'));
@@ -1299,172 +1405,170 @@ void main() {
     },
   );
 
-  testWidgets(
-    'cart quantity field accepts typed values for large orders',
-    (WidgetTester tester) async {
-      SharedPreferences.setMockInitialValues(<String, Object>{
-        'auth_token': 'cart-input-token',
-      });
+  testWidgets('cart quantity field accepts typed values for large orders', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'auth_token': 'cart-input-token',
+    });
 
-      Get.put<AuthRepository>(
-        createRepository((request) async {
-          if (request.url.path.endsWith('/me')) {
-            return http.Response(
-              jsonEncode({
-                'data': {
-                  'id': 2,
-                  'name': 'Sales Demo',
-                  'email': 'salesman@example.com',
-                  'phone': '+8801700000002',
-                  'role': {'id': 2, 'name': 'Salesman', 'slug': 'salesman'},
-                },
-              }),
-              200,
-              headers: {'content-type': 'application/json'},
-            );
-          }
-
+    Get.put<AuthRepository>(
+      createRepository((request) async {
+        if (request.url.path.endsWith('/me')) {
           return http.Response(
-            jsonEncode({'message': 'Logout successful.'}),
+            jsonEncode({
+              'data': {
+                'id': 2,
+                'name': 'Sales Demo',
+                'email': 'salesman@example.com',
+                'phone': '+8801700000002',
+                'role': {'id': 2, 'name': 'Salesman', 'slug': 'salesman'},
+              },
+            }),
             200,
             headers: {'content-type': 'application/json'},
           );
-        }),
-        permanent: true,
-      );
-      Get.put<ProductRepository>(
-        createProductRepository((request) async {
+        }
+
+        return http.Response(
+          jsonEncode({'message': 'Logout successful.'}),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+      permanent: true,
+    );
+    Get.put<ProductRepository>(
+      createProductRepository((request) async {
+        return http.Response(
+          jsonEncode(productListPayload(products: sampleProducts)),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+      permanent: true,
+    );
+    Get.put<CustomerRepository>(
+      createCustomerRepository((request) async {
+        return http.Response(
+          jsonEncode(customerListPayload(customers: sampleCustomers)),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+      permanent: true,
+    );
+    registerDefaultOrderRepository();
+
+    await tester.pumpWidget(const SalesApp());
+    await tester.pump(const Duration(milliseconds: 700));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('New Order'));
+    await tester.pumpAndSettle();
+
+    final cartController = Get.find<CartController>();
+    cartController.addProduct(ProductModel.fromJson(sampleProducts.first));
+    cartController.setSelectedCustomer(
+      const CustomerModel(id: 1, name: 'Rahman Store'),
+    );
+    cartController.goToStep(CartController.cartStep);
+    await tester.pumpAndSettle();
+
+    final quantityField = find
+        .descendant(
+          of: find.byType(QuantityStepper).first,
+          matching: find.byType(TextField),
+        )
+        .first;
+    await tester.enterText(quantityField, '1000');
+    tester.binding.focusManager.primaryFocus?.unfocus();
+    await tester.pumpAndSettle();
+
+    expect(cartController.items.single.quantity, equals(1000));
+    expect(cartController.canConfirm, isFalse);
+  });
+
+  testWidgets('products step shows compact scan button beside search', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'auth_token': 'sales-scan-token',
+    });
+
+    Get.put<AuthRepository>(
+      createRepository((request) async {
+        if (request.url.path.endsWith('/me')) {
           return http.Response(
-            jsonEncode(productListPayload(products: sampleProducts)),
+            jsonEncode({
+              'data': {
+                'id': 2,
+                'name': 'Sales Demo',
+                'email': 'salesman@example.com',
+                'phone': '+8801700000002',
+                'role': {'id': 2, 'name': 'Salesman', 'slug': 'salesman'},
+              },
+            }),
             200,
             headers: {'content-type': 'application/json'},
           );
-        }),
-        permanent: true,
-      );
-      Get.put<CustomerRepository>(
-        createCustomerRepository((request) async {
+        }
+
+        return http.Response(
+          jsonEncode({'message': 'Logout successful.'}),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+      permanent: true,
+    );
+    Get.put<ProductRepository>(
+      createProductRepository((request) async {
+        if (request.method == 'GET' &&
+            request.url.path.contains(
+              '/inventory-manager/barcode/products/BC-001',
+            )) {
           return http.Response(
-            jsonEncode(customerListPayload(customers: sampleCustomers)),
+            jsonEncode({'data': sampleProducts.first}),
             200,
             headers: {'content-type': 'application/json'},
           );
-        }),
-        permanent: true,
-      );
-      registerDefaultOrderRepository();
+        }
 
-      await tester.pumpWidget(const SalesApp());
-      await tester.pump(const Duration(milliseconds: 700));
-      await tester.pumpAndSettle();
+        return http.Response(
+          jsonEncode(productListPayload(products: sampleProducts)),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+      permanent: true,
+    );
+    Get.put<CustomerRepository>(
+      createCustomerRepository((request) async {
+        return http.Response(
+          jsonEncode(customerListPayload(customers: sampleCustomers)),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+      permanent: true,
+    );
+    registerDefaultOrderRepository();
 
-      await tester.tap(find.text('New Order'));
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(const SalesApp());
+    await tester.pump(const Duration(milliseconds: 700));
+    await tester.pumpAndSettle();
 
-      final cartController = Get.find<CartController>();
-      cartController.addProduct(ProductModel.fromJson(sampleProducts.first));
-      cartController.setSelectedCustomer(
-        const CustomerModel(id: 1, name: 'Rahman Store'),
-      );
-      cartController.goToStep(CartController.cartStep);
-      await tester.pumpAndSettle();
+    await tester.tap(find.text('New Order'));
+    await tester.pumpAndSettle();
 
-      final quantityField = find.descendant(
-        of: find.byType(QuantityStepper).first,
-        matching: find.byType(TextField),
-      ).first;
-      await tester.enterText(quantityField, '1000');
-      tester.binding.focusManager.primaryFocus?.unfocus();
-      await tester.pumpAndSettle();
+    final cartController = Get.find<CartController>();
+    cartController.setSelectedCustomer(
+      const CustomerModel(id: 1, name: 'Rahman Store'),
+    );
+    cartController.goToStep(CartController.productsStep);
+    await tester.pumpAndSettle();
 
-      expect(cartController.items.single.quantity, equals(1000));
-      expect(cartController.canConfirm, isFalse);
-    },
-  );
-
-  testWidgets(
-    'products step shows compact scan button beside search',
-    (WidgetTester tester) async {
-      SharedPreferences.setMockInitialValues(<String, Object>{
-        'auth_token': 'sales-scan-token',
-      });
-
-      Get.put<AuthRepository>(
-        createRepository((request) async {
-          if (request.url.path.endsWith('/me')) {
-            return http.Response(
-              jsonEncode({
-                'data': {
-                  'id': 2,
-                  'name': 'Sales Demo',
-                  'email': 'salesman@example.com',
-                  'phone': '+8801700000002',
-                  'role': {'id': 2, 'name': 'Salesman', 'slug': 'salesman'},
-                },
-              }),
-              200,
-              headers: {'content-type': 'application/json'},
-            );
-          }
-
-          return http.Response(
-            jsonEncode({'message': 'Logout successful.'}),
-            200,
-            headers: {'content-type': 'application/json'},
-          );
-        }),
-        permanent: true,
-      );
-      Get.put<ProductRepository>(
-        createProductRepository((request) async {
-          if (request.method == 'GET' &&
-              request.url.path.contains(
-                '/inventory-manager/barcode/products/BC-001',
-              )) {
-            return http.Response(
-              jsonEncode({
-                'data': sampleProducts.first,
-              }),
-              200,
-              headers: {'content-type': 'application/json'},
-            );
-          }
-
-          return http.Response(
-            jsonEncode(productListPayload(products: sampleProducts)),
-            200,
-            headers: {'content-type': 'application/json'},
-          );
-        }),
-        permanent: true,
-      );
-      Get.put<CustomerRepository>(
-        createCustomerRepository((request) async {
-          return http.Response(
-            jsonEncode(customerListPayload(customers: sampleCustomers)),
-            200,
-            headers: {'content-type': 'application/json'},
-          );
-        }),
-        permanent: true,
-      );
-      registerDefaultOrderRepository();
-
-      await tester.pumpWidget(const SalesApp());
-      await tester.pump(const Duration(milliseconds: 700));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('New Order'));
-      await tester.pumpAndSettle();
-
-      final cartController = Get.find<CartController>();
-      cartController.setSelectedCustomer(
-        const CustomerModel(id: 1, name: 'Rahman Store'),
-      );
-      cartController.goToStep(CartController.productsStep);
-      await tester.pumpAndSettle();
-
-      expect(find.byTooltip('Scan barcode'), findsOneWidget);
-    },
-  );
+    expect(find.byTooltip('Scan barcode'), findsOneWidget);
+  });
 }

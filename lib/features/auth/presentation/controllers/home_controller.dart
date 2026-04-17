@@ -5,7 +5,9 @@ import '../../../../core/routes/app_routes.dart';
 import '../../../../core/storage/token_storage.dart';
 import '../../../../core/storage/user_storage.dart';
 import '../../../customers/presentation/controllers/customer_search_controller.dart';
+import '../../../dashboard/presentation/controllers/home_dashboard_controller.dart';
 import '../../../invoice/presentation/controllers/invoice_controller.dart';
+import '../../../invoice/presentation/models/order_list_status_filter.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
 
@@ -55,6 +57,14 @@ class HomeController extends GetxController {
   void _loadTabData(int index) {
     switch (index) {
       case 0:
+        if (Get.isRegistered<HomeDashboardController>()) {
+          final dashboardController = Get.find<HomeDashboardController>();
+          if (!dashboardController.hasLoadedOnce) {
+            dashboardController.ensureLoaded();
+          } else {
+            dashboardController.onTabActivated();
+          }
+        }
         break;
       case 1:
         if (Get.isRegistered<InvoiceController>()) {
@@ -87,16 +97,22 @@ class HomeController extends GetxController {
     await Get.toNamed(AppRoutes.newOrder);
   }
 
-  Future<void> openOrdersTab({String status = 'draft'}) async {
+  Future<void> openOrdersTab({
+    OrderListStatusFilter statusFilter = OrderListStatusFilter.draft,
+    DateTime? startDate,
+    DateTime? endDate,
+    String? deliveryState,
+  }) async {
     selectedIndex.value = 1;
 
     if (Get.isRegistered<InvoiceController>()) {
       final invoiceController = Get.find<InvoiceController>();
-      if (invoiceController.activeStatusTab.value != status) {
-        await invoiceController.changeStatusTab(status);
-      } else {
-        await invoiceController.retry();
-      }
+      await invoiceController.applyDashboardView(
+        statusFilter: statusFilter,
+        startDate: startDate,
+        endDate: endDate,
+        deliveryState: deliveryState,
+      );
     }
   }
 

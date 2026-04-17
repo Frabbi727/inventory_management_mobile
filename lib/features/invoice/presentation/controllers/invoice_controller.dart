@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import '../../../../core/errors/api_exception.dart';
 import '../../../cart_orders/data/models/order_model.dart';
 import '../../../cart_orders/data/repositories/order_repository.dart';
+import '../models/order_list_status_filter.dart';
 
 class InvoiceController extends GetxController {
   InvoiceController({required OrderRepository orderRepository})
@@ -28,7 +29,7 @@ class InvoiceController extends GetxController {
   final intendedDeliveryStart = RxnString();
   final intendedDeliveryEnd = RxnString();
   final deliveryState = RxnString();
-  final activeStatusTab = 'draft'.obs;
+  final activeStatusTab = OrderListStatusFilter.draft.obs;
 
   int _currentPage = 1;
   bool _hasNextPage = false;
@@ -114,7 +115,7 @@ class InvoiceController extends GetxController {
       final response = await _orderRepository.fetchOrders(
         page: pageToLoad,
         query: requestedQuery.isEmpty ? null : requestedQuery,
-        status: activeStatusTab.value,
+        status: activeStatusTab.value.apiValue,
         startDate: startDate.value,
         endDate: endDate.value,
         intendedDeliveryStart: intendedDeliveryStart.value,
@@ -362,12 +363,33 @@ class InvoiceController extends GetxController {
     return '${date.day.toString().padLeft(2, '0')} ${months[date.month - 1]} ${date.year}';
   }
 
-  Future<void> changeStatusTab(String status) async {
+  Future<void> changeStatusTab(OrderListStatusFilter status) async {
     if (activeStatusTab.value == status) {
       return;
     }
 
     activeStatusTab.value = status;
+    await fetchOrders(reset: true);
+  }
+
+  Future<void> applyDashboardView({
+    required OrderListStatusFilter statusFilter,
+    DateTime? startDate,
+    DateTime? endDate,
+    String? deliveryState,
+  }) async {
+    activeStatusTab.value = statusFilter;
+    this.startDate.value = startDate == null ? null : _formatApiDate(startDate);
+    this.endDate.value = endDate == null ? null : _formatApiDate(endDate);
+    intendedDeliveryStart.value = null;
+    intendedDeliveryEnd.value = null;
+    this.deliveryState.value = deliveryState;
+    searchQuery.value = '';
+    _lastIssuedQuery = '';
+    if (searchTextController.text.isNotEmpty) {
+      searchTextController.clear();
+    }
+    isSearching.value = false;
     await fetchOrders(reset: true);
   }
 

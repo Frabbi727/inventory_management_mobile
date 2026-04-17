@@ -14,27 +14,12 @@ class HomeScreen extends GetView<HomeController> {
 
   @override
   Widget build(BuildContext context) {
-    final cartController = Get.find<CartController>();
-
     return Obx(
       () => Scaffold(
         body: IndexedStack(
           index: controller.selectedIndex.value,
           children: [
-            HomeDashboardPage(
-              salesmanName: controller.user.value?.name ?? 'Sales',
-              draftCustomerName:
-                  cartController.selectedCustomer.value?.name ??
-                  'No customer selected',
-              draftItemCount: cartController.totalUnits,
-              draftTotal: cartController.formatCurrency(
-                cartController.grandTotal,
-              ),
-              onStartOrder: () {
-                cartController.startNewOrder();
-                controller.openNewOrder();
-              },
-            ),
+            const HomeDashboardPage(),
             const InvoicePage(),
             const CustomerDirectoryPage(),
             ProfilePage(

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import '../../../../core/routes/app_routes.dart';
 import '../../../auth/presentation/controllers/home_controller.dart';
+import '../../../invoice/presentation/models/order_list_status_filter.dart';
 import '../../data/models/create_order_response_model.dart';
 import '../controllers/cart_controller.dart';
 import '../controllers/new_order_page_controller.dart';
@@ -177,7 +178,11 @@ class NewOrderPage extends GetView<NewOrderPageController> {
 
     Get.until((route) => route.settings.name == AppRoutes.home);
     if (Get.isRegistered<HomeController>()) {
-      await Get.find<HomeController>().openOrdersTab(status: status);
+      await Get.find<HomeController>().openOrdersTab(
+        statusFilter: status == 'confirmed'
+            ? OrderListStatusFilter.confirmed
+            : OrderListStatusFilter.draft,
+      );
     }
   }
 }

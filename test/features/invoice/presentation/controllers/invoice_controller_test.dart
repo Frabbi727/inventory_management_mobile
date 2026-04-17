@@ -8,6 +8,7 @@ import 'package:inventory_management_sales/core/network/api_client.dart';
 import 'package:inventory_management_sales/core/storage/token_storage.dart';
 import 'package:inventory_management_sales/features/cart_orders/data/repositories/order_repository.dart';
 import 'package:inventory_management_sales/features/invoice/presentation/controllers/invoice_controller.dart';
+import 'package:inventory_management_sales/features/invoice/presentation/models/order_list_status_filter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -115,7 +116,7 @@ void main() {
     );
     recordedQueries.clear();
 
-    await controller.changeStatusTab('confirmed');
+    await controller.changeStatusTab(OrderListStatusFilter.confirmed);
 
     expect(recordedQueries, hasLength(1));
     expect(recordedQueries.single['status'], equals('confirmed'));
@@ -210,4 +211,27 @@ void main() {
     expect(recordedQueries.single.containsKey('delivery_state'), isFalse);
     expect(recordedQueries.single['status'], equals('draft'));
   });
+
+  testWidgets(
+    'dashboard all filter omits status query while preserving date range',
+    (tester) async {
+      final recordedQueries = <Map<String, String>>[];
+      final controller = InvoiceController(
+        orderRepository: createRepository(recordedQueries),
+      );
+
+      await controller.applyDashboardView(
+        statusFilter: OrderListStatusFilter.all,
+        startDate: DateTime(2026, 4, 1),
+        endDate: DateTime(2026, 4, 30),
+        deliveryState: 'overdue',
+      );
+
+      expect(recordedQueries, hasLength(1));
+      expect(recordedQueries.single.containsKey('status'), isFalse);
+      expect(recordedQueries.single['start_date'], equals('2026-04-01'));
+      expect(recordedQueries.single['end_date'], equals('2026-04-30'));
+      expect(recordedQueries.single['delivery_state'], equals('overdue'));
+    },
+  );
 }

@@ -7,6 +7,7 @@ import '../../../../shared/widgets/app_page_header.dart';
 import '../../../cart_orders/data/models/order_model.dart';
 import '../../../cart_orders/presentation/controllers/cart_controller.dart';
 import '../controllers/invoice_controller.dart';
+import '../models/order_list_status_filter.dart';
 
 class InvoicePage extends GetView<InvoiceController> {
   const InvoicePage({super.key});
@@ -648,8 +649,8 @@ class InvoicePage extends GetView<InvoiceController> {
 class _OrderStatusTabs extends StatelessWidget {
   const _OrderStatusTabs({required this.activeStatus, required this.onChanged});
 
-  final String activeStatus;
-  final ValueChanged<String> onChanged;
+  final OrderListStatusFilter activeStatus;
+  final ValueChanged<OrderListStatusFilter> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -663,17 +664,25 @@ class _OrderStatusTabs extends StatelessWidget {
         children: [
           Expanded(
             child: _StatusTabChip(
-              label: 'Draft',
-              selected: activeStatus == 'draft',
-              onTap: () => onChanged('draft'),
+              label: OrderListStatusFilter.all.label,
+              selected: activeStatus == OrderListStatusFilter.all,
+              onTap: () => onChanged(OrderListStatusFilter.all),
             ),
           ),
           const SizedBox(width: 8),
           Expanded(
             child: _StatusTabChip(
-              label: 'Confirm',
-              selected: activeStatus == 'confirmed',
-              onTap: () => onChanged('confirmed'),
+              label: OrderListStatusFilter.draft.label,
+              selected: activeStatus == OrderListStatusFilter.draft,
+              onTap: () => onChanged(OrderListStatusFilter.draft),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: _StatusTabChip(
+              label: OrderListStatusFilter.confirmed.label,
+              selected: activeStatus == OrderListStatusFilter.confirmed,
+              onTap: () => onChanged(OrderListStatusFilter.confirmed),
             ),
           ),
         ],
