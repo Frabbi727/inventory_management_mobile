@@ -6,6 +6,7 @@ import '../../../../shared/widgets/app_page_header.dart';
 import '../../../cart_orders/data/models/order_status.dart';
 import '../../../dashboard/data/models/dashboard_order_preview_model.dart';
 import '../../../dashboard/data/models/dashboard_range.dart';
+import '../../../notifications/presentation/controllers/notification_controller.dart';
 import '../../../dashboard/presentation/controllers/home_dashboard_controller.dart';
 import '../controllers/home_controller.dart';
 
@@ -15,6 +16,7 @@ class HomeDashboardPage extends GetView<HomeDashboardController> {
   @override
   Widget build(BuildContext context) {
     final homeController = Get.find<HomeController>();
+    final notificationController = Get.find<NotificationController>();
 
     return SafeArea(
       child: Obx(() {
@@ -46,11 +48,65 @@ class HomeDashboardPage extends GetView<HomeDashboardController> {
                     title: 'Home',
                     subtitle:
                         'Track today first, then jump straight into action.',
-                    trailing: CircleAvatar(
-                      child: Text(
-                        (homeController.user.value?.name ?? 'S')[0]
-                            .toUpperCase(),
-                      ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Obx(
+                          () => Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              IconButton(
+                                tooltip: 'Notifications',
+                                onPressed: homeController.openNotifications,
+                                icon: const Icon(
+                                  Icons.notifications_none_outlined,
+                                ),
+                              ),
+                              if (notificationController.unreadCount.value > 0)
+                                Positioned(
+                                  right: 6,
+                                  top: 6,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 5,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).colorScheme.error,
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 18,
+                                    ),
+                                    child: Text(
+                                      notificationController.unreadCount.value > 99
+                                          ? '99+'
+                                          : notificationController.unreadCount.value
+                                                .toString(),
+                                      textAlign: TextAlign.center,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelSmall
+                                          ?.copyWith(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onError,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        CircleAvatar(
+                          child: Text(
+                            (homeController.user.value?.name ?? 'S')[0]
+                                .toUpperCase(),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 12),

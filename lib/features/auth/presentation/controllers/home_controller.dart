@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
 
 import '../../../../core/constants/controller_tags.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/storage/token_storage.dart';
 import '../../../../core/storage/user_storage.dart';
+import '../../../notifications/presentation/controllers/notification_controller.dart';
 import '../../../customers/presentation/controllers/customer_search_controller.dart';
 import '../../../dashboard/presentation/controllers/home_dashboard_controller.dart';
 import '../../../invoice/presentation/controllers/invoice_controller.dart';
@@ -28,6 +31,11 @@ class HomeController extends GetxController {
   final isLoggingOut = false.obs;
   final selectedIndex = 0.obs;
 
+  NotificationController? get notificationController =>
+      Get.isRegistered<NotificationController>()
+      ? Get.find<NotificationController>()
+      : null;
+
   @override
   void onInit() {
     super.onInit();
@@ -42,6 +50,7 @@ class HomeController extends GetxController {
 
   Future<void> _loadUser() async {
     user.value = await _userStorage.getUser();
+    unawaited(notificationController?.refreshUnreadCount());
   }
 
   void changeTab(int index) {
@@ -95,6 +104,12 @@ class HomeController extends GetxController {
 
   Future<void> openNewOrder() async {
     await Get.toNamed(AppRoutes.newOrder);
+  }
+
+  Future<void> openNotifications() async {
+    await notificationController?.ensureLoaded();
+    await notificationController?.refreshUnreadCount();
+    await Get.toNamed(AppRoutes.notifications);
   }
 
   Future<void> openOrdersTab({

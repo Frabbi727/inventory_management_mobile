@@ -31,6 +31,8 @@ import '../../features/cart_orders/presentation/pages/new_order_page.dart';
 import '../../features/cart_orders/presentation/pages/order_success_page.dart';
 import '../../features/invoice/presentation/bindings/order_details_binding.dart';
 import '../../features/invoice/presentation/pages/order_details_page.dart';
+import '../../features/notifications/presentation/bindings/notification_binding.dart';
+import '../../features/notifications/presentation/pages/notifications_page.dart';
 import '../../features/products/presentation/bindings/product_details_binding.dart';
 import '../../features/products/presentation/pages/product_details_page.dart';
 import 'app_routes.dart';
@@ -122,6 +124,11 @@ class AppPages {
       name: AppRoutes.orderDetails,
       page: OrderDetailsPage.new,
       binding: OrderDetailsBinding(),
+    ),
+    GetPage<NotificationsPage>(
+      name: AppRoutes.notifications,
+      page: NotificationsPage.new,
+      binding: NotificationBinding(),
     ),
   ];
 }

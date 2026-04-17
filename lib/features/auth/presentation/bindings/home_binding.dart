@@ -7,6 +7,7 @@ import '../../../customers/presentation/controllers/customer_search_controller.d
 import '../../../dashboard/data/repositories/salesman_dashboard_repository.dart';
 import '../../../dashboard/presentation/controllers/home_dashboard_controller.dart';
 import '../../../invoice/presentation/controllers/invoice_controller.dart';
+import '../../../notifications/presentation/bindings/notification_dependencies.dart';
 import '../controllers/home_controller.dart';
 import 'auth_dependencies.dart';
 
@@ -14,6 +15,7 @@ class HomeBinding extends Bindings {
   @override
   void dependencies() {
     AuthDependencies.ensureRegistered();
+    NotificationDependencies.ensureRegistered();
     CustomerDependencies.ensureRegistered();
     CartDependencies.ensureRegistered();
 

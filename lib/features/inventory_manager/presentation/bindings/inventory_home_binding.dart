@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 
 import '../../../auth/presentation/bindings/auth_dependencies.dart';
+import '../../../notifications/presentation/bindings/notification_dependencies.dart';
 import '../controllers/inventory_home_controller.dart';
 import 'inventory_manager_dependencies.dart';
 import 'inventory_products_binding.dart';
@@ -11,6 +12,7 @@ class InventoryHomeBinding extends Bindings {
   @override
   void dependencies() {
     AuthDependencies.ensureRegistered();
+    NotificationDependencies.ensureRegistered();
     InventoryManagerDependencies.ensureRegistered();
     InventoryProductsBinding().dependencies();
     PurchaseListBinding().dependencies();

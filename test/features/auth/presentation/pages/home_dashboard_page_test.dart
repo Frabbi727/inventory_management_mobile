@@ -6,13 +6,20 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:b2b_inventory_management/app.dart';
 import 'package:b2b_inventory_management/core/network/api_client.dart';
+import 'package:b2b_inventory_management/core/storage/device_token_storage.dart';
 import 'package:b2b_inventory_management/core/storage/token_storage.dart';
 import 'package:b2b_inventory_management/features/auth/data/repositories/auth_repository.dart';
+import 'package:b2b_inventory_management/features/auth/data/services/device_token_provider.dart';
 import 'package:b2b_inventory_management/features/cart_orders/data/repositories/order_repository.dart';
 import 'package:b2b_inventory_management/features/customers/data/repositories/customer_repository.dart';
 import 'package:b2b_inventory_management/features/dashboard/data/repositories/salesman_dashboard_repository.dart';
 import 'package:b2b_inventory_management/features/products/data/repositories/product_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class _FakeDeviceTokenProvider extends DeviceTokenProvider {
+  @override
+  Future<String?> getToken() async => null;
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -27,6 +34,8 @@ void main() {
   ) {
     return AuthRepository(
       apiClient: ApiClient(httpClient: MockClient(handler)),
+      deviceTokenProvider: _FakeDeviceTokenProvider(),
+      deviceTokenStorage: DeviceTokenStorage(),
     );
   }
 
@@ -235,8 +244,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Summary'), findsOneWidget);
-      expect(find.text('Quick order start'), findsOneWidget);
-      expect(find.text('Sales Amount'), findsOneWidget);
+      expect(find.text('Next Due Orders'), findsOneWidget);
+      expect(
+        find.text('Sales Amount (Confirm Order Only)'),
+        findsOneWidget,
+      );
       expect(capturedDashboardQueries.first['range'], equals('today'));
 
       await tester.tap(find.text('Orders'));

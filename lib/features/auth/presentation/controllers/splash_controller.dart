@@ -46,6 +46,7 @@ class SplashController extends GetxController {
       }
 
       await _userStorage.saveUser(user!);
+      await _authRepository.registerCurrentDeviceForSession(token);
       await _finishWithRoute(resolveHomeRouteForUser(user));
     } on ApiException catch (error) {
       if (error.statusCode == 401 || error.statusCode == 403) {

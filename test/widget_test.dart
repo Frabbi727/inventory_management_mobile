@@ -7,10 +7,12 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:b2b_inventory_management/app.dart';
 import 'package:b2b_inventory_management/core/network/api_client.dart';
+import 'package:b2b_inventory_management/core/storage/device_token_storage.dart';
 import 'package:b2b_inventory_management/core/storage/token_storage.dart';
 import 'package:b2b_inventory_management/core/storage/user_storage.dart';
 import 'package:b2b_inventory_management/features/auth/data/models/user_model.dart';
 import 'package:b2b_inventory_management/features/auth/data/repositories/auth_repository.dart';
+import 'package:b2b_inventory_management/features/auth/data/services/device_token_provider.dart';
 import 'package:b2b_inventory_management/features/cart_orders/data/repositories/order_repository.dart';
 import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/cart_controller.dart';
 import 'package:b2b_inventory_management/features/cart_orders/presentation/widgets/order_flow_widgets.dart';
@@ -20,6 +22,11 @@ import 'package:b2b_inventory_management/features/dashboard/data/repositories/sa
 import 'package:b2b_inventory_management/features/products/data/models/product_model.dart';
 import 'package:b2b_inventory_management/features/products/data/repositories/product_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class _FakeDeviceTokenProvider extends DeviceTokenProvider {
+  @override
+  Future<String?> getToken() async => null;
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -34,6 +41,8 @@ void main() {
   ) {
     return AuthRepository(
       apiClient: ApiClient(httpClient: MockClient(handler)),
+      deviceTokenProvider: _FakeDeviceTokenProvider(),
+      deviceTokenStorage: DeviceTokenStorage(),
     );
   }
 
@@ -548,7 +557,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Home'), findsWidgets);
-    expect(find.text('Start New Order'), findsOneWidget);
+    expect(find.text('New Order'), findsOneWidget);
     expect(find.text('Orders'), findsOneWidget);
   });
 
@@ -1096,7 +1105,7 @@ void main() {
     await cartController.submitOrder();
     await tester.pumpAndSettle();
 
-    expect(find.text('Order Confirmed'), findsOneWidget);
+    expect(find.text('Order summary'), findsOneWidget);
     expect(find.text('ORD-ABC12345'), findsOneWidget);
     expect(find.text('View Orders'), findsOneWidget);
   });
