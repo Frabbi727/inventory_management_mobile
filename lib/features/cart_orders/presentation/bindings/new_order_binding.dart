@@ -6,6 +6,7 @@ import '../../../customers/presentation/controllers/customer_search_controller.d
 import '../../../products/presentation/bindings/product_dependencies.dart';
 import '../../../products/presentation/controllers/product_list_controller.dart';
 import 'cart_dependencies.dart';
+import '../controllers/new_order_page_controller.dart';
 import '../controllers/order_cart_step_controller.dart';
 import '../controllers/order_confirm_step_controller.dart';
 import '../controllers/order_customer_step_controller.dart';
@@ -45,6 +46,10 @@ class NewOrderBinding extends Bindings {
           ),
         ),
       );
+    }
+
+    if (!Get.isRegistered<NewOrderPageController>()) {
+      Get.lazyPut(() => NewOrderPageController(cartController: Get.find()));
     }
 
     if (!Get.isRegistered<OrderProductsStepController>()) {

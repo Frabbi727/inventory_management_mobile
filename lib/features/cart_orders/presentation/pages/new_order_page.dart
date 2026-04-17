@@ -2,54 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../controllers/cart_controller.dart';
-import '../models/order_flow_step.dart';
-import '../pages/new_order/order_cart_step_page.dart';
-import '../pages/new_order/order_confirm_step_page.dart';
-import '../pages/new_order/order_customer_step_page.dart';
-import '../pages/new_order/order_products_step_page.dart';
+import '../controllers/new_order_page_controller.dart';
 import '../widgets/order_flow_widgets.dart';
 
-class NewOrderPage extends StatefulWidget {
+class NewOrderPage extends GetView<NewOrderPageController> {
   const NewOrderPage({super.key});
 
   @override
-  State<NewOrderPage> createState() => _NewOrderPageState();
-}
-
-class _NewOrderPageState extends State<NewOrderPage> {
-  late final CartController controller;
-  late final List<OrderFlowStep> steps;
-
-  @override
-  void initState() {
-    super.initState();
-    controller = Get.find<CartController>();
-    steps = <OrderFlowStep>[
-      OrderFlowStep(
-        index: CartController.customerStep,
-        title: 'Customer',
-        builder: (_) => const OrderCustomerStepPage(),
-      ),
-      OrderFlowStep(
-        index: CartController.productsStep,
-        title: 'Products',
-        builder: (_) => const OrderProductsStepPage(),
-      ),
-      OrderFlowStep(
-        index: CartController.cartStep,
-        title: 'Cart',
-        builder: (_) => const OrderCartStepPage(),
-      ),
-      OrderFlowStep(
-        index: CartController.confirmStep,
-        title: 'Confirm',
-        builder: (_) => const OrderConfirmStepPage(),
-      ),
-    ];
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final cartController = controller.cartController;
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(title: const Text('New Order')),
@@ -64,20 +26,20 @@ class _NewOrderPageState extends State<NewOrderPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     StepperWidget(
-                      steps: steps
-                          .map((step) => step.title)
-                          .toList(growable: false),
-                      currentStep: controller.currentStep.value,
-                      onStepTap: controller.goToStep,
+                      steps: controller.stepTitles,
+                      currentStep: cartController.currentStep.value,
+                      onStepTap: cartController.goToStep,
                     ),
-                    if (controller.infoMessage.value != null) ...[
+                    if (cartController.infoMessage.value != null) ...[
                       const SizedBox(height: 12),
-                      InlineInfoBanner(message: controller.infoMessage.value!),
+                      InlineInfoBanner(
+                        message: cartController.infoMessage.value!,
+                      ),
                     ],
-                    if (controller.errorMessage.value != null) ...[
+                    if (cartController.errorMessage.value != null) ...[
                       const SizedBox(height: 12),
                       InlineWarningBanner(
-                        message: controller.errorMessage.value!,
+                        message: cartController.errorMessage.value!,
                       ),
                     ],
                   ],
@@ -87,9 +49,10 @@ class _NewOrderPageState extends State<NewOrderPage> {
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 220),
                   child: Padding(
-                    key: ValueKey(controller.currentStep.value),
+                    key: ValueKey(cartController.currentStep.value),
                     padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-                    child: steps[controller.currentStep.value].builder(context),
+                    child: controller.steps[cartController.currentStep.value]
+                        .builder(context),
                   ),
                 ),
               ),
@@ -100,54 +63,50 @@ class _NewOrderPageState extends State<NewOrderPage> {
       bottomNavigationBar: Obx(
         () => SummaryFooter(
           showTotals: false,
-          primaryLabel: _primaryLabel(controller.currentStep.value),
+          primaryLabel: controller.primaryLabel(
+            cartController.currentStep.value,
+          ),
           tertiaryLabel:
-              controller.currentStep.value == CartController.confirmStep
-              ? (controller.hasSavedDraft ? 'Update Draft' : 'Save Draft')
+              cartController.currentStep.value == CartController.confirmStep
+              ? (cartController.hasSavedDraft ? 'Update Draft' : 'Save Draft')
               : null,
           onTertiaryPressed:
-              controller.currentStep.value == CartController.confirmStep &&
-                  controller.canSaveDraft
+              cartController.currentStep.value == CartController.confirmStep &&
+                  cartController.canSaveDraft
               ? () async {
-                  await controller.saveDraft();
+                  await cartController.saveDraft();
                 }
               : null,
           secondaryLabel:
-              controller.currentStep.value == CartController.customerStep
+              cartController.currentStep.value == CartController.customerStep
               ? null
               : 'Back',
           onSecondaryPressed:
-              controller.currentStep.value == CartController.customerStep
+              cartController.currentStep.value == CartController.customerStep
               ? null
-              : controller.previousStep,
-          isLoading: controller.isSubmitting.value,
+              : cartController.previousStep,
+          isLoading: cartController.isSubmitting.value,
           onPrimaryPressed:
-              controller.currentStep.value == CartController.confirmStep
-              ? (controller.canConfirm
+              cartController.currentStep.value == CartController.confirmStep
+              ? (cartController.canConfirm
                     ? () async {
-                        final shouldConfirm = await _showConfirmOrderDialog();
+                        final shouldConfirm = await _showConfirmOrderDialog(
+                          context,
+                        );
                         if (shouldConfirm == true) {
-                          await controller.confirmOrder();
+                          await cartController.confirmOrder();
                         }
                       }
                     : null)
-              : (controller.canContinueCurrentStep
-                    ? controller.nextStep
+              : (cartController.canContinueCurrentStep
+                    ? cartController.nextStep
                     : null),
         ),
       ),
     );
   }
 
-  String _primaryLabel(int step) {
-    if (step == CartController.confirmStep && !controller.canConfirm) {
-      return 'Resolve Stock Warnings';
-    }
-
-    return controller.submitButtonLabel();
-  }
-
-  Future<bool?> _showConfirmOrderDialog() {
+  Future<bool?> _showConfirmOrderDialog(BuildContext context) {
     return showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(

@@ -9,6 +9,7 @@ import 'package:inventory_management_sales/core/network/api_client.dart';
 import 'package:inventory_management_sales/core/storage/token_storage.dart';
 import 'package:inventory_management_sales/features/cart_orders/data/repositories/order_repository.dart';
 import 'package:inventory_management_sales/features/cart_orders/presentation/controllers/cart_controller.dart';
+import 'package:inventory_management_sales/features/cart_orders/presentation/controllers/new_order_page_controller.dart';
 import 'package:inventory_management_sales/features/cart_orders/presentation/controllers/order_cart_step_controller.dart';
 import 'package:inventory_management_sales/features/cart_orders/presentation/controllers/order_confirm_step_controller.dart';
 import 'package:inventory_management_sales/features/cart_orders/presentation/controllers/order_customer_step_controller.dart';
@@ -131,6 +132,7 @@ void main() {
         customerSearchController: customerSearchController,
       ),
     );
+    Get.put(NewOrderPageController(cartController: cartController));
     Get.put(
       OrderProductsStepController(
         cartController: cartController,
