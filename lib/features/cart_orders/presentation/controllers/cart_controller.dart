@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/errors/api_exception.dart';
-import '../../../../core/routes/app_routes.dart';
 import '../../../customers/data/models/customer_model.dart';
 import '../../../products/data/models/product_model.dart';
 import '../../../products/data/models/product_variant_model.dart';
@@ -275,7 +274,9 @@ class CartController extends GetxController {
 
   String? get stockWarningSummary {
     final unavailableCount = items.where((item) => item.isOutOfStock).length;
-    final exceededCount = items.where((item) => item.exceedsAvailableStock).length;
+    final exceededCount = items
+        .where((item) => item.exceedsAvailableStock)
+        .length;
 
     if (unavailableCount == 0 && exceededCount == 0) {
       return null;
@@ -483,8 +484,7 @@ class CartController extends GetxController {
       if (response.data != null) {
         savedDraftOrder.value = response.data;
         hasUnsavedDraftChanges.value = false;
-        infoMessage.value =
-            response.data?.status == 'draft'
+        infoMessage.value = response.data?.status == 'draft'
             ? 'Draft saved. You can keep editing before confirming.'
             : response.message;
       }
@@ -533,7 +533,8 @@ class CartController extends GetxController {
         orderId = draftResponse.data?.id;
         if (orderId == null) {
           errorMessage.value =
-              draftResponse.message ?? 'Unable to save the draft before confirm.';
+              draftResponse.message ??
+              'Unable to save the draft before confirm.';
           return null;
         }
         savedDraftOrder.value = draftResponse.data;
@@ -546,9 +547,6 @@ class CartController extends GetxController {
         hasUnsavedDraftChanges.value = false;
       }
 
-      if (Get.key.currentState != null) {
-        Get.toNamed(AppRoutes.orderSuccess, arguments: response);
-      }
       clearCart();
       return response;
     } on ApiException catch (error) {

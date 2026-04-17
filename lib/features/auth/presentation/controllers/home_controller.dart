@@ -87,6 +87,19 @@ class HomeController extends GetxController {
     await Get.toNamed(AppRoutes.newOrder);
   }
 
+  Future<void> openOrdersTab({String status = 'draft'}) async {
+    selectedIndex.value = 1;
+
+    if (Get.isRegistered<InvoiceController>()) {
+      final invoiceController = Get.find<InvoiceController>();
+      if (invoiceController.activeStatusTab.value != status) {
+        await invoiceController.changeStatusTab(status);
+      } else {
+        await invoiceController.retry();
+      }
+    }
+  }
+
   Future<void> logout() async {
     isLoggingOut.value = true;
 

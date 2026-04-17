@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/routes/app_routes.dart';
+import '../../../auth/presentation/controllers/home_controller.dart';
+import '../../data/models/create_order_response_model.dart';
 import '../controllers/cart_controller.dart';
 import '../controllers/new_order_page_controller.dart';
 import '../widgets/order_flow_widgets.dart';
@@ -70,11 +73,17 @@ class NewOrderPage extends GetView<NewOrderPageController> {
               cartController.currentStep.value == CartController.confirmStep
               ? (cartController.hasSavedDraft ? 'Update Draft' : 'Save Draft')
               : null,
+          tertiaryHighlighted:
+              cartController.currentStep.value == CartController.confirmStep,
           onTertiaryPressed:
               cartController.currentStep.value == CartController.confirmStep &&
                   cartController.canSaveDraft
               ? () async {
-                  await cartController.saveDraft();
+                  final shouldSave = await _showDraftConfirmDialog(context);
+                  if (shouldSave == true) {
+                    final response = await cartController.saveDraft();
+                    await _handleOrderCompletion(response, status: 'draft');
+                  }
                 }
               : null,
           secondaryLabel:
@@ -94,7 +103,11 @@ class NewOrderPage extends GetView<NewOrderPageController> {
                           context,
                         );
                         if (shouldConfirm == true) {
-                          await cartController.confirmOrder();
+                          final response = await cartController.confirmOrder();
+                          await _handleOrderCompletion(
+                            response,
+                            status: 'confirmed',
+                          );
                         }
                       }
                     : null)
@@ -126,5 +139,45 @@ class NewOrderPage extends GetView<NewOrderPageController> {
         ],
       ),
     );
+  }
+
+  Future<bool?> _showDraftConfirmDialog(BuildContext context) {
+    final cartController = controller.cartController;
+    final title = cartController.hasSavedDraft ? 'Update Draft' : 'Save Draft';
+    final message = cartController.hasSavedDraft
+        ? 'Do you want to update this draft order? After saving, you will be taken to the draft list.'
+        : 'Do you want to save this order as a draft? After saving, you will be taken to the draft list.';
+
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Yes, Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleOrderCompletion(
+    CreateOrderResponseModel? response, {
+    required String status,
+  }) async {
+    if (response?.data == null) {
+      return;
+    }
+
+    Get.until((route) => route.settings.name == AppRoutes.home);
+    if (Get.isRegistered<HomeController>()) {
+      await Get.find<HomeController>().openOrdersTab(status: status);
+    }
   }
 }

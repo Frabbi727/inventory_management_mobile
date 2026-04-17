@@ -597,7 +597,9 @@ class _QuantityInputStepperState extends State<_QuantityInputStepper> {
       _committedQuantity = widget.quantity;
     }
 
-    if (!_focusNode.hasFocus && !_isEditing && widget.quantity != oldWidget.quantity) {
+    if (!_focusNode.hasFocus &&
+        !_isEditing &&
+        widget.quantity != oldWidget.quantity) {
       _setDisplayedValue(widget.quantity);
     }
   }
@@ -906,7 +908,9 @@ class CartItemWidget extends StatelessWidget {
                 ),
                 const Spacer(),
                 QuantityStepper(
-                  key: ValueKey('cart-qty-$title-$subtitle-${variantLabel ?? 'base'}'),
+                  key: ValueKey(
+                    'cart-qty-$title-$subtitle-${variantLabel ?? 'base'}',
+                  ),
                   quantity: quantity,
                   onIncrement: canIncrement ? onIncrement : null,
                   onDecrement: onDecrement,
@@ -935,6 +939,7 @@ class SummaryFooter extends StatelessWidget {
     this.showTotals = true,
     this.tertiaryLabel,
     this.onTertiaryPressed,
+    this.tertiaryHighlighted = false,
   });
 
   final String? subtotal;
@@ -947,6 +952,7 @@ class SummaryFooter extends StatelessWidget {
   final bool showTotals;
   final String? tertiaryLabel;
   final VoidCallback? onTertiaryPressed;
+  final bool tertiaryHighlighted;
 
   @override
   Widget build(BuildContext context) {
@@ -1014,10 +1020,18 @@ class SummaryFooter extends StatelessWidget {
                 if (tertiaryLabel != null && onTertiaryPressed != null) ...[
                   SizedBox(
                     width: double.infinity,
-                    child: TextButton(
-                      onPressed: isLoading ? null : onTertiaryPressed,
-                      child: Text(tertiaryLabel!),
-                    ),
+                    child: tertiaryHighlighted
+                        ? FilledButton.tonal(
+                            onPressed: isLoading ? null : onTertiaryPressed,
+                            style: FilledButton.styleFrom(
+                              minimumSize: const Size.fromHeight(48),
+                            ),
+                            child: Text(tertiaryLabel!),
+                          )
+                        : TextButton(
+                            onPressed: isLoading ? null : onTertiaryPressed,
+                            child: Text(tertiaryLabel!),
+                          ),
                   ),
                   const SizedBox(height: 8),
                 ],
@@ -1083,10 +1097,7 @@ class InlineInfoBanner extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.info_outline,
-            color: theme.colorScheme.onPrimaryContainer,
-          ),
+          Icon(Icons.info_outline, color: theme.colorScheme.onPrimaryContainer),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
