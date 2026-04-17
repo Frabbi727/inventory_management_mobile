@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "889484288654",
+    "project_id": "b2b-inventory-management",
+    "storage_bucket": "b2b-inventory-management.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:889484288654:android:e7907b5e6bb9f93fe09fdf",
+        "android_client_info": {
+          "package_name": "com.example.b2b_inventory_management"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCBPtmkcvkfYixiXd5-36RaqNjWIDMcMQ0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
