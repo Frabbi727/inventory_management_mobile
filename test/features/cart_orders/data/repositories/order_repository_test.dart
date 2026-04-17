@@ -132,6 +132,62 @@ void main() {
     );
   });
 
+  test('fetchOrders sends supported mobile search and due filters', () async {
+    final repository = OrderRepository(
+      apiClient: ApiClient(
+        httpClient: MockClient((request) async {
+          expect(request.method, equals('GET'));
+          expect(request.url.queryParameters['page'], equals('3'));
+          expect(request.url.queryParameters['q'], equals('rahman'));
+          expect(request.url.queryParameters['status'], equals('draft'));
+          expect(
+            request.url.queryParameters['start_date'],
+            equals('2026-04-01'),
+          );
+          expect(request.url.queryParameters['end_date'], equals('2026-04-30'));
+          expect(
+            request.url.queryParameters['intended_delivery_start'],
+            equals('2026-04-10'),
+          );
+          expect(
+            request.url.queryParameters['intended_delivery_end'],
+            equals('2026-04-20'),
+          );
+          expect(
+            request.url.queryParameters['delivery_state'],
+            equals('overdue'),
+          );
+          expect(
+            request.url.queryParameters.containsKey('customer_id'),
+            isFalse,
+          );
+
+          return http.Response(
+            jsonEncode({
+              'data': const [],
+              'links': {'next': null},
+              'meta': {'current_page': 3, 'last_page': 3},
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+      ),
+      tokenStorage: TokenStorage(),
+    );
+
+    await repository.fetchOrders(
+      page: 3,
+      query: 'rahman',
+      status: 'draft',
+      startDate: '2026-04-01',
+      endDate: '2026-04-30',
+      intendedDeliveryStart: '2026-04-10',
+      intendedDeliveryEnd: '2026-04-20',
+      deliveryState: 'overdue',
+    );
+  });
+
   test('fetchOrderDetails sends order id with auth header', () async {
     final repository = OrderRepository(
       apiClient: ApiClient(

@@ -23,9 +23,11 @@ class InvoiceController extends GetxController {
   final errorMessage = RxnString();
   final infoMessage = RxnString();
   final searchQuery = ''.obs;
-  final selectedCustomerId = RxnInt();
   final startDate = RxnString();
   final endDate = RxnString();
+  final intendedDeliveryStart = RxnString();
+  final intendedDeliveryEnd = RxnString();
+  final deliveryState = RxnString();
   final activeStatusTab = 'draft'.obs;
 
   int _currentPage = 1;
@@ -39,47 +41,27 @@ class InvoiceController extends GetxController {
   bool get hasLoadedOnce => _hasLoadedOnce;
   bool get hasMorePages => _hasNextPage;
   bool get hasActiveFilters =>
-      selectedCustomerId.value != null ||
       startDate.value != null ||
-      endDate.value != null;
-  bool get hasAnyQueryApplied =>
-      searchQuery.value.trim().isNotEmpty || hasActiveFilters;
+      endDate.value != null ||
+      intendedDeliveryStart.value != null ||
+      intendedDeliveryEnd.value != null ||
+      deliveryState.value != null;
+  bool get hasEffectiveSearchQuery => searchQuery.value.trim().length >= 3;
+  bool get hasAnyQueryApplied => hasEffectiveSearchQuery || hasActiveFilters;
   bool get showInlineLoader => isRefreshing.value && orders.isNotEmpty;
   int get activeFilterCount {
     var count = 0;
-    if (searchQuery.value.trim().isNotEmpty) {
-      count++;
-    }
-    if (selectedCustomerId.value != null) {
-      count++;
-    }
     if (startDate.value != null || endDate.value != null) {
       count++;
     }
-    return count;
-  }
-
-  List<OrderModel> get visibleOrders {
-    final query = searchQuery.value.trim().toLowerCase();
-    if (query.isEmpty) {
-      return orders;
+    if (intendedDeliveryStart.value != null ||
+        intendedDeliveryEnd.value != null) {
+      count++;
     }
-
-    return orders
-        .where((order) {
-          final fields = [
-            order.orderNo,
-            order.customer?.name,
-            order.customer?.phone,
-            order.status,
-            formatDate(order.orderDate),
-          ];
-
-          return fields.any(
-            (value) => value != null && value.toLowerCase().contains(query),
-          );
-        })
-        .toList(growable: false);
+    if (deliveryState.value != null) {
+      count++;
+    }
+    return count;
   }
 
   @override
@@ -97,7 +79,8 @@ class InvoiceController extends GetxController {
   Future<void> onTabActivated() => fetchOrders(reset: true);
 
   Future<void> fetchOrders({required bool reset}) async {
-    final requestedQuery = searchQuery.value.trim();
+    final trimmedQuery = searchQuery.value.trim();
+    final requestedQuery = trimmedQuery.length >= 3 ? trimmedQuery : '';
     final hasExistingItems = orders.isNotEmpty;
 
     if (reset) {
@@ -132,9 +115,11 @@ class InvoiceController extends GetxController {
         page: pageToLoad,
         query: requestedQuery.isEmpty ? null : requestedQuery,
         status: activeStatusTab.value,
-        customerId: selectedCustomerId.value,
         startDate: startDate.value,
         endDate: endDate.value,
+        intendedDeliveryStart: intendedDeliveryStart.value,
+        intendedDeliveryEnd: intendedDeliveryEnd.value,
+        deliveryState: deliveryState.value,
       );
 
       if (requestGeneration != _requestGeneration) {
@@ -160,8 +145,6 @@ class InvoiceController extends GetxController {
         infoMessage.value = hasAnyQueryApplied
             ? 'No orders matched the current filters.'
             : 'No orders have been created yet.';
-      } else if (visibleOrders.isEmpty && requestedQuery.isNotEmpty) {
-        infoMessage.value = 'No loaded orders matched "$requestedQuery".';
       } else {
         infoMessage.value = null;
       }
@@ -218,6 +201,11 @@ class InvoiceController extends GetxController {
       return;
     }
 
+    if (trimmed.length < 3) {
+      isSearching.value = false;
+      return;
+    }
+
     isSearching.value = true;
     _searchDebounce = Timer(const Duration(milliseconds: 350), () {
       final latestQuery = searchQuery.value.trim();
@@ -248,22 +236,33 @@ class InvoiceController extends GetxController {
   }
 
   Future<void> applyFilters({
-    int? customerId,
-    DateTimeRange? dateRange,
+    DateTimeRange? orderDateRange,
+    DateTimeRange? intendedDeliveryDateRange,
+    String? deliveryState,
   }) async {
-    selectedCustomerId.value = customerId;
-    startDate.value = dateRange == null
+    startDate.value = orderDateRange == null
         ? null
-        : _formatApiDate(dateRange.start);
-    endDate.value = dateRange == null ? null : _formatApiDate(dateRange.end);
+        : _formatApiDate(orderDateRange.start);
+    endDate.value = orderDateRange == null
+        ? null
+        : _formatApiDate(orderDateRange.end);
+    intendedDeliveryStart.value = intendedDeliveryDateRange == null
+        ? null
+        : _formatApiDate(intendedDeliveryDateRange.start);
+    intendedDeliveryEnd.value = intendedDeliveryDateRange == null
+        ? null
+        : _formatApiDate(intendedDeliveryDateRange.end);
+    this.deliveryState.value = deliveryState;
     await fetchOrders(reset: true);
   }
 
   Future<void> clearFilters() async {
     final hadFilters = hasActiveFilters;
-    selectedCustomerId.value = null;
     startDate.value = null;
     endDate.value = null;
+    intendedDeliveryStart.value = null;
+    intendedDeliveryEnd.value = null;
+    deliveryState.value = null;
 
     if (hadFilters) {
       await fetchOrders(reset: true);
@@ -277,20 +276,35 @@ class InvoiceController extends GetxController {
 
     _searchDebounce?.cancel();
     searchQuery.value = '';
+    if (searchTextController.text.isNotEmpty) {
+      searchTextController.clear();
+    }
     isSearching.value = false;
     _lastIssuedQuery = '';
-    selectedCustomerId.value = null;
     startDate.value = null;
     endDate.value = null;
+    intendedDeliveryStart.value = null;
+    intendedDeliveryEnd.value = null;
+    deliveryState.value = null;
 
     if (hadSearch || hadFilters) {
       await fetchOrders(reset: true);
     }
   }
 
-  DateTimeRange? get selectedDateRange {
+  DateTimeRange? get selectedOrderDateRange {
     final start = _tryParseDate(startDate.value);
     final end = _tryParseDate(endDate.value);
+    if (start == null || end == null) {
+      return null;
+    }
+
+    return DateTimeRange(start: start, end: end);
+  }
+
+  DateTimeRange? get selectedIntendedDeliveryDateRange {
+    final start = _tryParseDate(intendedDeliveryStart.value);
+    final end = _tryParseDate(intendedDeliveryEnd.value);
     if (start == null || end == null) {
       return null;
     }
@@ -402,6 +416,19 @@ class InvoiceController extends GetxController {
     final month = value.month.toString().padLeft(2, '0');
     final day = value.day.toString().padLeft(2, '0');
     return '$year-$month-$day';
+  }
+
+  String deliveryStateLabel(String? value) {
+    switch (value) {
+      case 'due_today':
+        return 'Due today';
+      case 'due_tomorrow':
+        return 'Due tomorrow';
+      case 'overdue':
+        return 'Overdue';
+      default:
+        return 'All deliveries';
+    }
   }
 
   @override

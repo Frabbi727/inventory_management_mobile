@@ -33,9 +33,11 @@ class OrderRepository {
     int page = 1,
     String? query,
     String? status,
-    int? customerId,
     String? startDate,
     String? endDate,
+    String? intendedDeliveryStart,
+    String? intendedDeliveryEnd,
+    String? deliveryState,
   }) async {
     final token = await _requireToken();
 
@@ -47,14 +49,20 @@ class OrderRepository {
     if (status != null && status.isNotEmpty) {
       queryParameters['status'] = status;
     }
-    if (customerId != null) {
-      queryParameters['customer_id'] = customerId.toString();
-    }
     if (startDate != null && startDate.isNotEmpty) {
       queryParameters['start_date'] = startDate;
     }
     if (endDate != null && endDate.isNotEmpty) {
       queryParameters['end_date'] = endDate;
+    }
+    if (intendedDeliveryStart != null && intendedDeliveryStart.isNotEmpty) {
+      queryParameters['intended_delivery_start'] = intendedDeliveryStart;
+    }
+    if (intendedDeliveryEnd != null && intendedDeliveryEnd.isNotEmpty) {
+      queryParameters['intended_delivery_end'] = intendedDeliveryEnd;
+    }
+    if (deliveryState != null && deliveryState.isNotEmpty) {
+      queryParameters['delivery_state'] = deliveryState;
     }
 
     final response = await _apiClient.get(
@@ -120,9 +128,6 @@ class OrderRepository {
   Future<void> deleteOrder(int orderId) async {
     final token = await _requireToken();
 
-    await _apiClient.delete(
-      ApiEndpoints.orderDetails(orderId),
-      token: token,
-    );
+    await _apiClient.delete(ApiEndpoints.orderDetails(orderId), token: token);
   }
 }
