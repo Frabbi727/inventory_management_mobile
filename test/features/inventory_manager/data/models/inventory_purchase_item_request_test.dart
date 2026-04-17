@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:inventory_management_sales/features/inventory_manager/data/models/inventory_purchase_item_request.dart';
+import 'package:b2b_inventory_management/features/inventory_manager/data/models/inventory_purchase_item_request.dart';
 
 void main() {
   test('omits product_variant_id for simple product purchase item', () {

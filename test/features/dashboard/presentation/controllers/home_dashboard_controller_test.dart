@@ -1,16 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:inventory_management_sales/core/network/api_client.dart';
-import 'package:inventory_management_sales/core/storage/token_storage.dart';
-import 'package:inventory_management_sales/features/dashboard/data/models/dashboard_filters_model.dart';
-import 'package:inventory_management_sales/features/dashboard/data/models/dashboard_order_preview_model.dart';
-import 'package:inventory_management_sales/features/dashboard/data/models/dashboard_range.dart';
-import 'package:inventory_management_sales/features/dashboard/data/models/dashboard_summary_model.dart';
-import 'package:inventory_management_sales/features/dashboard/data/models/salesman_dashboard_data_model.dart';
-import 'package:inventory_management_sales/features/dashboard/data/models/salesman_dashboard_response_model.dart';
-import 'package:inventory_management_sales/features/dashboard/data/repositories/salesman_dashboard_repository.dart';
-import 'package:inventory_management_sales/features/dashboard/presentation/controllers/home_dashboard_controller.dart';
+import 'package:b2b_inventory_management/core/network/api_client.dart';
+import 'package:b2b_inventory_management/core/storage/token_storage.dart';
+import 'package:b2b_inventory_management/features/dashboard/data/models/dashboard_filters_model.dart';
+import 'package:b2b_inventory_management/features/dashboard/data/models/dashboard_order_preview_model.dart';
+import 'package:b2b_inventory_management/features/dashboard/data/models/dashboard_range.dart';
+import 'package:b2b_inventory_management/features/dashboard/data/models/dashboard_summary_model.dart';
+import 'package:b2b_inventory_management/features/dashboard/data/models/salesman_dashboard_data_model.dart';
+import 'package:b2b_inventory_management/features/dashboard/data/models/salesman_dashboard_response_model.dart';
+import 'package:b2b_inventory_management/features/dashboard/data/repositories/salesman_dashboard_repository.dart';
+import 'package:b2b_inventory_management/features/dashboard/presentation/controllers/home_dashboard_controller.dart';
 
 class FakeSalesmanDashboardRepository extends SalesmanDashboardRepository {
   FakeSalesmanDashboardRepository()

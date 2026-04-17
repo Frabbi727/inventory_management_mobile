@@ -1,14 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:inventory_management_sales/core/models/pagination_links_model.dart';
-import 'package:inventory_management_sales/core/models/pagination_meta_model.dart';
-import 'package:inventory_management_sales/core/network/api_client.dart';
-import 'package:inventory_management_sales/core/storage/token_storage.dart';
-import 'package:inventory_management_sales/features/customers/data/models/customer_list_response_model.dart';
-import 'package:inventory_management_sales/features/customers/data/models/customer_model.dart';
-import 'package:inventory_management_sales/features/customers/data/repositories/customer_repository.dart';
-import 'package:inventory_management_sales/features/customers/presentation/controllers/customer_search_controller.dart';
+import 'package:b2b_inventory_management/core/models/pagination_links_model.dart';
+import 'package:b2b_inventory_management/core/models/pagination_meta_model.dart';
+import 'package:b2b_inventory_management/core/network/api_client.dart';
+import 'package:b2b_inventory_management/core/storage/token_storage.dart';
+import 'package:b2b_inventory_management/features/customers/data/models/customer_list_response_model.dart';
+import 'package:b2b_inventory_management/features/customers/data/models/customer_model.dart';
+import 'package:b2b_inventory_management/features/customers/data/repositories/customer_repository.dart';
+import 'package:b2b_inventory_management/features/customers/presentation/controllers/customer_search_controller.dart';
 
 class FakeCustomerRepository extends CustomerRepository {
   FakeCustomerRepository()

@@ -3,12 +3,12 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:inventory_management_sales/core/errors/api_exception.dart';
-import 'package:inventory_management_sales/core/constants/api_config.dart';
-import 'package:inventory_management_sales/core/network/api_client.dart';
-import 'package:inventory_management_sales/core/storage/token_storage.dart';
-import 'package:inventory_management_sales/features/products/data/models/category_response_model.dart';
-import 'package:inventory_management_sales/features/products/data/repositories/product_repository.dart';
+import 'package:b2b_inventory_management/core/errors/api_exception.dart';
+import 'package:b2b_inventory_management/core/constants/api_config.dart';
+import 'package:b2b_inventory_management/core/network/api_client.dart';
+import 'package:b2b_inventory_management/core/storage/token_storage.dart';
+import 'package:b2b_inventory_management/features/products/data/models/category_response_model.dart';
+import 'package:b2b_inventory_management/features/products/data/repositories/product_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {

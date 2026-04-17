@@ -5,11 +5,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:inventory_management_sales/core/network/api_client.dart';
-import 'package:inventory_management_sales/core/storage/token_storage.dart';
-import 'package:inventory_management_sales/features/cart_orders/data/repositories/order_repository.dart';
-import 'package:inventory_management_sales/features/invoice/presentation/controllers/invoice_controller.dart';
-import 'package:inventory_management_sales/features/invoice/presentation/pages/invoice_page.dart';
+import 'package:b2b_inventory_management/core/network/api_client.dart';
+import 'package:b2b_inventory_management/core/storage/token_storage.dart';
+import 'package:b2b_inventory_management/features/cart_orders/data/repositories/order_repository.dart';
+import 'package:b2b_inventory_management/features/invoice/presentation/controllers/invoice_controller.dart';
+import 'package:b2b_inventory_management/features/invoice/presentation/pages/invoice_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {

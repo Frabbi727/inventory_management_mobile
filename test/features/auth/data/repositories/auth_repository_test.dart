@@ -3,10 +3,10 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:inventory_management_sales/core/errors/api_exception.dart';
-import 'package:inventory_management_sales/core/network/api_client.dart';
-import 'package:inventory_management_sales/features/auth/data/models/login_request_model.dart';
-import 'package:inventory_management_sales/features/auth/data/repositories/auth_repository.dart';
+import 'package:b2b_inventory_management/core/errors/api_exception.dart';
+import 'package:b2b_inventory_management/core/network/api_client.dart';
+import 'package:b2b_inventory_management/features/auth/data/models/login_request_model.dart';
+import 'package:b2b_inventory_management/features/auth/data/repositories/auth_repository.dart';
 
 void main() {
   test('login sends expected JSON payload', () async {

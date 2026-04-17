@@ -1,4 +1,4 @@
-import 'package:inventory_management_sales/features/products/data/models/category_response_model.dart';
+import 'package:b2b_inventory_management/features/products/data/models/category_response_model.dart';
 
 import '../../../../core/errors/api_exception.dart';
 import '../../../../core/network/api_client.dart';

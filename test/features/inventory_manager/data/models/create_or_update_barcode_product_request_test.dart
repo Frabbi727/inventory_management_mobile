@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:inventory_management_sales/features/inventory_manager/data/models/create_or_update_barcode_product_request.dart';
+import 'package:b2b_inventory_management/features/inventory_manager/data/models/create_or_update_barcode_product_request.dart';
 
 void main() {
   test('serializes optional subcategory and variant fields', () {

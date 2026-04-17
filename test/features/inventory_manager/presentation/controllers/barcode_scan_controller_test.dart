@@ -3,15 +3,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:inventory_management_sales/core/network/api_client.dart';
-import 'package:inventory_management_sales/core/routes/app_routes.dart';
-import 'package:inventory_management_sales/core/storage/token_storage.dart';
-import 'package:inventory_management_sales/features/inventory_manager/data/models/barcode_resolve_response.dart';
-import 'package:inventory_management_sales/features/inventory_manager/data/repositories/inventory_manager_repository.dart';
-import 'package:inventory_management_sales/features/inventory_manager/presentation/controllers/barcode_scan_controller.dart';
-import 'package:inventory_management_sales/features/inventory_manager/presentation/models/barcode_scan_models.dart';
-import 'package:inventory_management_sales/features/products/data/models/product_model.dart';
-import 'package:inventory_management_sales/features/products/data/repositories/product_repository.dart';
+import 'package:b2b_inventory_management/core/network/api_client.dart';
+import 'package:b2b_inventory_management/core/routes/app_routes.dart';
+import 'package:b2b_inventory_management/core/storage/token_storage.dart';
+import 'package:b2b_inventory_management/features/inventory_manager/data/models/barcode_resolve_response.dart';
+import 'package:b2b_inventory_management/features/inventory_manager/data/repositories/inventory_manager_repository.dart';
+import 'package:b2b_inventory_management/features/inventory_manager/presentation/controllers/barcode_scan_controller.dart';
+import 'package:b2b_inventory_management/features/inventory_manager/presentation/models/barcode_scan_models.dart';
+import 'package:b2b_inventory_management/features/products/data/models/product_model.dart';
+import 'package:b2b_inventory_management/features/products/data/repositories/product_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _FakeInventoryManagerRepository extends InventoryManagerRepository {

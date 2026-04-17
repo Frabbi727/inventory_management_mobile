@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:inventory_management_sales/features/inventory_manager/data/models/purchase_response_item_model.dart';
+import 'package:b2b_inventory_management/features/inventory_manager/data/models/purchase_response_item_model.dart';
 
 void main() {
   test('parses variant-aware purchase response items defensively', () {

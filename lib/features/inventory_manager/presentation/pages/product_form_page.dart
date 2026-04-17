@@ -331,92 +331,6 @@ class _FormSection extends StatelessWidget {
   }
 }
 
-class _ProductFormHero extends StatelessWidget {
-  const _ProductFormHero({required this.controller});
-
-  final ProductFormController controller;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Obx(
-      () => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [theme.colorScheme.primary, const Color(0xFF115E59)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: theme.colorScheme.primary.withValues(alpha: 0.22),
-              blurRadius: 30,
-              offset: const Offset(0, 18),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              controller.isEdit
-                  ? 'Update product business data'
-                  : controller.isScanCreate
-                  ? 'Create product from scan flow'
-                  : 'Create inventory product',
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: Colors.white.withValues(alpha: 0.78),
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              controller.isEdit
-                  ? 'Adjust pricing, master data, variants, and photos without breaking the barcode contract.'
-                  : controller.isScanCreate
-                  ? 'Capture the scanned barcode, classify the product properly, and prepare variant combinations before saving.'
-                  : 'Create a product manually with automatic barcode assignment, clear variant setup, and business-safe pricing.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.white.withValues(alpha: 0.94),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                _HeroTag(
-                  label: 'Mode',
-                  value: controller.isEdit ? 'Edit' : 'Create',
-                ),
-                _HeroTag(
-                  label: 'Product Type',
-                  value: controller.showVariantSection ? 'Variant' : 'Simple',
-                ),
-                _HeroTag(
-                  label: 'Photos',
-                  value: '${controller.selectedPhotos.length}',
-                ),
-                _HeroTag(
-                  label: 'Barcode',
-                  value: controller.isScanCreate
-                      ? 'Scanned'
-                      : controller.barcodeController.text.trim().isEmpty
-                      ? 'Pending'
-                      : 'Auto',
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _ReadOnlyInfoCard extends StatelessWidget {
   const _ReadOnlyInfoCard({
     required this.label,
@@ -1274,46 +1188,6 @@ class _VariantStepCard extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeroTag extends StatelessWidget {
-  const _HeroTag({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: Colors.white.withValues(alpha: 0.76),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
             ),
           ),
         ],

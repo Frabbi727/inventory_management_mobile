@@ -5,19 +5,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:inventory_management_sales/core/network/api_client.dart';
-import 'package:inventory_management_sales/core/storage/token_storage.dart';
-import 'package:inventory_management_sales/features/inventory_manager/data/repositories/inventory_manager_repository.dart';
-import 'package:inventory_management_sales/features/inventory_manager/presentation/controllers/product_form_controller.dart';
-import 'package:inventory_management_sales/features/inventory_manager/presentation/controllers/purchase_details_controller.dart';
-import 'package:inventory_management_sales/features/inventory_manager/presentation/models/product_form_args.dart';
-import 'package:inventory_management_sales/features/inventory_manager/presentation/models/editable_variant_attribute.dart';
-import 'package:inventory_management_sales/features/inventory_manager/presentation/models/variant_combination_draft.dart';
-import 'package:inventory_management_sales/features/inventory_manager/presentation/pages/purchase_details_page.dart';
-import 'package:inventory_management_sales/features/products/data/models/product_model.dart';
-import 'package:inventory_management_sales/features/products/data/models/product_variant_attribute_model.dart';
-import 'package:inventory_management_sales/features/products/data/models/product_variant_model.dart';
-import 'package:inventory_management_sales/features/products/data/repositories/product_repository.dart';
+import 'package:b2b_inventory_management/core/network/api_client.dart';
+import 'package:b2b_inventory_management/core/storage/token_storage.dart';
+import 'package:b2b_inventory_management/features/inventory_manager/data/repositories/inventory_manager_repository.dart';
+import 'package:b2b_inventory_management/features/inventory_manager/presentation/controllers/product_form_controller.dart';
+import 'package:b2b_inventory_management/features/inventory_manager/presentation/controllers/purchase_details_controller.dart';
+import 'package:b2b_inventory_management/features/inventory_manager/presentation/models/product_form_args.dart';
+import 'package:b2b_inventory_management/features/inventory_manager/presentation/models/editable_variant_attribute.dart';
+import 'package:b2b_inventory_management/features/inventory_manager/presentation/models/variant_combination_draft.dart';
+import 'package:b2b_inventory_management/features/inventory_manager/presentation/pages/purchase_details_page.dart';
+import 'package:b2b_inventory_management/features/products/data/models/product_model.dart';
+import 'package:b2b_inventory_management/features/products/data/models/product_variant_attribute_model.dart';
+import 'package:b2b_inventory_management/features/products/data/models/product_variant_model.dart';
+import 'package:b2b_inventory_management/features/products/data/repositories/product_repository.dart';
 
 class _TestProductFormController extends ProductFormController {
   _TestProductFormController({

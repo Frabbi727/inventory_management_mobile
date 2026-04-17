@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:inventory_management_sales/features/auth/data/models/login_request_model.dart';
-import 'package:inventory_management_sales/features/auth/data/models/login_response_model.dart';
-import 'package:inventory_management_sales/features/auth/data/models/profile_response_model.dart';
+import 'package:b2b_inventory_management/features/auth/data/models/login_request_model.dart';
+import 'package:b2b_inventory_management/features/auth/data/models/login_response_model.dart';
+import 'package:b2b_inventory_management/features/auth/data/models/profile_response_model.dart';
 
 void main() {
   test('login response parses with missing optional fields', () {
