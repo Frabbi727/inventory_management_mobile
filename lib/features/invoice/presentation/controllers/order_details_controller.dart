@@ -81,4 +81,33 @@ class OrderDetailsController extends GetxController {
 
     return '${parts[2]}-${parts[1]}-${parts[0]}';
   }
+
+  String formatDateTime(String? value) {
+    if (value == null || value.isEmpty) {
+      return '-';
+    }
+
+    final parsed = DateTime.tryParse(value)?.toLocal();
+    if (parsed == null) {
+      return value;
+    }
+
+    const months = <String>[
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    final hour = parsed.hour.toString().padLeft(2, '0');
+    final minute = parsed.minute.toString().padLeft(2, '0');
+    return '${parsed.day.toString().padLeft(2, '0')} ${months[parsed.month - 1]} ${parsed.year}, $hour:$minute';
+  }
 }

@@ -11,6 +11,7 @@ CreateOrderRequestModel _$CreateOrderRequestModelFromJson(
 ) => CreateOrderRequestModel(
   customerId: (json['customer_id'] as num?)?.toInt(),
   orderDate: json['order_date'] as String?,
+  intendedDeliveryAt: json['intended_delivery_at'] as String?,
   note: json['note'] as String?,
   discountType: json['discount_type'] as String?,
   discountValue: json['discount_value'] as num?,
@@ -24,6 +25,7 @@ Map<String, dynamic> _$CreateOrderRequestModelToJson(
 ) => <String, dynamic>{
   'customer_id': instance.customerId,
   'order_date': instance.orderDate,
+  'intended_delivery_at': instance.intendedDeliveryAt,
   'note': instance.note,
   'discount_type': instance.discountType,
   'discount_value': instance.discountValue,

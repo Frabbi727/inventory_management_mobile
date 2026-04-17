@@ -99,6 +99,17 @@ class OrderDetailsPage extends GetView<OrderDetailsController> {
               ),
               const SizedBox(height: 16),
               _SectionShell(
+                title: 'Timeline',
+                child: _TimelineCard(
+                  intendedDeliveryAt: controller.formatDateTime(
+                    order.intendedDeliveryAt,
+                  ),
+                  confirmedAt: controller.formatDateTime(order.confirmedAt),
+                  deliveredAt: controller.formatDateTime(order.deliveredAt),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _SectionShell(
                 title: 'Summary',
                 child: _SummaryCard(
                   subtotal: controller.formatCurrency(order.subtotal),
@@ -278,6 +289,31 @@ class _SectionShell extends StatelessWidget {
           ),
         ),
         child,
+      ],
+    );
+  }
+}
+
+class _TimelineCard extends StatelessWidget {
+  const _TimelineCard({
+    required this.intendedDeliveryAt,
+    required this.confirmedAt,
+    required this.deliveredAt,
+  });
+
+  final String intendedDeliveryAt;
+  final String confirmedAt;
+  final String deliveredAt;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _SummaryRow(label: 'Intended delivery', value: intendedDeliveryAt),
+        const SizedBox(height: 12),
+        _SummaryRow(label: 'Confirmed at', value: confirmedAt),
+        const SizedBox(height: 12),
+        _SummaryRow(label: 'Delivered at', value: deliveredAt),
       ],
     );
   }

@@ -36,6 +36,7 @@ class CartController extends GetxController {
   final discountValue = Rxn<num>();
   final noteText = ''.obs;
   final selectedOrderDate = DateTime.now().obs;
+  final selectedIntendedDeliveryAt = Rxn<DateTime>();
   final savedDraftOrder = Rxn<OrderModel>();
   final isSubmitting = false.obs;
   final isHydratingDraft = false.obs;
@@ -213,7 +214,8 @@ class CartController extends GetxController {
   bool get canSaveDraft =>
       !isSubmitting.value &&
       selectedCustomer.value?.id != null &&
-      items.isNotEmpty;
+      items.isNotEmpty &&
+      selectedIntendedDeliveryAt.value != null;
   bool get canConfirm =>
       canSaveDraft &&
       !hasKnownStockIssues &&
@@ -332,6 +334,7 @@ class CartController extends GetxController {
     discountValue.value = null;
     noteText.value = '';
     selectedOrderDate.value = DateTime.now();
+    selectedIntendedDeliveryAt.value = null;
     savedDraftOrder.value = null;
     hasUnsavedDraftChanges.value = false;
     errorMessage.value = null;
@@ -347,6 +350,12 @@ class CartController extends GetxController {
 
   void setSelectedCustomer(CustomerModel? customer) {
     selectedCustomer.value = customer;
+    _markDraftDirty();
+    errorMessage.value = null;
+  }
+
+  void setIntendedDeliveryAt(DateTime? value) {
+    selectedIntendedDeliveryAt.value = value;
     _markDraftDirty();
     errorMessage.value = null;
   }
@@ -451,6 +460,16 @@ class CartController extends GetxController {
     return null;
   }
 
+  String formatIntendedDeliveryDisplay() {
+    final value = selectedIntendedDeliveryAt.value;
+    if (value == null) {
+      return 'Choose intended delivery date and time';
+    }
+
+    final local = value.toLocal();
+    return _formatDisplayDateTime(local);
+  }
+
   String formatCurrency(num? value) {
     if (value == null) {
       return '৳0.00';
@@ -467,6 +486,12 @@ class CartController extends GetxController {
 
     if (items.isEmpty) {
       errorMessage.value = 'Add at least one product before saving the draft.';
+      return null;
+    }
+
+    if (selectedIntendedDeliveryAt.value == null) {
+      errorMessage.value =
+          'Select the intended delivery date and time before saving the draft.';
       return null;
     }
 
@@ -509,6 +534,12 @@ class CartController extends GetxController {
 
     if (items.isEmpty) {
       errorMessage.value = 'Add at least one product before confirming.';
+      return null;
+    }
+
+    if (selectedIntendedDeliveryAt.value == null) {
+      errorMessage.value =
+          'Select the intended delivery date and time before confirming the order.';
       return null;
     }
 
@@ -659,6 +690,9 @@ class CartController extends GetxController {
       selectedOrderDate.value =
           DateTime.tryParse((draftOrder.orderDate ?? '').split('T').first) ??
           DateTime.now();
+      selectedIntendedDeliveryAt.value = _tryParseDateTime(
+        draftOrder.intendedDeliveryAt,
+      );
       savedDraftOrder.value = draftOrder;
       hasUnsavedDraftChanges.value = false;
       currentStep.value = confirmStep;
@@ -691,6 +725,46 @@ class CartController extends GetxController {
     final month = value.month.toString().padLeft(2, '0');
     final day = value.day.toString().padLeft(2, '0');
     return '${value.year}-$month-$day';
+  }
+
+  String _formatDisplayDateTime(DateTime value) {
+    const months = <String>[
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+
+    final hour = value.hour.toString().padLeft(2, '0');
+    final minute = value.minute.toString().padLeft(2, '0');
+    return '${value.day.toString().padLeft(2, '0')} ${months[value.month - 1]} ${value.year}, $hour:$minute';
+  }
+
+  String _formatDateTimeForApi(DateTime value) {
+    final local = value.toLocal();
+    final year = local.year.toString().padLeft(4, '0');
+    final month = local.month.toString().padLeft(2, '0');
+    final day = local.day.toString().padLeft(2, '0');
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+    final second = local.second.toString().padLeft(2, '0');
+    final offset = local.timeZoneOffset;
+    final sign = offset.isNegative ? '-' : '+';
+    final offsetHours = offset.inHours.abs().toString().padLeft(2, '0');
+    final offsetMinutes = (offset.inMinutes.abs() % 60).toString().padLeft(
+      2,
+      '0',
+    );
+    return '$year-$month-$day'
+        'T$hour:$minute:$second$sign$offsetHours:$offsetMinutes';
   }
 
   void _syncNoteText() {
@@ -742,6 +816,9 @@ class CartController extends GetxController {
     return CreateOrderRequestModel(
       customerId: selectedCustomer.value?.id,
       orderDate: _formatDate(selectedOrderDate.value),
+      intendedDeliveryAt: selectedIntendedDeliveryAt.value == null
+          ? null
+          : _formatDateTimeForApi(selectedIntendedDeliveryAt.value!),
       note: noteText.value.trim().isEmpty ? null : noteText.value.trim(),
       discountType: apiDiscountType,
       discountValue: appliedDiscountValue,
@@ -798,6 +875,14 @@ class CartController extends GetxController {
     } catch (_) {
       return fallback;
     }
+  }
+
+  DateTime? _tryParseDateTime(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return null;
+    }
+
+    return DateTime.tryParse(value)?.toLocal();
   }
 
   CartItemModel _fallbackCartItem(OrderItemModel item) {

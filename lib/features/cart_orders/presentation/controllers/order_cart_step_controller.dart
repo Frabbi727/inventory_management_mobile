@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../data/models/cart_item_model.dart';
@@ -30,5 +31,40 @@ class OrderCartStepController extends GetxController {
 
   void goToProductsStep() {
     _cartController.goToStep(CartController.productsStep);
+  }
+
+  Future<void> pickIntendedDeliveryAt(BuildContext context) async {
+    final now = DateTime.now();
+    final initial = _cartController.selectedIntendedDeliveryAt.value ?? now;
+
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(now.year - 1),
+      lastDate: DateTime(now.year + 5),
+    );
+
+    if (pickedDate == null || !context.mounted) {
+      return;
+    }
+
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initial),
+    );
+
+    if (pickedTime == null) {
+      return;
+    }
+
+    _cartController.setIntendedDeliveryAt(
+      DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+        pickedTime.hour,
+        pickedTime.minute,
+      ),
+    );
   }
 }

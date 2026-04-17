@@ -172,6 +172,12 @@ void main() {
     );
     cartController.goToStep(CartController.cartStep);
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Intended delivery'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Intended delivery'), findsOneWidget);
     expect(find.text('Continue to Confirm'), findsOneWidget);
 
     cartController.goToStep(CartController.confirmStep);

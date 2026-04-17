@@ -12,6 +12,9 @@ class OrderModel {
     this.id,
     this.orderNo,
     this.orderDate,
+    this.intendedDeliveryAt,
+    this.confirmedAt,
+    this.deliveredAt,
     this.subtotal,
     this.discountType,
     this.discountValue,
@@ -33,6 +36,15 @@ class OrderModel {
 
   @JsonKey(name: 'order_date')
   final String? orderDate;
+
+  @JsonKey(name: 'intended_delivery_at')
+  final String? intendedDeliveryAt;
+
+  @JsonKey(name: 'confirmed_at')
+  final String? confirmedAt;
+
+  @JsonKey(name: 'delivered_at')
+  final String? deliveredAt;
 
   final num? subtotal;
 

@@ -9,6 +9,7 @@ class CreateOrderRequestModel {
   const CreateOrderRequestModel({
     this.customerId,
     this.orderDate,
+    this.intendedDeliveryAt,
     this.note,
     this.discountType,
     this.discountValue,
@@ -20,6 +21,9 @@ class CreateOrderRequestModel {
 
   @JsonKey(name: 'order_date')
   final String? orderDate;
+
+  @JsonKey(name: 'intended_delivery_at')
+  final String? intendedDeliveryAt;
 
   final String? note;
 

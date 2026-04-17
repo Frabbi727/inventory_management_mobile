@@ -132,6 +132,58 @@ class OrderCartStepPage extends GetView<OrderCartStepController> {
           ),
           const SizedBox(height: 16),
           CartSectionCard(
+            title: 'Intended delivery',
+            subtitle:
+                'Required planned delivery date and time shared with the customer.',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                InkWell(
+                  onTap: () => controller.pickIntendedDeliveryAt(context),
+                  borderRadius: BorderRadius.circular(16),
+                  child: InputDecorator(
+                    decoration: InputDecoration(
+                      labelText: 'Delivery date and time',
+                      prefixIcon: const Icon(Icons.schedule_outlined),
+                      suffixIcon: const Icon(Icons.edit_calendar_outlined),
+                      helperText:
+                          cartController.selectedIntendedDeliveryAt.value ==
+                              null
+                          ? 'Required before draft save or confirm.'
+                          : 'Tap to update the planned delivery time.',
+                      helperStyle: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(
+                            color:
+                                cartController
+                                        .selectedIntendedDeliveryAt
+                                        .value ==
+                                    null
+                                ? theme.colorScheme.error
+                                : theme.colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                    child: Text(
+                      cartController.formatIntendedDeliveryDisplay(),
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color:
+                            cartController.selectedIntendedDeliveryAt.value ==
+                                null
+                            ? theme.colorScheme.error
+                            : theme.colorScheme.onSurface,
+                        fontWeight:
+                            cartController.selectedIntendedDeliveryAt.value ==
+                                null
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          CartSectionCard(
             title: 'Order note',
             subtitle: 'Optional delivery instructions or internal order note.',
             child: TextField(

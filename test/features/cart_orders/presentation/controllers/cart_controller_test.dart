@@ -71,25 +71,28 @@ void main() {
     expect(controller.subtotal, equals(104));
   });
 
-  test('addProduct supports initial quantity and setLineQuantity updates it', () {
-    final controller = CartController(
-      orderRepository: createRepository((request) async {
-        return http.Response('{}', 200);
-      }),
-      productRepository: createProductRepository((request) async {
-        return http.Response('{}', 200);
-      }),
-    );
+  test(
+    'addProduct supports initial quantity and setLineQuantity updates it',
+    () {
+      final controller = CartController(
+        orderRepository: createRepository((request) async {
+          return http.Response('{}', 200);
+        }),
+        productRepository: createProductRepository((request) async {
+          return http.Response('{}', 200);
+        }),
+      );
 
-    expect(controller.addProduct(product, quantity: 12), isTrue);
-    expect(controller.items.single.quantity, equals(12));
-    expect(
-      controller.setLineQuantity(controller.items.single.lineKey, 25),
-      isTrue,
-    );
-    expect(controller.items.single.quantity, equals(25));
-    expect(controller.totalUnits, equals(25));
-  });
+      expect(controller.addProduct(product, quantity: 12), isTrue);
+      expect(controller.items.single.quantity, equals(12));
+      expect(
+        controller.setLineQuantity(controller.items.single.lineKey, 25),
+        isTrue,
+      );
+      expect(controller.items.single.quantity, equals(25));
+      expect(controller.totalUnits, equals(25));
+    },
+  );
 
   test('estimated discount supports percent and amount', () {
     final controller = CartController(
@@ -103,6 +106,7 @@ void main() {
 
     controller.addProduct(product);
     controller.addProduct(const ProductModel(id: 8, sellingPrice: 48));
+    controller.setIntendedDeliveryAt(DateTime(2026, 4, 17, 15, 30));
 
     controller.setDiscountType('percentage');
     controller.onDiscountValueChanged('10');
@@ -125,6 +129,7 @@ void main() {
     );
 
     controller.addProduct(const ProductModel(id: 8, sellingPrice: 48.456));
+    controller.setIntendedDeliveryAt(DateTime(2026, 4, 17, 15, 30));
     controller.setDiscountType('amount');
     controller.onDiscountValueChanged('12.345');
 
@@ -148,6 +153,7 @@ void main() {
       );
 
       controller.addProduct(const ProductModel(id: 8, sellingPrice: 48.456));
+      controller.setIntendedDeliveryAt(DateTime(2026, 4, 17, 15, 30));
       controller.setDiscountType('percentage');
       controller.onDiscountValueChanged('150.999');
       controller.discountValueController.text = '150.999';
@@ -193,6 +199,7 @@ void main() {
     );
 
     controller.addProduct(product);
+    controller.setIntendedDeliveryAt(DateTime(2026, 4, 17, 15, 30));
     expect(controller.setLineQuantity('${product.id}:base', 8), isTrue);
     expect(controller.items.single.quantity, equals(8));
     expect(controller.items.single.exceedsAvailableStock, isTrue);
@@ -255,6 +262,10 @@ void main() {
             expect(body['customer_id'], equals(5));
             expect((body['items'] as List<dynamic>).length, equals(1));
             expect(body['items'][0]['product_variant_id'], 101);
+            expect(
+              body['intended_delivery_at'],
+              contains('2026-04-17T15:30:00'),
+            );
 
             return http.Response(
               jsonEncode({
@@ -306,6 +317,7 @@ void main() {
       controller.setSelectedCustomer(
         const CustomerModel(id: 5, name: 'Rahman'),
       );
+      controller.setIntendedDeliveryAt(DateTime(2026, 4, 17, 15, 30));
 
       final response = await controller.submitOrder();
 
@@ -315,4 +327,29 @@ void main() {
       expect(controller.selectedCustomer.value, isNull);
     },
   );
+
+  test('draft save requires intended delivery timestamp', () async {
+    final controller = CartController(
+      orderRepository: createRepository((request) async {
+        return http.Response('{}', 200);
+      }),
+      productRepository: createProductRepository((request) async {
+        return http.Response('{}', 200);
+      }),
+    );
+
+    controller.addProduct(product);
+    controller.setSelectedCustomer(const CustomerModel(id: 5, name: 'Rahman'));
+
+    final response = await controller.saveDraft();
+
+    expect(response, isNull);
+    expect(
+      controller.errorMessage.value,
+      equals(
+        'Select the intended delivery date and time before saving the draft.',
+      ),
+    );
+    expect(controller.canSaveDraft, isFalse);
+  });
 }

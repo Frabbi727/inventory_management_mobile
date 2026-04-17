@@ -36,6 +36,10 @@ void main() {
 
           final body = jsonDecode(request.body) as Map<String, dynamic>;
           expect(body['customer_id'], equals(2));
+          expect(
+            body['intended_delivery_at'],
+            equals('2026-04-09T15:30:00+06:00'),
+          );
           expect(body['discount_type'], equals('amount'));
           expect(body['discount_value'], equals(100));
           expect(body['items'], isA<List<dynamic>>());
@@ -61,6 +65,7 @@ void main() {
       const CreateOrderRequestModel(
         customerId: 2,
         orderDate: '2026-04-09',
+        intendedDeliveryAt: '2026-04-09T15:30:00+06:00',
         note: 'Deliver quickly',
         discountType: 'amount',
         discountValue: 100,
@@ -93,6 +98,9 @@ void main() {
                   'id': 2,
                   'order_no': 'ORD-NHPXCXHK',
                   'order_date': '2026-04-07T00:00:00.000000Z',
+                  'intended_delivery_at': '2026-04-08T09:00:00.000000Z',
+                  'confirmed_at': '2026-04-07T10:15:00.000000Z',
+                  'delivered_at': '2026-04-07T10:15:00.000000Z',
                   'grand_total': 85,
                   'status': 'confirmed',
                   'customer': {
@@ -118,6 +126,10 @@ void main() {
     final response = await repository.fetchOrders(page: 2);
 
     expect(response.data?.single.orderNo, equals('ORD-NHPXCXHK'));
+    expect(
+      response.data?.single.intendedDeliveryAt,
+      equals('2026-04-08T09:00:00.000000Z'),
+    );
   });
 
   test('fetchOrderDetails sends order id with auth header', () async {
@@ -140,6 +152,9 @@ void main() {
                 'id': 6,
                 'order_no': 'ORD-0006',
                 'order_date': '2026-04-08',
+                'intended_delivery_at': '2026-04-08T13:45:00.000000Z',
+                'confirmed_at': '2026-04-08T14:00:00.000000Z',
+                'delivered_at': '2026-04-08T14:00:00.000000Z',
                 'grand_total': 140,
                 'status': 'confirmed',
                 'customer': {
@@ -162,6 +177,7 @@ void main() {
     final response = await repository.fetchOrderDetails(6);
 
     expect(response.data?.orderNo, equals('ORD-0006'));
+    expect(response.data?.confirmedAt, equals('2026-04-08T14:00:00.000000Z'));
   });
 
   test('confirmOrder posts to confirm endpoint', () async {
@@ -181,11 +197,7 @@ void main() {
           return http.Response(
             jsonEncode({
               'message': 'Order confirmed successfully.',
-              'data': {
-                'id': 9,
-                'order_no': 'ORD-009',
-                'status': 'confirmed',
-              },
+              'data': {'id': 9, 'order_no': 'ORD-009', 'status': 'confirmed'},
             }),
             200,
             headers: {'content-type': 'application/json'},

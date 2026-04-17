@@ -191,6 +191,23 @@ void main() {
   });
 
   test(
+    'cart step controller exposes intended delivery through shared state',
+    () {
+      final cartController = Get.put(createCartController());
+      final controller = Get.put(
+        OrderCartStepController(cartController: cartController),
+      );
+
+      cartController.setIntendedDeliveryAt(DateTime(2026, 4, 17, 15, 30));
+
+      expect(
+        controller.cartController.formatIntendedDeliveryDisplay(),
+        contains('2026'),
+      );
+    },
+  );
+
+  test(
     'confirm step controller keeps access to shared cart workflow state',
     () {
       final cartController = Get.put(createCartController());
@@ -205,6 +222,7 @@ void main() {
           currentStock: 5,
         ),
       );
+      cartController.setIntendedDeliveryAt(DateTime(2026, 4, 17, 15, 30));
 
       final controller = Get.put(
         OrderConfirmStepController(cartController: cartController),
