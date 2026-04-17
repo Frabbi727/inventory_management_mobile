@@ -6,6 +6,10 @@ import '../../../customers/presentation/controllers/customer_search_controller.d
 import '../../../products/presentation/bindings/product_dependencies.dart';
 import '../../../products/presentation/controllers/product_list_controller.dart';
 import 'cart_dependencies.dart';
+import '../controllers/order_cart_step_controller.dart';
+import '../controllers/order_confirm_step_controller.dart';
+import '../controllers/order_customer_step_controller.dart';
+import '../controllers/order_products_step_controller.dart';
 
 class NewOrderBinding extends Bindings {
   @override
@@ -30,6 +34,37 @@ class NewOrderBinding extends Bindings {
         () => CustomerSearchController(customerRepository: Get.find()),
         tag: ControllerTags.newOrderCustomerSearch,
       );
+    }
+
+    if (!Get.isRegistered<OrderCustomerStepController>()) {
+      Get.lazyPut(
+        () => OrderCustomerStepController(
+          cartController: Get.find(),
+          customerSearchController: Get.find(
+            tag: ControllerTags.newOrderCustomerSearch,
+          ),
+        ),
+      );
+    }
+
+    if (!Get.isRegistered<OrderProductsStepController>()) {
+      Get.lazyPut(
+        () => OrderProductsStepController(
+          cartController: Get.find(),
+          productListController: Get.find(
+            tag: ControllerTags.newOrderProductSearch,
+          ),
+          productRepository: Get.find(),
+        ),
+      );
+    }
+
+    if (!Get.isRegistered<OrderCartStepController>()) {
+      Get.lazyPut(() => OrderCartStepController(cartController: Get.find()));
+    }
+
+    if (!Get.isRegistered<OrderConfirmStepController>()) {
+      Get.lazyPut(() => OrderConfirmStepController(cartController: Get.find()));
     }
   }
 }
