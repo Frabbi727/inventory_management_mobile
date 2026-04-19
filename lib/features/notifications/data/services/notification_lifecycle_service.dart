@@ -64,15 +64,20 @@ class NotificationLifecycleService {
 
   Future<void> _handleTokenRefresh(String newToken) async {
     if (newToken.isEmpty) {
+      debugPrint('[FCM] Token refresh delivered an empty token.');
       return;
     }
 
+    debugPrint('[FCM] Firebase token refreshed: $newToken');
+
     final authToken = await _tokenStorage.getToken();
     if (authToken == null || authToken.isEmpty) {
+      debugPrint('[FCM] Skipping token refresh registration because auth token is missing.');
       return;
     }
 
     final previousToken = await _deviceTokenStorage.getToken();
+    debugPrint('[FCM] Previously saved token: ${previousToken ?? '(none)'}');
     if (previousToken != null &&
         previousToken.isNotEmpty &&
         previousToken != newToken) {
@@ -85,7 +90,8 @@ class NotificationLifecycleService {
 
     try {
       await _authRepository.registerSpecificDeviceForSession(authToken, newToken);
-    } catch (_) {
+    } catch (error) {
+      debugPrint('[FCM] Token refresh registration failed: $error');
       // Token refresh registration is best-effort.
     }
   }

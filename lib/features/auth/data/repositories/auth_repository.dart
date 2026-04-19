@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import '../../../../core/storage/device_token_storage.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
@@ -70,9 +72,11 @@ class AuthRepository {
   Future<void> unregisterCurrentDevice(String authToken) async {
     final savedToken = await _deviceTokenStorage.getToken();
     if (savedToken == null || savedToken.isEmpty) {
+      debugPrint('[FCM] No saved device token found for unregister.');
       return;
     }
 
+    debugPrint('[FCM] Unregistering saved device token: $savedToken');
     await unregisterSpecificDevice(authToken, savedToken);
     await _deviceTokenStorage.clearToken();
   }
@@ -93,16 +97,20 @@ class AuthRepository {
       await _deviceTokenProvider.requestPermission();
       final deviceToken = await _deviceTokenProvider.getToken();
       if (deviceToken == null || deviceToken.isEmpty) {
+        debugPrint('[FCM] Firebase returned an empty device token.');
         return;
       }
 
+      debugPrint('[FCM] Firebase device token fetched: $deviceToken');
       await _registerDevice(authToken, deviceToken);
-    } catch (_) {
+    } catch (error) {
+      debugPrint('[FCM] Device registration fetch failed: $error');
       // Device registration is best-effort and should not block login.
     }
   }
 
   Future<void> _registerDevice(String authToken, String deviceToken) async {
+    debugPrint('[FCM] Sending device token to backend: $deviceToken');
     await _deviceTokenStorage.saveToken(deviceToken);
     await _apiClient.post(
       ApiEndpoints.deviceRegister,
@@ -113,6 +121,7 @@ class AuthRepository {
         deviceName: 'salesman-phone',
       ).toJson(),
     );
+    debugPrint('[FCM] Backend device registration completed.');
   }
 
   String _resolvePlatform() {
