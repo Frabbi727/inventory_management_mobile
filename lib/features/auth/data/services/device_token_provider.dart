@@ -4,6 +4,7 @@ abstract class DeviceTokenProvider {
   Future<void> requestPermission() async {}
   Future<String?> getToken();
   Future<RemoteMessage?> getInitialMessage() async => null;
+  Stream<RemoteMessage> get onMessage => const Stream<RemoteMessage>.empty();
   Stream<String> get onTokenRefresh => const Stream<String>.empty();
   Stream<RemoteMessage> get onMessageOpenedApp =>
       const Stream<RemoteMessage>.empty();
@@ -32,6 +33,9 @@ class FirebaseDeviceTokenProvider implements DeviceTokenProvider {
   Future<RemoteMessage?> getInitialMessage() {
     return _resolvedMessaging.getInitialMessage();
   }
+
+  @override
+  Stream<RemoteMessage> get onMessage => FirebaseMessaging.onMessage;
 
   @override
   Stream<String> get onTokenRefresh => _resolvedMessaging.onTokenRefresh;

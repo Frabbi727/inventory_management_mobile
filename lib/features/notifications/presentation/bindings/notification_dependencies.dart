@@ -6,6 +6,7 @@ import '../../../../core/storage/token_storage.dart';
 import '../../../auth/data/repositories/auth_repository.dart';
 import '../../../auth/data/services/device_token_provider.dart';
 import '../../data/repositories/notification_repository.dart';
+import '../../data/services/notification_display_service.dart';
 import '../../data/services/notification_lifecycle_service.dart';
 import '../controllers/notification_controller.dart';
 
@@ -32,10 +33,15 @@ class NotificationDependencies {
       );
     }
 
+    if (!Get.isRegistered<NotificationDisplayService>()) {
+      Get.put(NotificationDisplayService(), permanent: true);
+    }
+
     if (!Get.isRegistered<NotificationLifecycleService>()) {
       Get.put(
         NotificationLifecycleService(
           deviceTokenProvider: Get.find<DeviceTokenProvider>(),
+          notificationDisplayService: Get.find<NotificationDisplayService>(),
           tokenStorage: Get.find<TokenStorage>(),
           deviceTokenStorage: Get.find<DeviceTokenStorage>(),
           authRepository: Get.find<AuthRepository>(),

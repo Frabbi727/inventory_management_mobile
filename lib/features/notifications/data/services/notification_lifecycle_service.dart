@@ -8,40 +8,62 @@ import '../../../../core/storage/device_token_storage.dart';
 import '../../../../core/storage/token_storage.dart';
 import '../../../auth/data/repositories/auth_repository.dart';
 import '../../../auth/data/services/device_token_provider.dart';
+import '../models/notification_tap_payload_model.dart';
+import 'notification_display_service.dart';
 import '../../presentation/controllers/notification_controller.dart';
 
 class NotificationLifecycleService {
   NotificationLifecycleService({
     required DeviceTokenProvider deviceTokenProvider,
+    required NotificationDisplayService notificationDisplayService,
     required TokenStorage tokenStorage,
     required DeviceTokenStorage deviceTokenStorage,
     required AuthRepository authRepository,
   }) : _deviceTokenProvider = deviceTokenProvider,
+       _notificationDisplayService = notificationDisplayService,
        _tokenStorage = tokenStorage,
        _deviceTokenStorage = deviceTokenStorage,
        _authRepository = authRepository;
 
   final DeviceTokenProvider _deviceTokenProvider;
+  final NotificationDisplayService _notificationDisplayService;
   final TokenStorage _tokenStorage;
   final DeviceTokenStorage _deviceTokenStorage;
   final AuthRepository _authRepository;
 
+  StreamSubscription<dynamic>? _foregroundMessageSubscription;
   StreamSubscription<String>? _tokenRefreshSubscription;
   StreamSubscription<dynamic>? _notificationOpenedSubscription;
+  StreamSubscription<NotificationTapPayloadModel>? _localTapSubscription;
   bool _isInitialized = false;
 
-  void ensureInitialized() {
+  Future<void> ensureInitialized() async {
     if (_isInitialized) {
       return;
     }
 
     try {
       _isInitialized = true;
+      await _notificationDisplayService.initialize();
+      _foregroundMessageSubscription = _deviceTokenProvider.onMessage.listen(
+        (message) => unawaited(
+          _notificationDisplayService.showForegroundNotification(message),
+        ),
+      );
       _tokenRefreshSubscription = _deviceTokenProvider.onTokenRefresh.listen(
         (token) => unawaited(_handleTokenRefresh(token)),
       );
       _notificationOpenedSubscription = _deviceTokenProvider.onMessageOpenedApp
-          .listen((message) => unawaited(_handleOpenedMessage(message.data)));
+          .listen(
+            (message) => unawaited(
+              _handleTapPayload(
+                NotificationTapPayloadModel.fromMessageData(message.data),
+              ),
+            ),
+          );
+      _localTapSubscription = _notificationDisplayService.onNotificationTap.listen(
+        (payload) => unawaited(_handleTapPayload(payload)),
+      );
       unawaited(_consumeInitialMessage());
     } catch (_) {
       // Widget tests can boot without Firebase initialized.
@@ -49,8 +71,10 @@ class NotificationLifecycleService {
   }
 
   void dispose() {
+    _foregroundMessageSubscription?.cancel();
     _tokenRefreshSubscription?.cancel();
     _notificationOpenedSubscription?.cancel();
+    _localTapSubscription?.cancel();
   }
 
   Future<void> _consumeInitialMessage() async {
@@ -59,7 +83,9 @@ class NotificationLifecycleService {
       return;
     }
 
-    await _handleOpenedMessage(message.data);
+    await _handleTapPayload(
+      NotificationTapPayloadModel.fromMessageData(message.data),
+    );
   }
 
   Future<void> _handleTokenRefresh(String newToken) async {
@@ -96,10 +122,10 @@ class NotificationLifecycleService {
     }
   }
 
-  Future<void> _handleOpenedMessage(Map<String, dynamic> data) async {
-    final notificationId = _parseInt(data['notification_id']);
-    final entityType = data['entity_type'] as String?;
-    final entityId = _parseInt(data['entity_id']);
+  Future<void> _handleTapPayload(NotificationTapPayloadModel payload) async {
+    final notificationId = payload.notificationId;
+    final entityType = payload.entityType;
+    final entityId = payload.entityId;
 
     if (notificationId != null &&
         Get.isRegistered<NotificationController>()) {
@@ -117,18 +143,8 @@ class NotificationLifecycleService {
     }
   }
 
-  int? _parseInt(Object? value) {
-    if (value is int) {
-      return value;
-    }
-    if (value is String) {
-      return int.tryParse(value);
-    }
-    return null;
-  }
-
   @visibleForTesting
-  Future<void> debugHandleOpenedMessage(Map<String, dynamic> data) {
-    return _handleOpenedMessage(data);
+  Future<void> debugHandleTapPayload(NotificationTapPayloadModel payload) {
+    return _handleTapPayload(payload);
   }
 }
