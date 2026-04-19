@@ -132,17 +132,6 @@ void main() {
     expect(find.text('Out of Stock'), findsWidgets);
 
     await tester.scrollUntilVisible(
-      find.text('Added Today: 4'),
-      200,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('Added Today: 4'), findsOneWidget);
-    expect(find.text('Purchases Today: 2'), findsOneWidget);
-    expect(find.text('Purchase Value: ৳5400'), findsOneWidget);
-
-    await tester.scrollUntilVisible(
       find.text('Milk Pack'),
       300,
       scrollable: find.byType(Scrollable).first,

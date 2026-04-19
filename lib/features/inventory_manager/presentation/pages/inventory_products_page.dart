@@ -55,102 +55,141 @@ class _InventoryProductsPageState extends State<InventoryProductsPage>
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Obx(() {
-        return RefreshIndicator(
-          onRefresh: controller.retry,
-          child: ListView(
-            controller: controller.scrollController,
-            padding: const EdgeInsets.fromLTRB(16, 18, 16, 120),
-            physics: const AlwaysScrollableScrollPhysics(),
-            children: [
-              AppPageHeader(
-                title: 'Products',
-                trailing: FilledButton.icon(
-                  onPressed: controller.openManualCreate,
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Add Product'),
-                ),
-              ),
-              const SizedBox(height: 10),
-              InventorySearchPanel(
-                searchController: controller.searchTextController,
-                onSearchChanged: controller.onSearchChanged,
-                onClearSearch: controller.clearSearch,
-                hasActiveSearch: controller.hasActiveSearch,
-                isSearching: controller.isSearching.value,
-              ),
-              const SizedBox(height: 8),
-              _SummaryCardGrid(controller: controller),
-              const SizedBox(height: 8),
-              // _TodayActivityRow(controller: controller),
-              // const SizedBox(height: 10),
-              InventoryCatalogHeader(
-                totalProducts: controller.totalProducts.value,
-                hasActiveFilter: controller.hasActiveFilter,
-                selectedStockStatusLabel:
-                    controller.selectedStockStatus.value?.displayLabel,
-                searchQuery: controller.searchQuery.value,
-                onClearFilters: controller.clearFilters,
-              ),
-              const SizedBox(height: 8),
-              if (controller.showInlineLoader)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 12),
-                  child: LinearProgressIndicator(),
-                ),
-              if (controller.isInitialLoading.value &&
-                  controller.summary.value == null &&
-                  controller.products.isEmpty)
-                const InventoryPageState(
-                  icon: Icons.inventory_2_outlined,
-                  message: 'Loading products',
-                  isLoading: true,
-                )
-              else if (controller.hasErrorState)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: InventoryPageState(
-                    icon: Icons.cloud_off_outlined,
-                    message: controller.errorMessage.value!,
-                    actionLabel: 'Retry',
-                    onAction: controller.retry,
-                  ),
-                )
-              else if (controller.hasEmptyState)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: AppMessageState(
-                    icon: Icons.inventory_2_outlined,
-                    message:
-                        controller.infoMessage.value ??
-                        controller.buildEmptyMessage(),
-                    actionLabel: controller.hasActiveSearch
-                        ? 'Clear search'
-                        : 'Refresh',
-                    onAction: controller.hasActiveSearch
-                        ? () async => controller.clearSearch()
-                        : controller.retry,
-                  ),
-                )
-              else
-                ...controller.products.map(
-                  (product) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: InventoryProductCard(
-                      product: product,
-                      onTap: () => controller.openDetails(product),
+      child: Obx(
+        () => Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+              child: Column(
+                children: [
+                  AppPageHeader(
+                    title: 'Products',
+                    trailing: FilledButton.icon(
+                      onPressed: controller.openManualCreate,
+                      icon: const Icon(Icons.add_rounded, size: 18),
+                      label: const Text('Add'),
                     ),
                   ),
-                ),
-              if (controller.isLoadingMore.value)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 14),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-            ],
+                  const SizedBox(height: 8),
+                  InventorySearchPanel(
+                    searchController: controller.searchTextController,
+                    onSearchChanged: controller.onSearchChanged,
+                    onClearSearch: controller.clearSearch,
+                    hasActiveSearch: controller.hasActiveSearch,
+                    isSearching: controller.isSearching.value,
+                  ),
+                  const SizedBox(height: 8),
+                  _SummaryCardGrid(controller: controller),
+                  const SizedBox(height: 8),
+                  _ResultsBar(controller: controller),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+            if (controller.showInlineLoader)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 12),
+                child: LinearProgressIndicator(minHeight: 2),
+              ),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: controller.retry,
+                child: _InventoryProductsList(controller: controller),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InventoryProductsList extends StatelessWidget {
+  const _InventoryProductsList({required this.controller});
+
+  final InventoryProductsController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    if (controller.isInitialLoading.value &&
+        controller.summary.value == null &&
+        controller.products.isEmpty) {
+      return ListView(
+        controller: controller.scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 120),
+        children: const [
+          InventoryPageState(
+            icon: Icons.inventory_2_outlined,
+            message: 'Loading products',
+            isLoading: true,
+          ),
+        ],
+      );
+    }
+
+    if (controller.hasErrorState) {
+      return ListView(
+        controller: controller.scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 120),
+        children: [
+          InventoryPageState(
+            icon: Icons.cloud_off_outlined,
+            message: controller.errorMessage.value!,
+            actionLabel: 'Retry',
+            onAction: controller.retry,
+          ),
+        ],
+      );
+    }
+
+    if (controller.hasEmptyState) {
+      return ListView(
+        controller: controller.scrollController,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 120),
+        children: [
+          AppMessageState(
+            icon: Icons.inventory_2_outlined,
+            message:
+                controller.infoMessage.value ?? controller.buildEmptyMessage(),
+            actionLabel: controller.hasActiveSearch ? 'Clear search' : 'Refresh',
+            onAction: controller.hasActiveSearch
+                ? () async => controller.clearSearch()
+                : controller.retry,
+          ),
+        ],
+      );
+    }
+
+    return ListView.builder(
+      controller: controller.scrollController,
+      physics: const AlwaysScrollableScrollPhysics(
+        parent: BouncingScrollPhysics(),
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 120),
+      itemCount:
+          controller.products.length + (controller.isLoadingMore.value ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index >= controller.products.length) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 14),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        final product = controller.products[index];
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: index == controller.products.length - 1 ? 0 : 10,
+          ),
+          child: InventoryProductCard(
+            product: product,
+            onTap: () => controller.openDetails(product),
           ),
         );
-      }),
+      },
     );
   }
 }
@@ -162,97 +201,90 @@ class _SummaryCardGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      mainAxisSpacing: 6,
+      crossAxisSpacing: 6,
+      physics: const NeverScrollableScrollPhysics(),
+      childAspectRatio: 3.25,
       children: [
-        Text(
-          'Stock Status',
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w800,
-          ),
+        _SummaryCard(
+          label: 'All Products',
+          value: '${controller.countForStatus(null)}',
+          accentColor: const Color(0xFF0F766E),
+          backgroundColor: const Color(0xFFF3FBFA),
+          isSelected: controller.selectedStockStatus.value == null,
+          onTap: () => controller.applyStockFilter(null),
         ),
-        const SizedBox(height: 8),
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          mainAxisSpacing: 8,
-          crossAxisSpacing: 8,
-          physics: const NeverScrollableScrollPhysics(),
-          childAspectRatio: 2.9,
-          children: [
-            _SummaryCard(
-              label: 'All Products',
-              value: '${controller.countForStatus(null)}',
-              accentColor: const Color(0xFF0F766E),
-              backgroundColor: const Color(0xFFF3FBFA),
-              isSelected: controller.selectedStockStatus.value == null,
-              onTap: () => controller.applyStockFilter(null),
-            ),
-            _SummaryCard(
-              label: 'In Stock',
-              value: '${controller.countForStatus(ProductStockStatus.inStock)}',
-              accentColor: const Color(0xFF15803D),
-              backgroundColor: const Color(0xFFF2FBF5),
-              isSelected:
-                  controller.selectedStockStatus.value == ProductStockStatus.inStock,
-              onTap: () =>
-                  controller.applyStockFilter(ProductStockStatus.inStock),
-            ),
-            _SummaryCard(
-              label: 'Low Stock',
-              value: '${controller.countForStatus(ProductStockStatus.lowStock)}',
-              accentColor: const Color(0xFFC2410C),
-              backgroundColor: const Color(0xFFFFF7ED),
-              isSelected:
-                  controller.selectedStockStatus.value == ProductStockStatus.lowStock,
-              onTap: () =>
-                  controller.applyStockFilter(ProductStockStatus.lowStock),
-            ),
-            _SummaryCard(
-              label: 'Out of Stock',
-              value: '${controller.countForStatus(ProductStockStatus.outOfStock)}',
-              accentColor: const Color(0xFFB91C1C),
-              backgroundColor: const Color(0xFFFEF2F2),
-              isSelected:
-                  controller.selectedStockStatus.value ==
-                  ProductStockStatus.outOfStock,
-              onTap: () =>
-                  controller.applyStockFilter(ProductStockStatus.outOfStock),
-            ),
-          ],
+        _SummaryCard(
+          label: 'In Stock',
+          value: '${controller.countForStatus(ProductStockStatus.inStock)}',
+          accentColor: const Color(0xFF15803D),
+          backgroundColor: const Color(0xFFF2FBF5),
+          isSelected:
+              controller.selectedStockStatus.value == ProductStockStatus.inStock,
+          onTap: () => controller.applyStockFilter(ProductStockStatus.inStock),
+        ),
+        _SummaryCard(
+          label: 'Low Stock',
+          value: '${controller.countForStatus(ProductStockStatus.lowStock)}',
+          accentColor: const Color(0xFFC2410C),
+          backgroundColor: const Color(0xFFFFF7ED),
+          isSelected:
+              controller.selectedStockStatus.value == ProductStockStatus.lowStock,
+          onTap: () => controller.applyStockFilter(ProductStockStatus.lowStock),
+        ),
+        _SummaryCard(
+          label: 'Out of Stock',
+          value: '${controller.countForStatus(ProductStockStatus.outOfStock)}',
+          accentColor: const Color(0xFFB91C1C),
+          backgroundColor: const Color(0xFFFEF2F2),
+          isSelected:
+              controller.selectedStockStatus.value ==
+              ProductStockStatus.outOfStock,
+          onTap: () =>
+              controller.applyStockFilter(ProductStockStatus.outOfStock),
         ),
       ],
     );
   }
 }
 
-class _TodayActivityRow extends StatelessWidget {
-  const _TodayActivityRow({required this.controller});
+class _ResultsBar extends StatelessWidget {
+  const _ResultsBar({required this.controller});
 
   final InventoryProductsController controller;
 
   @override
   Widget build(BuildContext context) {
-    final summary = controller.summary.value;
+    final theme = Theme.of(context);
+    final label =
+        controller.selectedStockStatus.value?.displayLabel ?? 'All Products';
 
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
+    return Row(
       children: [
-        InventoryMetaPill(
-          label: 'Added Today',
-          value: '${summary?.productsAddedToday ?? 0}',
+        Expanded(
+          child: Text(
+            '$label • ${controller.totalProducts.value}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ),
-        InventoryMetaPill(
-          label: 'Purchases Today',
-          value: '${summary?.purchasesCreatedToday ?? 0}',
-        ),
-        InventoryMetaPill(
-          label: 'Purchase Value',
-          value: controller.formatCurrency(summary?.purchaseValueToday),
-        ),
+        if (controller.hasActiveFilter)
+          TextButton(
+            onPressed: controller.clearFilters,
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text('Reset'),
+          ),
       ],
     );
   }
@@ -283,17 +315,17 @@ class _SummaryCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(12),
         child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
             color: isSelected ? backgroundColor : Colors.white,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isSelected
                   ? accentColor.withValues(alpha: 0.45)
                   : theme.colorScheme.outlineVariant.withValues(alpha: 0.7),
-              width: isSelected ? 1.4 : 1,
+              width: isSelected ? 1.3 : 1,
             ),
           ),
           child: Row(
@@ -309,12 +341,12 @@ class _SummaryCard extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               Text(
                 value,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleMedium?.copyWith(
+                style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w800,
                   color: isSelected ? accentColor : theme.colorScheme.onSurface,
                 ),
