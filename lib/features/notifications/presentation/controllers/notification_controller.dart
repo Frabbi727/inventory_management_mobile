@@ -21,6 +21,7 @@ class NotificationController extends GetxController {
   final isRefreshing = false.obs;
   final isLoadingMore = false.obs;
   final isMarkingAllRead = false.obs;
+  final openingNotificationId = RxnInt();
   final errorMessage = RxnString();
 
   bool _hasLoadedOnce = false;
@@ -127,7 +128,9 @@ class NotificationController extends GetxController {
       return;
     }
 
-    final index = notifications.indexWhere((entry) => entry.id == notificationId);
+    final index = notifications.indexWhere(
+      (entry) => entry.id == notificationId,
+    );
     if (index == -1) {
       return;
     }
@@ -156,7 +159,9 @@ class NotificationController extends GetxController {
       return;
     }
 
-    final index = notifications.indexWhere((entry) => entry.id == notificationId);
+    final index = notifications.indexWhere(
+      (entry) => entry.id == notificationId,
+    );
     if (index == -1) {
       return;
     }
@@ -175,7 +180,9 @@ class NotificationController extends GetxController {
   }
 
   Future<void> markAsReadById(int notificationId) async {
-    final index = notifications.indexWhere((entry) => entry.id == notificationId);
+    final index = notifications.indexWhere(
+      (entry) => entry.id == notificationId,
+    );
     if (index != -1) {
       await markAsRead(notifications[index]);
       return;
@@ -201,7 +208,9 @@ class NotificationController extends GetxController {
     final now = DateTime.now().toUtc().toIso8601String();
     notifications.assignAll(
       notifications
-          .map((item) => item.copyWith(isRead: true, readAt: item.readAt ?? now))
+          .map(
+            (item) => item.copyWith(isRead: true, readAt: item.readAt ?? now),
+          )
           .toList(),
     );
     unreadCount.value = 0;
@@ -218,13 +227,24 @@ class NotificationController extends GetxController {
   }
 
   Future<void> openNotification(NotificationItemModel item) async {
-    if (item.isRead != true) {
-      await markAsRead(item);
+    final notificationId = item.id;
+    if (openingNotificationId.value != null) {
+      return;
     }
 
-    final entity = item.entity;
-    if (entity?.type == 'order' && entity?.id != null) {
-      await Get.toNamed(AppRoutes.orderDetails, arguments: entity!.id);
+    openingNotificationId.value = notificationId ?? -1;
+
+    try {
+      if (item.isRead != true) {
+        await markAsRead(item);
+      }
+
+      final entity = item.entity;
+      if (entity?.type == 'order' && entity?.id != null) {
+        await Get.toNamed(AppRoutes.orderDetails, arguments: entity!.id);
+      }
+    } finally {
+      openingNotificationId.value = null;
     }
   }
 }

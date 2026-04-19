@@ -120,6 +120,9 @@ class NotificationsPage extends GetView<NotificationController> {
                                 padding: const EdgeInsets.only(bottom: 14),
                                 child: _NotificationCard(
                                   item: item,
+                                  isOpening:
+                                      controller.openingNotificationId.value ==
+                                      (item.id ?? -1),
                                   onTap: () =>
                                       controller.openNotification(item),
                                   onMarkRead: item.isRead == true
@@ -187,73 +190,6 @@ class _NotificationsHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(
-                  Icons.notifications_active_outlined,
-                  color: colorScheme.primary,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Stay on top of updates',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      unreadCount == 0
-                          ? 'Everything is caught up.'
-                          : '$unreadCount unread notification${unreadCount == 1 ? '' : 's'}',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      unreadCount.toString(),
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: colorScheme.primary,
-                      ),
-                    ),
-                    Text(
-                      'Unread',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -287,11 +223,13 @@ class _NotificationsHeader extends StatelessWidget {
 class _NotificationCard extends StatelessWidget {
   const _NotificationCard({
     required this.item,
+    required this.isOpening,
     required this.onTap,
     required this.onMarkRead,
   });
 
   final NotificationItemModel item;
+  final bool isOpening;
   final VoidCallback onTap;
   final VoidCallback? onMarkRead;
 
@@ -305,7 +243,7 @@ class _NotificationCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(26),
-        onTap: onTap,
+        onTap: isOpening ? null : onTap,
         child: Ink(
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.94),
@@ -417,17 +355,26 @@ class _NotificationCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: FilledButton(
-                        onPressed: onTap,
+                        onPressed: isOpening ? null : onTap,
                         style: FilledButton.styleFrom(
                           minimumSize: const Size.fromHeight(52),
                         ),
-                        child: const Text('Open details'),
+                        child: isOpening
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text('Open details'),
                       ),
                     ),
                     if (onMarkRead != null) ...[
                       const SizedBox(width: 10),
                       OutlinedButton(
-                        onPressed: onMarkRead,
+                        onPressed: isOpening ? null : onMarkRead,
                         style: OutlinedButton.styleFrom(
                           minimumSize: const Size(126, 52),
                         ),
