@@ -5,7 +5,6 @@ import '../../../notifications/presentation/bindings/notification_dependencies.d
 import '../controllers/inventory_home_controller.dart';
 import 'inventory_manager_dependencies.dart';
 import 'inventory_products_binding.dart';
-import 'inventory_summary_binding.dart';
 import 'purchase_list_binding.dart';
 
 class InventoryHomeBinding extends Bindings {
@@ -16,7 +15,6 @@ class InventoryHomeBinding extends Bindings {
     InventoryManagerDependencies.ensureRegistered();
     InventoryProductsBinding().dependencies();
     PurchaseListBinding().dependencies();
-    InventorySummaryBinding().dependencies();
 
     if (!Get.isRegistered<InventoryHomeController>()) {
       Get.lazyPut(

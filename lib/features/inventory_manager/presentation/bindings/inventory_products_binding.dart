@@ -9,7 +9,9 @@ class InventoryProductsBinding extends Bindings {
     InventoryManagerDependencies.ensureRegistered();
     if (!Get.isRegistered<InventoryProductsController>()) {
       Get.lazyPut(
-        () => InventoryProductsController(productRepository: Get.find()),
+        () => InventoryProductsController(
+          inventoryManagerRepository: Get.find(),
+        ),
         fenix: true,
       );
     }

@@ -12,6 +12,8 @@ import '../../../products/data/repositories/product_repository.dart';
 import '../models/barcode_resolve_response.dart';
 import '../models/create_or_update_barcode_product_request.dart';
 import '../models/create_or_update_purchase_request.dart';
+import '../models/inventory_dashboard_response_model.dart';
+import '../models/inventory_products_response_model.dart';
 import '../models/inventory_purchase_list_response_model.dart';
 import '../models/product_photo_upload_file.dart';
 import '../models/purchase_response_model.dart';
@@ -212,6 +214,40 @@ class InventoryManagerRepository {
     );
     final parsed = SubcategoryListResponseModel.fromJson(response);
     return parsed.data ?? const <ProductSubcategoryModel>[];
+  }
+
+  Future<InventoryDashboardResponseModel> fetchInventoryDashboard() async {
+    final token = await _requireToken();
+    final response = await _apiClient.get(
+      ApiEndpoints.dashboardInventoryManager,
+      token: token,
+    );
+    return InventoryDashboardResponseModel.fromJson(response);
+  }
+
+  Future<InventoryProductsResponseModel> fetchInventoryProducts({
+    required String stockFilter,
+    String? query,
+    int page = 1,
+    int perPage = 10,
+  }) async {
+    final token = await _requireToken();
+    final queryParameters = <String, String>{
+      'stock_filter': stockFilter,
+      'page': page.toString(),
+      'per_page': perPage.toString(),
+    };
+
+    if (query != null && query.isNotEmpty) {
+      queryParameters['q'] = query;
+    }
+
+    final response = await _apiClient.get(
+      ApiEndpoints.inventoryProducts,
+      token: token,
+      queryParameters: queryParameters,
+    );
+    return InventoryProductsResponseModel.fromJson(response);
   }
 
   Future<PurchaseResponseModel> createPurchase(

@@ -18,6 +18,10 @@ class ApiEndpoints {
   static const customers = '${ApiConfig.apiPrefix}/customers';
   static const orders = '${ApiConfig.apiPrefix}/orders';
   static const dashboardSalesman = '${ApiConfig.apiPrefix}/dashboard/salesman';
+  static const dashboardInventoryManager =
+      '${ApiConfig.apiPrefix}/dashboard/inventory-manager';
+  static const inventoryProducts =
+      '${ApiConfig.apiPrefix}/inventory/products';
   static const categories = '${ApiConfig.apiPrefix}/categories';
   static const subcategories = '${ApiConfig.apiPrefix}/subcategories';
   static const units = '${ApiConfig.apiPrefix}/units';

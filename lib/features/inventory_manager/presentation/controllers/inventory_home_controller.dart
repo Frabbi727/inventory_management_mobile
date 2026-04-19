@@ -7,7 +7,6 @@ import '../../../auth/data/models/user_model.dart';
 import '../../../auth/data/repositories/auth_repository.dart';
 import '../models/barcode_scan_models.dart';
 import 'inventory_products_controller.dart';
-import 'inventory_summary_controller.dart';
 import 'purchase_list_controller.dart';
 
 class InventoryHomeController extends GetxController {
@@ -75,11 +74,6 @@ class InventoryHomeController extends GetxController {
         }
         break;
       case 2:
-        if (Get.isRegistered<InventorySummaryController>()) {
-          Get.find<InventorySummaryController>().onTabActivated();
-        }
-        break;
-      case 3:
         _loadUser();
         break;
     }

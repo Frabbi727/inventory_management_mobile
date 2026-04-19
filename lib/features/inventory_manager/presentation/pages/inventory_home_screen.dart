@@ -5,7 +5,6 @@ import '../../../profile/presentation/pages/profile_page.dart';
 import '../controllers/inventory_home_controller.dart';
 import 'inventory_products_page.dart';
 import 'purchase_list_page.dart';
-import 'inventory_summary_page.dart';
 import '../widgets/inventory_bottom_navigation.dart';
 
 class InventoryHomeScreen extends GetView<InventoryHomeController> {
@@ -20,7 +19,6 @@ class InventoryHomeScreen extends GetView<InventoryHomeController> {
           children: [
             const InventoryProductsPage(),
             const PurchaseListPage(),
-            const InventorySummaryPage(),
             ProfilePage(
               name: controller.user.value?.name ?? '-',
               email: controller.user.value?.email ?? '-',
@@ -36,9 +34,9 @@ class InventoryHomeScreen extends GetView<InventoryHomeController> {
           onTabSelected: controller.changeTab,
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-        floatingActionButton: InventoryScanButton(
-          onPressed: controller.openScan,
-        ),
+        floatingActionButton: controller.selectedIndex.value == 2
+            ? null
+            : InventoryScanButton(onPressed: controller.openScan),
       ),
     );
   }

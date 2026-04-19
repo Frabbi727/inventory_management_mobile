@@ -313,67 +313,6 @@ class InventoryProductFilterPanel extends StatelessWidget {
   }
 }
 
-class InventoryProductFilterButton extends StatelessWidget {
-  const InventoryProductFilterButton({
-    super.key,
-    required this.hasActiveFilter,
-    required this.activeFilterCount,
-    required this.onTap,
-  });
-
-  final bool hasActiveFilter;
-  final int activeFilterCount;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Ink(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.96),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: hasActiveFilter
-                  ? colorScheme.primary.withValues(alpha: 0.35)
-                  : colorScheme.outlineVariant.withValues(alpha: 0.7),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.tune_rounded,
-                size: 18,
-                color: hasActiveFilter
-                    ? colorScheme.primary
-                    : colorScheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                hasActiveFilter ? 'Filters ($activeFilterCount)' : 'Filters',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: hasActiveFilter
-                      ? colorScheme.primary
-                      : colorScheme.onSurface,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class InventoryProductFilterSheet extends StatefulWidget {
   const InventoryProductFilterSheet({
     super.key,

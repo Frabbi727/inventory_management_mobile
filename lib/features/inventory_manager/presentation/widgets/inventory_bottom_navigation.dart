@@ -42,23 +42,13 @@ class InventoryBottomNavigation extends StatelessWidget {
                 onTap: () => onTabSelected(1),
               ),
             ),
-            const SizedBox(width: 70),
-            Expanded(
-              child: _InventoryNavItem(
-                label: 'Stock',
-                icon: Icons.analytics_outlined,
-                selectedIcon: Icons.analytics,
-                selected: selectedIndex == 2,
-                onTap: () => onTabSelected(2),
-              ),
-            ),
             Expanded(
               child: _InventoryNavItem(
                 label: 'Profile',
                 icon: Icons.person_outline,
                 selectedIcon: Icons.person,
-                selected: selectedIndex == 3,
-                onTap: () => onTabSelected(3),
+                selected: selectedIndex == 2,
+                onTap: () => onTabSelected(2),
               ),
             ),
           ],
