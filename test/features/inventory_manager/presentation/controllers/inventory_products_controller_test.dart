@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -35,6 +38,7 @@ class FakeInventoryManagerRepository extends InventoryManagerRepository {
   String? lastStockFilter;
   String? lastQuery;
   int? lastPage;
+  final List<int> requestedPages = <int>[];
   InventoryDashboardResponseModel dashboardResponse =
       const InventoryDashboardResponseModel(
         success: true,
@@ -73,7 +77,10 @@ class FakeInventoryManagerRepository extends InventoryManagerRepository {
           ),
         ),
       );
+  Map<int, InventoryProductsResponseModel> pagedProductsResponses =
+      <int, InventoryProductsResponseModel>{};
   Object? error;
+  Completer<InventoryProductsResponseModel>? pendingProductsResponse;
 
   @override
   Future<InventoryDashboardResponseModel> fetchInventoryDashboard() async {
@@ -95,10 +102,15 @@ class FakeInventoryManagerRepository extends InventoryManagerRepository {
     lastStockFilter = stockFilter;
     lastQuery = query;
     lastPage = page;
+    requestedPages.add(page);
     if (error != null) {
       throw error!;
     }
-    return productsResponse;
+    final pendingResponse = pendingProductsResponse;
+    if (pendingResponse != null) {
+      return pendingResponse.future;
+    }
+    return pagedProductsResponses[page] ?? productsResponse;
   }
 }
 
@@ -183,5 +195,278 @@ void main() {
     expect(controller.summary.value, isNull);
     expect(controller.products, isEmpty);
     expect(controller.errorMessage.value, 'Unable to load products right now.');
+  });
+
+  test('loadMoreIfNeeded fetches next page when more data is available', () async {
+    final repository = FakeInventoryManagerRepository()
+      ..pagedProductsResponses = <int, InventoryProductsResponseModel>{
+        1: InventoryProductsResponseModel(
+          success: true,
+          data: InventoryProductsResponseDataModel(
+            products: InventoryProductsPageModel(
+              data: List<ProductModel>.generate(
+                10,
+                (index) => ProductModel(
+                  id: index + 1,
+                  name: 'Product ${index + 1}',
+                  status: 'active',
+                ),
+              ),
+              currentPage: 1,
+              perPage: 10,
+              total: 20,
+              lastPage: 2,
+            ),
+          ),
+        ),
+        2: InventoryProductsResponseModel(
+          success: true,
+          data: InventoryProductsResponseDataModel(
+            products: InventoryProductsPageModel(
+              data: List<ProductModel>.generate(
+                10,
+                (index) => ProductModel(
+                  id: index + 11,
+                  name: 'Product ${index + 11}',
+                  status: 'active',
+                ),
+              ),
+              currentPage: 2,
+              perPage: 10,
+              total: 20,
+              lastPage: 2,
+            ),
+          ),
+        ),
+      };
+    final controller = InventoryProductsController(
+      inventoryManagerRepository: repository,
+    );
+
+    await controller.ensureLoaded();
+    await controller.loadMoreIfNeeded(
+      FixedScrollMetrics(
+        minScrollExtent: 0,
+        maxScrollExtent: 1000,
+        pixels: 900,
+        viewportDimension: 500,
+        axisDirection: AxisDirection.down,
+        devicePixelRatio: 1,
+      ),
+    );
+
+    expect(repository.requestedPages, <int>[1, 2]);
+    expect(controller.products.length, 20);
+    expect(controller.products.last.name, 'Product 20');
+    expect(controller.totalProducts.value, 20);
+  });
+
+  test('duplicate page response stops further pagination progress', () async {
+    final duplicatePage = InventoryProductsResponseModel(
+      success: true,
+      data: InventoryProductsResponseDataModel(
+        products: InventoryProductsPageModel(
+          data: List<ProductModel>.generate(
+            10,
+            (index) => ProductModel(
+              id: index + 1,
+              name: 'Product ${index + 1}',
+              status: 'active',
+            ),
+          ),
+          currentPage: 1,
+          perPage: 10,
+          total: 20,
+          lastPage: 2,
+        ),
+      ),
+    );
+    final repository = FakeInventoryManagerRepository()
+      ..pagedProductsResponses = <int, InventoryProductsResponseModel>{
+        1: duplicatePage,
+        2: InventoryProductsResponseModel(
+          success: true,
+          data: InventoryProductsResponseDataModel(
+            products: InventoryProductsPageModel(
+              data: List<ProductModel>.generate(
+                10,
+                (index) => ProductModel(
+                  id: index + 1,
+                  name: 'Product ${index + 1}',
+                  status: 'active',
+                ),
+              ),
+              currentPage: 2,
+              perPage: 10,
+              total: 20,
+              lastPage: 2,
+            ),
+          ),
+        ),
+      };
+    final controller = InventoryProductsController(
+      inventoryManagerRepository: repository,
+    );
+
+    await controller.ensureLoaded();
+    await controller.loadMoreIfNeeded(
+      FixedScrollMetrics(
+        minScrollExtent: 0,
+        maxScrollExtent: 1000,
+        pixels: 900,
+        viewportDimension: 500,
+        axisDirection: AxisDirection.down,
+        devicePixelRatio: 1,
+      ),
+    );
+    await controller.loadMoreIfNeeded(
+      FixedScrollMetrics(
+        minScrollExtent: 0,
+        maxScrollExtent: 1000,
+        pixels: 900,
+        viewportDimension: 500,
+        axisDirection: AxisDirection.down,
+        devicePixelRatio: 1,
+      ),
+    );
+
+    expect(repository.requestedPages, <int>[1, 2]);
+    expect(controller.products.length, 10);
+  });
+
+  test('total count fallback keeps pagination active without lastPage', () async {
+    final repository = FakeInventoryManagerRepository()
+      ..pagedProductsResponses = <int, InventoryProductsResponseModel>{
+        1: InventoryProductsResponseModel(
+          success: true,
+          data: InventoryProductsResponseDataModel(
+            products: InventoryProductsPageModel(
+              data: List<ProductModel>.generate(
+                10,
+                (index) => ProductModel(
+                  id: index + 1,
+                  name: 'Product ${index + 1}',
+                  status: 'active',
+                ),
+              ),
+              currentPage: 1,
+              perPage: 10,
+              total: 15,
+              lastPage: null,
+            ),
+          ),
+        ),
+        2: InventoryProductsResponseModel(
+          success: true,
+          data: InventoryProductsResponseDataModel(
+            products: InventoryProductsPageModel(
+              data: List<ProductModel>.generate(
+                5,
+                (index) => ProductModel(
+                  id: index + 11,
+                  name: 'Product ${index + 11}',
+                  status: 'active',
+                ),
+              ),
+              currentPage: 2,
+              perPage: 10,
+              total: 15,
+              lastPage: null,
+            ),
+          ),
+        ),
+      };
+    final controller = InventoryProductsController(
+      inventoryManagerRepository: repository,
+    );
+
+    await controller.ensureLoaded();
+    await controller.loadMoreIfNeeded(
+      FixedScrollMetrics(
+        minScrollExtent: 0,
+        maxScrollExtent: 1000,
+        pixels: 900,
+        viewportDimension: 500,
+        axisDirection: AxisDirection.down,
+        devicePixelRatio: 1,
+      ),
+    );
+
+    expect(repository.requestedPages, <int>[1, 2]);
+    expect(controller.products.length, 15);
+    expect(controller.totalProducts.value, 15);
+  });
+
+  test('load more exposes loading state while next page is in flight', () async {
+    final repository = FakeInventoryManagerRepository()
+      ..pagedProductsResponses = <int, InventoryProductsResponseModel>{
+        1: InventoryProductsResponseModel(
+          success: true,
+          data: InventoryProductsResponseDataModel(
+            products: InventoryProductsPageModel(
+              data: List<ProductModel>.generate(
+                10,
+                (index) => ProductModel(
+                  id: index + 1,
+                  name: 'Product ${index + 1}',
+                  status: 'active',
+                ),
+              ),
+              currentPage: 1,
+              perPage: 10,
+              total: 15,
+              lastPage: 2,
+            ),
+          ),
+        ),
+      };
+    final controller = InventoryProductsController(
+      inventoryManagerRepository: repository,
+    );
+
+    await controller.ensureLoaded();
+
+    final pendingResponse = Completer<InventoryProductsResponseModel>();
+    repository.pendingProductsResponse = pendingResponse;
+    final loadMoreFuture = controller.loadMoreIfNeeded(
+      FixedScrollMetrics(
+        minScrollExtent: 0,
+        maxScrollExtent: 1000,
+        pixels: 900,
+        viewportDimension: 500,
+        axisDirection: AxisDirection.down,
+        devicePixelRatio: 1,
+      ),
+    );
+
+    await Future<void>.delayed(Duration.zero);
+    expect(controller.isLoadingMore.value, isTrue);
+
+    pendingResponse.complete(
+      InventoryProductsResponseModel(
+        success: true,
+        data: InventoryProductsResponseDataModel(
+          products: InventoryProductsPageModel(
+            data: List<ProductModel>.generate(
+              5,
+              (index) => ProductModel(
+                id: index + 11,
+                name: 'Product ${index + 11}',
+                status: 'active',
+              ),
+            ),
+            currentPage: 2,
+            perPage: 10,
+            total: 15,
+            lastPage: 2,
+          ),
+        ),
+      ),
+    );
+
+    await loadMoreFuture;
+
+    expect(controller.isLoadingMore.value, isFalse);
+    expect(controller.products.length, 15);
   });
 }

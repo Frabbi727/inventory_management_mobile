@@ -92,9 +92,51 @@ class _InventoryProductsPageState extends State<InventoryProductsPage>
                 child: LinearProgressIndicator(minHeight: 2),
               ),
             Expanded(
-              child: RefreshIndicator(
-                onRefresh: controller.retry,
-                child: _InventoryProductsList(controller: controller),
+              child: Stack(
+                children: [
+                  RefreshIndicator(
+                    onRefresh: controller.retry,
+                    child: _InventoryProductsList(controller: controller),
+                  ),
+                  if (controller.isLoadingMore.value)
+                    const Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 12,
+                      child: IgnorePointer(
+                        child: Center(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(999),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Color(0x14000000),
+                                  blurRadius: 10,
+                                  offset: Offset(0, 3),
+                                ),
+                              ],
+                            ),
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 10,
+                              ),
+                              child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.4,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ],

@@ -42,6 +42,7 @@ class InventoryProductsController extends GetxController {
   bool _pendingReset = false;
   String _lastIssuedQuery = '';
   Timer? _searchDebounce;
+  bool _autoPaginationCheckQueued = false;
 
   bool get hasLoadedOnce => _hasLoadedOnce;
   bool get hasActiveSearch => searchQuery.value.isNotEmpty;
@@ -97,7 +98,9 @@ class InventoryProductsController extends GetxController {
     final hasExistingData = summary.value != null || products.isNotEmpty;
 
     if (reset) {
-      if (isInitialLoading.value || isRefreshing.value) {
+      if (isInitialLoading.value ||
+          isRefreshing.value ||
+          isLoadingMore.value) {
         _pendingReset = true;
         return;
       }
@@ -118,6 +121,11 @@ class InventoryProductsController extends GetxController {
         return;
       }
       isLoadingMore.value = true;
+      await Future<void>.delayed(Duration.zero);
+      if (isInitialLoading.value || isRefreshing.value || !_hasNextPage) {
+        isLoadingMore.value = false;
+        return;
+      }
     }
 
     final requestGeneration = _requestGeneration;
@@ -146,6 +154,7 @@ class InventoryProductsController extends GetxController {
 
       final page = response.data?.products;
       final fetchedProducts = page?.data ?? const <ProductModel>[];
+      final previousCount = products.length;
       if (reset) {
         products.assignAll(_deduplicateProducts(fetchedProducts));
       } else {
@@ -157,7 +166,22 @@ class InventoryProductsController extends GetxController {
       totalProducts.value = page?.total ?? products.length;
       final currentPage = page?.currentPage ?? pageToLoad;
       final lastPage = page?.lastPage ?? currentPage;
-      _hasNextPage = currentPage < lastPage;
+      final reportedPerPage = page?.perPage ?? _pageSize;
+      final hasNextByPage = currentPage < lastPage;
+      final hasNextByTotal =
+          (page?.total != null) && products.length < (page!.total!);
+      final hasNextByPageSize =
+          page?.total == null &&
+          page?.lastPage == null &&
+          fetchedProducts.length >= reportedPerPage;
+      _hasNextPage = hasNextByPage || hasNextByTotal || hasNextByPageSize;
+
+      if (!reset &&
+          previousCount == products.length &&
+          fetchedProducts.isNotEmpty) {
+        _hasNextPage = false;
+      }
+
       _currentPage = currentPage + 1;
       _lastIssuedQuery = requestedQuery;
       _hasLoadedOnce = true;
@@ -169,6 +193,8 @@ class InventoryProductsController extends GetxController {
       } else {
         infoMessage.value = null;
       }
+
+      _queueAutoPaginationCheck();
     } on ApiException catch (error) {
       if (requestGeneration != _requestGeneration) {
         return;
@@ -345,6 +371,30 @@ class InventoryProductsController extends GetxController {
       return;
     }
     unawaited(loadMoreIfNeeded(scrollController.position));
+  }
+
+  void _queueAutoPaginationCheck() {
+    if (_autoPaginationCheckQueued) {
+      return;
+    }
+    _autoPaginationCheckQueued = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _autoPaginationCheckQueued = false;
+      if (!scrollController.hasClients ||
+          isInitialLoading.value ||
+          isRefreshing.value ||
+          isLoadingMore.value ||
+          !_hasNextPage) {
+        return;
+      }
+
+      final metrics = scrollController.position;
+      if (metrics.maxScrollExtent <= 0 ||
+          metrics.maxScrollExtent - metrics.pixels <= 240) {
+        unawaited(loadMoreIfNeeded(metrics));
+      }
+    });
   }
 
   List<ProductModel> _deduplicateProducts(List<ProductModel> values) {

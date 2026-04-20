@@ -65,7 +65,7 @@ class InventoryHomeController extends GetxController {
     switch (index) {
       case 0:
         if (Get.isRegistered<InventoryProductsController>()) {
-          Get.find<InventoryProductsController>().onTabActivated();
+          Get.find<InventoryProductsController>().ensureLoaded();
         }
         break;
       case 1:

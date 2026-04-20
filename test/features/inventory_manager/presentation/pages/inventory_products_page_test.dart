@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
@@ -37,6 +39,10 @@ class FakeInventoryProductsRepository extends InventoryManagerRepository {
   int dashboardCallCount = 0;
   int productsCallCount = 0;
   String? lastStockFilter;
+  final List<int> requestedPages = <int>[];
+  Map<int, InventoryProductsResponseModel> pagedProductsResponses =
+      <int, InventoryProductsResponseModel>{};
+  Completer<InventoryProductsResponseModel>? pendingProductsResponse;
 
   @override
   Future<InventoryDashboardResponseModel> fetchInventoryDashboard() async {
@@ -67,6 +73,17 @@ class FakeInventoryProductsRepository extends InventoryManagerRepository {
   }) async {
     productsCallCount++;
     lastStockFilter = stockFilter;
+    requestedPages.add(page);
+
+    final pagedResponse = pagedProductsResponses[page];
+    if (pagedResponse != null) {
+      return pagedResponse;
+    }
+
+    final pendingResponse = pendingProductsResponse;
+    if (pendingResponse != null) {
+      return pendingResponse.future;
+    }
 
     final product = switch (stockFilter) {
       'low_stock' => const ProductModel(
@@ -193,5 +210,88 @@ void main() {
     expect(find.text('Purchases'), findsOneWidget);
     expect(find.text('Profile'), findsOneWidget);
     expect(find.text('Stock'), findsNothing);
+  });
+
+  testWidgets('inventory products page shows footer spinner while loading more', (
+    WidgetTester tester,
+  ) async {
+    final repository = FakeInventoryProductsRepository()
+      ..pagedProductsResponses = <int, InventoryProductsResponseModel>{
+        1: InventoryProductsResponseModel(
+          success: true,
+          data: InventoryProductsResponseDataModel(
+            products: InventoryProductsPageModel(
+              data: List<ProductModel>.generate(
+                10,
+                (index) => ProductModel(
+                  id: index + 1,
+                  name: 'Product ${index + 1}',
+                  status: 'active',
+                ),
+              ),
+              currentPage: 1,
+              perPage: 10,
+              total: 15,
+              lastPage: 2,
+            ),
+          ),
+        ),
+      };
+    Get.put<InventoryProductsController>(
+      InventoryProductsController(inventoryManagerRepository: repository),
+    );
+
+    await tester.pumpWidget(
+      const GetMaterialApp(home: Scaffold(body: InventoryProductsPage())),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    final controller = Get.find<InventoryProductsController>();
+    final pendingResponse = Completer<InventoryProductsResponseModel>();
+    repository.pendingProductsResponse = pendingResponse;
+
+    controller.loadMoreIfNeeded(
+      FixedScrollMetrics(
+        minScrollExtent: 0,
+        maxScrollExtent: 1000,
+        pixels: 900,
+        viewportDimension: 500,
+        axisDirection: AxisDirection.down,
+        devicePixelRatio: 1,
+      ),
+    );
+
+    await tester.pump();
+
+    expect(controller.isLoadingMore.value, isTrue);
+
+    pendingResponse.complete(
+      InventoryProductsResponseModel(
+        success: true,
+        data: InventoryProductsResponseDataModel(
+          products: InventoryProductsPageModel(
+            data: List<ProductModel>.generate(
+              5,
+              (index) => ProductModel(
+                id: index + 11,
+                name: 'Product ${index + 11}',
+                status: 'active',
+              ),
+            ),
+            currentPage: 2,
+            perPage: 10,
+            total: 15,
+            lastPage: 2,
+          ),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(controller.products.length, 15);
+    expect(controller.isLoadingMore.value, isFalse);
   });
 }
