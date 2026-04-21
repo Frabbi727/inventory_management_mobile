@@ -141,6 +141,7 @@ class InventoryProductsController extends GetxController {
         summary.value = dashboardResponse.data?.summary;
       }
 
+
       final response = await _inventoryManagerRepository.fetchInventoryProducts(
         stockFilter: _stockFilterApiValue(selectedStockStatus.value),
         query: requestedQuery.isEmpty ? null : requestedQuery,
