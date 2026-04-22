@@ -546,10 +546,11 @@ class InvoicePage extends GetView<InvoiceController> {
                                 spacing: 10,
                                 runSpacing: 10,
                                 children: [
-                                  _DeliveryStateChip(
+                                  _PaymentStatusChip(
                                     label: 'Not paid',
                                     selected:
                                         selectedPaymentStatus == 'not_paid',
+                                    tone: _PaymentStatusTone.notPaid,
                                     onTap: () => setModalState(
                                       () => selectedPaymentStatus =
                                           selectedPaymentStatus == 'not_paid'
@@ -557,10 +558,11 @@ class InvoicePage extends GetView<InvoiceController> {
                                           : 'not_paid',
                                     ),
                                   ),
-                                  _DeliveryStateChip(
+                                  _PaymentStatusChip(
                                     label: 'Partial',
                                     selected:
                                         selectedPaymentStatus == 'partial',
+                                    tone: _PaymentStatusTone.partial,
                                     onTap: () => setModalState(
                                       () => selectedPaymentStatus =
                                           selectedPaymentStatus == 'partial'
@@ -568,9 +570,10 @@ class InvoicePage extends GetView<InvoiceController> {
                                           : 'partial',
                                     ),
                                   ),
-                                  _DeliveryStateChip(
+                                  _PaymentStatusChip(
                                     label: 'Paid',
                                     selected: selectedPaymentStatus == 'paid',
+                                    tone: _PaymentStatusTone.paid,
                                     onTap: () => setModalState(
                                       () => selectedPaymentStatus =
                                           selectedPaymentStatus == 'paid'
@@ -1070,6 +1073,123 @@ class _DeliveryStateChip extends StatelessWidget {
   }
 }
 
+enum _PaymentStatusTone { notPaid, partial, paid }
+
+class _PaymentStatusChip extends StatelessWidget {
+  const _PaymentStatusChip({
+    required this.label,
+    required this.selected,
+    required this.tone,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final _PaymentStatusTone tone;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = _paymentStatusColorsForTone(theme.colorScheme, tone);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? colors.background : theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: selected ? colors.border : colors.muted),
+        ),
+        child: Text(
+          label,
+          style: theme.textTheme.labelLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: selected
+                ? colors.foreground
+                : theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+_PaymentStatusChipColors _paymentStatusColors(
+  ColorScheme colorScheme,
+  String? status,
+) {
+  return switch (status) {
+    'paid' => _paymentStatusColorsForTone(colorScheme, _PaymentStatusTone.paid),
+    'partial' => _paymentStatusColorsForTone(
+      colorScheme,
+      _PaymentStatusTone.partial,
+    ),
+    'not_paid' => _paymentStatusColorsForTone(
+      colorScheme,
+      _PaymentStatusTone.notPaid,
+    ),
+    _ => _PaymentStatusChipColors(
+      background: colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),
+      foreground: colorScheme.onSurfaceVariant,
+      border: colorScheme.outlineVariant,
+      muted: colorScheme.outlineVariant,
+    ),
+  };
+}
+
+_PaymentStatusChipColors _paymentStatusColorsForTone(
+  ColorScheme colorScheme,
+  _PaymentStatusTone tone,
+) {
+  return switch (tone) {
+    _PaymentStatusTone.notPaid => _PaymentStatusChipColors(
+      background: Color.alphaBlend(
+        Colors.red.withValues(alpha: 0.14),
+        colorScheme.surface,
+      ),
+      foreground: Colors.red.shade800,
+      border: Colors.red.shade500,
+      muted: Colors.red.withValues(alpha: 0.28),
+    ),
+    _PaymentStatusTone.partial => _PaymentStatusChipColors(
+      background: Color.alphaBlend(
+        Colors.amber.withValues(alpha: 0.18),
+        colorScheme.surface,
+      ),
+      foreground: Colors.amber.shade900,
+      border: Colors.amber.shade700,
+      muted: Colors.amber.withValues(alpha: 0.38),
+    ),
+    _PaymentStatusTone.paid => _PaymentStatusChipColors(
+      background: Color.alphaBlend(
+        Colors.green.withValues(alpha: 0.15),
+        colorScheme.surface,
+      ),
+      foreground: Colors.green.shade800,
+      border: Colors.green.shade600,
+      muted: Colors.green.withValues(alpha: 0.3),
+    ),
+  };
+}
+
+class _PaymentStatusChipColors {
+  const _PaymentStatusChipColors({
+    required this.background,
+    required this.foreground,
+    required this.border,
+    required this.muted,
+  });
+
+  final Color background;
+  final Color foreground;
+  final Color border;
+  final Color muted;
+}
+
 class _FilterChip extends StatelessWidget {
   const _FilterChip({required this.label});
 
@@ -1212,10 +1332,10 @@ class _OrderCard extends StatelessWidget {
                           icon: Icons.inventory_2_outlined,
                           label: '${order.items?.length ?? 0} items',
                         ),
-                        _MetaBadge(
-                          icon: Icons.payments_outlined,
-                          label:
-                              '${paymentStatusLabel(order.paymentStatus)} • Due ${formatCurrency(order.dueAmount)}',
+                        _PaymentStatusBadge(
+                          label: paymentStatusLabel(order.paymentStatus),
+                          dueAmount: formatCurrency(order.dueAmount),
+                          status: order.paymentStatus,
                         ),
                         if (onEditDraft != null)
                           TextButton.icon(
@@ -1340,6 +1460,47 @@ class _MetaBadge extends StatelessWidget {
             label,
             style: theme.textTheme.labelLarge?.copyWith(
               fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PaymentStatusBadge extends StatelessWidget {
+  const _PaymentStatusBadge({
+    required this.label,
+    required this.dueAmount,
+    required this.status,
+  });
+
+  final String label;
+  final String dueAmount;
+  final String? status;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = _paymentStatusColors(theme.colorScheme, status);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: colors.background,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: colors.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.payments_outlined, size: 16, color: colors.foreground),
+          const SizedBox(width: 6),
+          Text(
+            '$label • Due $dueAmount',
+            style: theme.textTheme.labelLarge?.copyWith(
+              color: colors.foreground,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
