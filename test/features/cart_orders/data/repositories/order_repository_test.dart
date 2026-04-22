@@ -169,6 +169,10 @@ void main() {
             equals('overdue'),
           );
           expect(
+            request.url.queryParameters['payment_status'],
+            equals('partial'),
+          );
+          expect(
             request.url.queryParameters.containsKey('customer_id'),
             isFalse,
           );
@@ -196,6 +200,7 @@ void main() {
       intendedDeliveryStart: '2026-04-10',
       intendedDeliveryEnd: '2026-04-20',
       deliveryState: 'overdue',
+      paymentStatus: 'partial',
     );
   });
 

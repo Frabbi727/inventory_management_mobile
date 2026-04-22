@@ -29,6 +29,7 @@ class InvoiceController extends GetxController {
   final intendedDeliveryStart = RxnString();
   final intendedDeliveryEnd = RxnString();
   final deliveryState = RxnString();
+  final paymentStatus = RxnString();
   final activeStatusTab = OrderListStatusFilter.draft.obs;
 
   int _currentPage = 1;
@@ -46,7 +47,8 @@ class InvoiceController extends GetxController {
       endDate.value != null ||
       intendedDeliveryStart.value != null ||
       intendedDeliveryEnd.value != null ||
-      deliveryState.value != null;
+      deliveryState.value != null ||
+      paymentStatus.value != null;
   bool get hasEffectiveSearchQuery => searchQuery.value.trim().length >= 3;
   bool get hasAnyQueryApplied => hasEffectiveSearchQuery || hasActiveFilters;
   bool get showInlineLoader => isRefreshing.value && orders.isNotEmpty;
@@ -60,6 +62,9 @@ class InvoiceController extends GetxController {
       count++;
     }
     if (deliveryState.value != null) {
+      count++;
+    }
+    if (paymentStatus.value != null) {
       count++;
     }
     return count;
@@ -121,6 +126,7 @@ class InvoiceController extends GetxController {
         intendedDeliveryStart: intendedDeliveryStart.value,
         intendedDeliveryEnd: intendedDeliveryEnd.value,
         deliveryState: deliveryState.value,
+        paymentStatus: paymentStatus.value,
       );
 
       if (requestGeneration != _requestGeneration) {
@@ -240,6 +246,7 @@ class InvoiceController extends GetxController {
     DateTimeRange? orderDateRange,
     DateTimeRange? intendedDeliveryDateRange,
     String? deliveryState,
+    String? paymentStatus,
   }) async {
     startDate.value = orderDateRange == null
         ? null
@@ -254,6 +261,7 @@ class InvoiceController extends GetxController {
         ? null
         : _formatApiDate(intendedDeliveryDateRange.end);
     this.deliveryState.value = deliveryState;
+    this.paymentStatus.value = paymentStatus;
     await fetchOrders(reset: true);
   }
 
@@ -264,6 +272,7 @@ class InvoiceController extends GetxController {
     intendedDeliveryStart.value = null;
     intendedDeliveryEnd.value = null;
     deliveryState.value = null;
+    paymentStatus.value = null;
 
     if (hadFilters) {
       await fetchOrders(reset: true);
@@ -287,6 +296,7 @@ class InvoiceController extends GetxController {
     intendedDeliveryStart.value = null;
     intendedDeliveryEnd.value = null;
     deliveryState.value = null;
+    paymentStatus.value = null;
 
     if (hadSearch || hadFilters) {
       await fetchOrders(reset: true);

@@ -70,5 +70,14 @@ void main() {
     expect(find.text('Due today'), findsOneWidget);
     expect(find.text('Due tomorrow'), findsOneWidget);
     expect(find.text('Overdue'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Payment status'),
+      120,
+      scrollable: find.byType(Scrollable).last,
+    );
+    expect(find.text('Payment status'), findsOneWidget);
+    expect(find.text('Not paid'), findsOneWidget);
+    expect(find.text('Partial'), findsOneWidget);
+    expect(find.text('Paid'), findsOneWidget);
   });
 }

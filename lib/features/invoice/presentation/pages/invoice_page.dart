@@ -231,6 +231,7 @@ class InvoicePage extends GetView<InvoiceController> {
     var orderDateRange = controller.selectedOrderDateRange;
     var plannedDeliveryRange = controller.selectedIntendedDeliveryDateRange;
     var selectedDeliveryState = controller.deliveryState.value;
+    var selectedPaymentStatus = controller.paymentStatus.value;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -514,6 +515,90 @@ class InvoicePage extends GetView<InvoiceController> {
                             ],
                           ),
                         ),
+                        const SizedBox(height: 14),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: surfaceCardColor,
+                            borderRadius: BorderRadius.circular(22),
+                            border: Border.all(color: sectionBorderColor),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Payment status',
+                                style: theme.textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: sectionLabelColor,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'Filter orders by backend payment state while keeping the current order status tab.',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Wrap(
+                                spacing: 10,
+                                runSpacing: 10,
+                                children: [
+                                  _DeliveryStateChip(
+                                    label: 'Not paid',
+                                    selected:
+                                        selectedPaymentStatus == 'not_paid',
+                                    onTap: () => setModalState(
+                                      () => selectedPaymentStatus =
+                                          selectedPaymentStatus == 'not_paid'
+                                          ? null
+                                          : 'not_paid',
+                                    ),
+                                  ),
+                                  _DeliveryStateChip(
+                                    label: 'Partial',
+                                    selected:
+                                        selectedPaymentStatus == 'partial',
+                                    onTap: () => setModalState(
+                                      () => selectedPaymentStatus =
+                                          selectedPaymentStatus == 'partial'
+                                          ? null
+                                          : 'partial',
+                                    ),
+                                  ),
+                                  _DeliveryStateChip(
+                                    label: 'Paid',
+                                    selected: selectedPaymentStatus == 'paid',
+                                    onTap: () => setModalState(
+                                      () => selectedPaymentStatus =
+                                          selectedPaymentStatus == 'paid'
+                                          ? null
+                                          : 'paid',
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (selectedPaymentStatus != null) ...[
+                                const SizedBox(height: 8),
+                                TextButton(
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: colorScheme.primary,
+                                    textStyle: theme.textTheme.bodyMedium
+                                        ?.copyWith(fontWeight: FontWeight.w700),
+                                  ),
+                                  onPressed: () {
+                                    setModalState(
+                                      () => selectedPaymentStatus = null,
+                                    );
+                                  },
+                                  child: const Text('Clear payment status'),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
                         const SizedBox(height: 20),
                         Row(
                           children: [
@@ -568,6 +653,7 @@ class InvoicePage extends GetView<InvoiceController> {
                                     intendedDeliveryDateRange:
                                         plannedDeliveryRange,
                                     deliveryState: selectedDeliveryState,
+                                    paymentStatus: selectedPaymentStatus,
                                   );
                                 },
                                 child: const Text('Apply'),

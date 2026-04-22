@@ -38,6 +38,7 @@ class OrderRepository {
     String? intendedDeliveryStart,
     String? intendedDeliveryEnd,
     String? deliveryState,
+    String? paymentStatus,
   }) async {
     final token = await _requireToken();
 
@@ -63,6 +64,9 @@ class OrderRepository {
     }
     if (deliveryState != null && deliveryState.isNotEmpty) {
       queryParameters['delivery_state'] = deliveryState;
+    }
+    if (paymentStatus != null && paymentStatus.isNotEmpty) {
+      queryParameters['payment_status'] = paymentStatus;
     }
 
     final response = await _apiClient.get(

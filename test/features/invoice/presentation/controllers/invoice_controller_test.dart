@@ -72,6 +72,7 @@ void main() {
           end: DateTime(2026, 4, 20),
         ),
         deliveryState: 'due_today',
+        paymentStatus: 'partial',
       );
       recordedQueries.clear();
 
@@ -92,6 +93,7 @@ void main() {
         equals('2026-04-20'),
       );
       expect(recordedQueries.single['delivery_state'], equals('due_today'));
+      expect(recordedQueries.single['payment_status'], equals('partial'));
     },
   );
 
@@ -113,6 +115,7 @@ void main() {
         end: DateTime(2026, 4, 20),
       ),
       deliveryState: 'overdue',
+      paymentStatus: 'paid',
     );
     recordedQueries.clear();
 
@@ -126,6 +129,7 @@ void main() {
       equals('2026-04-10'),
     );
     expect(recordedQueries.single['delivery_state'], equals('overdue'));
+    expect(recordedQueries.single['payment_status'], equals('paid'));
   });
 
   testWidgets(
@@ -146,6 +150,7 @@ void main() {
           end: DateTime(2026, 4, 20),
         ),
         deliveryState: 'due_tomorrow',
+        paymentStatus: 'not_paid',
       );
       recordedQueries.clear();
 
@@ -165,8 +170,38 @@ void main() {
         equals('2026-04-10'),
       );
       expect(recordedQueries.single['delivery_state'], equals('due_tomorrow'));
+      expect(recordedQueries.single['payment_status'], equals('not_paid'));
     },
   );
+
+  testWidgets('clearFilters resets payment status with sheet filters', (
+    tester,
+  ) async {
+    final recordedQueries = <Map<String, String>>[];
+    final controller = InvoiceController(
+      orderRepository: createRepository(recordedQueries),
+    );
+
+    await controller.applyFilters(
+      orderDateRange: DateTimeRange(
+        start: DateTime(2026, 4, 1),
+        end: DateTime(2026, 4, 30),
+      ),
+      deliveryState: 'overdue',
+      paymentStatus: 'partial',
+    );
+    recordedQueries.clear();
+
+    expect(controller.activeFilterCount, equals(3));
+
+    await controller.clearFilters();
+
+    expect(controller.hasActiveFilters, isFalse);
+    expect(controller.paymentStatus.value, isNull);
+    expect(controller.activeFilterCount, equals(0));
+    expect(recordedQueries, hasLength(1));
+    expect(recordedQueries.single.containsKey('payment_status'), isFalse);
+  });
 
   testWidgets('clearAllCriteria resets supported filters and search state', (
     tester,
@@ -188,6 +223,7 @@ void main() {
         end: DateTime(2026, 4, 20),
       ),
       deliveryState: 'overdue',
+      paymentStatus: 'paid',
     );
     recordedQueries.clear();
 
@@ -201,6 +237,7 @@ void main() {
     expect(controller.selectedOrderDateRange, isNull);
     expect(controller.selectedIntendedDeliveryDateRange, isNull);
     expect(controller.deliveryState.value, isNull);
+    expect(controller.paymentStatus.value, isNull);
     expect(recordedQueries, hasLength(1));
     expect(recordedQueries.single.containsKey('q'), isFalse);
     expect(recordedQueries.single.containsKey('start_date'), isFalse);
@@ -209,6 +246,7 @@ void main() {
       isFalse,
     );
     expect(recordedQueries.single.containsKey('delivery_state'), isFalse);
+    expect(recordedQueries.single.containsKey('payment_status'), isFalse);
     expect(recordedQueries.single['status'], equals('draft'));
   });
 
@@ -234,4 +272,25 @@ void main() {
       expect(recordedQueries.single['delivery_state'], equals('overdue'));
     },
   );
+
+  testWidgets('dashboard view preserves active payment status filter', (
+    tester,
+  ) async {
+    final recordedQueries = <Map<String, String>>[];
+    final controller = InvoiceController(
+      orderRepository: createRepository(recordedQueries),
+    );
+
+    controller.paymentStatus.value = 'not_paid';
+
+    await controller.applyDashboardView(
+      statusFilter: OrderListStatusFilter.all,
+      startDate: DateTime(2026, 4, 1),
+      endDate: DateTime(2026, 4, 30),
+      deliveryState: 'overdue',
+    );
+
+    expect(recordedQueries, hasLength(1));
+    expect(recordedQueries.single['payment_status'], equals('not_paid'));
+  });
 }
