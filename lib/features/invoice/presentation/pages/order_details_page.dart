@@ -115,6 +115,11 @@ class OrderDetailsPage extends GetView<OrderDetailsController> {
                   subtotal: controller.formatCurrency(order.subtotal),
                   discount: controller.formatCurrency(order.discountAmount),
                   grandTotal: controller.formatCurrency(order.grandTotal),
+                  paid: controller.formatCurrency(order.paymentAmount),
+                  due: controller.formatCurrency(order.dueAmount),
+                  paymentStatus: controller.paymentStatusLabel(
+                    order.paymentStatus,
+                  ),
                   note: order.note,
                 ),
               ),
@@ -487,12 +492,18 @@ class _SummaryCard extends StatelessWidget {
     required this.subtotal,
     required this.discount,
     required this.grandTotal,
+    required this.paid,
+    required this.due,
+    required this.paymentStatus,
     required this.note,
   });
 
   final String subtotal;
   final String discount;
   final String grandTotal;
+  final String paid;
+  final String due;
+  final String paymentStatus;
   final String? note;
 
   @override
@@ -508,6 +519,12 @@ class _SummaryCard extends StatelessWidget {
             _SummaryRow(label: 'Subtotal', value: subtotal),
             const SizedBox(height: 14),
             _SummaryRow(label: 'Discount', value: discount),
+            const SizedBox(height: 14),
+            _SummaryRow(label: 'Paid', value: paid),
+            const SizedBox(height: 14),
+            _SummaryRow(label: 'Due', value: due),
+            const SizedBox(height: 14),
+            _SummaryRow(label: 'Payment status', value: paymentStatus),
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 16),
               child: Divider(height: 1),

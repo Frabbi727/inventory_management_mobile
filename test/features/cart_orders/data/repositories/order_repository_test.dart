@@ -42,6 +42,7 @@ void main() {
           );
           expect(body['discount_type'], equals('amount'));
           expect(body['discount_value'], equals(100));
+          expect(body['payment_amount'], equals(1300));
           expect(body['items'], isA<List<dynamic>>());
 
           return http.Response(
@@ -51,6 +52,9 @@ void main() {
                 'id': 99,
                 'order_no': 'ORD-ABC12345',
                 'grand_total': 1400,
+                'payment_amount': 1300,
+                'payment_status': 'partial',
+                'due_amount': 100,
               },
             }),
             200,
@@ -69,12 +73,16 @@ void main() {
         note: 'Deliver quickly',
         discountType: 'amount',
         discountValue: 100,
+        paymentAmount: 1300,
         items: [OrderItemRequestModel(productId: 1, quantity: 2)],
       ),
     );
 
     expect(response.message, equals('Order created successfully.'));
     expect(response.data?.orderNo, equals('ORD-ABC12345'));
+    expect(response.data?.paymentAmount, equals(1300));
+    expect(response.data?.paymentStatus, equals('partial'));
+    expect(response.data?.dueAmount, equals(100));
   });
 
   test('fetchOrders sends page query with auth header', () async {
@@ -102,6 +110,9 @@ void main() {
                   'confirmed_at': '2026-04-07T10:15:00.000000Z',
                   'delivered_at': '2026-04-07T10:15:00.000000Z',
                   'grand_total': 85,
+                  'payment_amount': 85,
+                  'payment_status': 'paid',
+                  'due_amount': 0,
                   'status': 'confirmed',
                   'customer': {
                     'id': 2,

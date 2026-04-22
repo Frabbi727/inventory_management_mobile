@@ -13,6 +13,7 @@ class CreateOrderRequestModel {
     this.note,
     this.discountType,
     this.discountValue,
+    this.paymentAmount,
     this.items,
   });
 
@@ -32,6 +33,9 @@ class CreateOrderRequestModel {
 
   @JsonKey(name: 'discount_value')
   final num? discountValue;
+
+  @JsonKey(name: 'payment_amount')
+  final num? paymentAmount;
 
   final List<OrderItemRequestModel>? items;
 

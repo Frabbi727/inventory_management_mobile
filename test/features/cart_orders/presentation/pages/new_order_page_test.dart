@@ -13,6 +13,7 @@ import 'package:b2b_inventory_management/features/cart_orders/presentation/contr
 import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/order_cart_step_controller.dart';
 import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/order_confirm_step_controller.dart';
 import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/order_customer_step_controller.dart';
+import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/order_payment_step_controller.dart';
 import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/order_products_step_controller.dart';
 import 'package:b2b_inventory_management/features/cart_orders/presentation/pages/new_order_page.dart';
 import 'package:b2b_inventory_management/features/customers/data/models/customer_model.dart';
@@ -141,6 +142,7 @@ void main() {
       ),
     );
     Get.put(OrderCartStepController(cartController: cartController));
+    Get.put(OrderPaymentStepController(cartController: cartController));
     Get.put(OrderConfirmStepController(cartController: cartController));
 
     await tester.pumpWidget(const GetMaterialApp(home: NewOrderPage()));
@@ -178,10 +180,35 @@ void main() {
       scrollable: find.byType(Scrollable).first,
     );
     expect(find.text('Intended delivery'), findsOneWidget);
-    expect(find.text('Continue to Confirm'), findsOneWidget);
+    expect(find.text('Discount'), findsNothing);
+    expect(find.text('Continue to Payment'), findsOneWidget);
+
+    cartController.setIntendedDeliveryAt(DateTime(2026, 4, 17, 15, 30));
+    cartController.goToStep(CartController.paymentStep);
+    await tester.pumpAndSettle();
+    expect(find.text('Payment'), findsWidgets);
+    expect(find.text('Discount'), findsWidgets);
+    expect(find.text('Amount'), findsOneWidget);
+    expect(find.text('Percent'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Payment amount'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Payment amount'), findsOneWidget);
+    expect(find.text('Review Order'), findsOneWidget);
+    expect(find.text('Save Draft'), findsNothing);
+    expect(find.text('Confirm Order'), findsNothing);
 
     cartController.goToStep(CartController.confirmStep);
     await tester.pumpAndSettle();
     expect(find.text('Confirm order'), findsOneWidget);
+    expect(find.text('Save Draft'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Payment summary'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Payment summary'), findsOneWidget);
   });
 }

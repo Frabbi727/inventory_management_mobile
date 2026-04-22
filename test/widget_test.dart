@@ -243,6 +243,9 @@ void main() {
         'discount_value': 4,
         'discount_amount': 4,
         'grand_total': 100,
+        'payment_amount': 100,
+        'payment_status': 'paid',
+        'due_amount': 0,
         'status': status,
         'note': 'Deliver quickly',
         'customer': {
@@ -1072,6 +1075,7 @@ void main() {
         expect(body['customer_id'], equals(1));
         expect((body['items'] as List<dynamic>).first['product_id'], equals(2));
         expect((body['items'] as List<dynamic>).first['quantity'], equals(2));
+        expect(body['payment_amount'], equals(100));
 
         return http.Response(
           jsonEncode(
@@ -1100,14 +1104,16 @@ void main() {
     );
     cartController.setDiscountType('amount');
     cartController.onDiscountValueChanged('4');
+    cartController.setIntendedDeliveryAt(DateTime(2026, 4, 17, 15, 30));
+    cartController.onPaymentAmountChanged('100');
     cartController.noteController.text = 'Deliver quickly';
 
-    await cartController.submitOrder();
+    final response = await cartController.submitOrder();
     await tester.pumpAndSettle();
 
-    expect(find.text('Order summary'), findsOneWidget);
-    expect(find.text('ORD-ABC12345'), findsOneWidget);
-    expect(find.text('View Orders'), findsOneWidget);
+    expect(response?.data?.orderNo, equals('ORD-ABC12345'));
+    expect(response?.data?.status, equals('confirmed'));
+    expect(cartController.items, isEmpty);
   });
 
   testWidgets(

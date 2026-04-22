@@ -15,6 +15,7 @@ CreateOrderRequestModel _$CreateOrderRequestModelFromJson(
   note: json['note'] as String?,
   discountType: json['discount_type'] as String?,
   discountValue: json['discount_value'] as num?,
+  paymentAmount: json['payment_amount'] as num?,
   items: (json['items'] as List<dynamic>?)
       ?.map((e) => OrderItemRequestModel.fromJson(e as Map<String, dynamic>))
       .toList(),
@@ -29,5 +30,6 @@ Map<String, dynamic> _$CreateOrderRequestModelToJson(
   'note': instance.note,
   'discount_type': instance.discountType,
   'discount_value': instance.discountValue,
+  'payment_amount': instance.paymentAmount,
   'items': instance.items?.map((e) => e.toJson()).toList(),
 };

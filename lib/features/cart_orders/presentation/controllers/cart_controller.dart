@@ -18,7 +18,8 @@ class CartController extends GetxController {
   static const int customerStep = 0;
   static const int productsStep = 1;
   static const int cartStep = 2;
-  static const int confirmStep = 3;
+  static const int paymentStep = 3;
+  static const int confirmStep = 4;
 
   CartController({
     required OrderRepository orderRepository,
@@ -34,6 +35,7 @@ class CartController extends GetxController {
   final currentStep = 0.obs;
   final discountType = RxnString();
   final discountValue = Rxn<num>();
+  final newPaymentAmount = Rxn<num>();
   final noteText = ''.obs;
   final selectedOrderDate = DateTime.now().obs;
   final selectedIntendedDeliveryAt = Rxn<DateTime>();
@@ -46,12 +48,14 @@ class CartController extends GetxController {
 
   final noteController = TextEditingController();
   final discountValueController = TextEditingController();
+  final paymentAmountController = TextEditingController();
 
   @override
   void onInit() {
     super.onInit();
     noteController.addListener(_syncNoteText);
     discountValueController.addListener(_syncDiscountValue);
+    paymentAmountController.addListener(_syncPaymentAmount);
   }
 
   int _indexOfLine(int? productId, int? productVariantId) {
@@ -219,6 +223,7 @@ class CartController extends GetxController {
   bool get canConfirm =>
       canSaveDraft &&
       !hasKnownStockIssues &&
+      isPaymentComplete &&
       (savedDraftOrder.value?.status ?? 'draft') != 'confirmed';
   bool get showFooterTotals => currentStep.value != customerStep && hasItems;
   bool get isExistingDraft => savedDraftOrder.value?.status == 'draft';
@@ -234,6 +239,32 @@ class CartController extends GetxController {
   num get displayGrandTotal => _canUseSavedDraftTotals
       ? (savedDraftOrder.value?.grandTotal ?? grandTotal)
       : grandTotal;
+  num get savedPaymentAmount =>
+      _normalizeMoney(savedDraftOrder.value?.paymentAmount ?? 0);
+  num get enteredPaymentAmount => _normalizeMoney(newPaymentAmount.value ?? 0);
+  num get cumulativePaymentAmount =>
+      _normalizeMoney(savedPaymentAmount + enteredPaymentAmount);
+  num get displayDueAmount {
+    if (_canUseSavedDraftTotals && enteredPaymentAmount == 0) {
+      return _normalizeMoney(savedDraftOrder.value?.dueAmount ?? 0);
+    }
+
+    final due = displayGrandTotal - cumulativePaymentAmount;
+    return _normalizeMoney(due < 0 ? 0 : due);
+  }
+
+  String get displayPaymentStatus {
+    if (cumulativePaymentAmount <= 0) {
+      return 'not_paid';
+    }
+    if (displayDueAmount <= 0) {
+      return 'paid';
+    }
+    return 'partial';
+  }
+
+  bool get isPaymentComplete =>
+      displayGrandTotal <= 0 || cumulativePaymentAmount >= displayGrandTotal;
 
   String? get apiDiscountType {
     if (_isPercentageDiscount(discountType.value)) {
@@ -303,6 +334,8 @@ class CartController extends GetxController {
         return hasItems;
       case cartStep:
         return hasItems;
+      case paymentStep:
+        return canSaveDraft;
       default:
         return canSaveDraft;
     }
@@ -332,6 +365,7 @@ class CartController extends GetxController {
     currentStep.value = customerStep;
     discountType.value = null;
     discountValue.value = null;
+    newPaymentAmount.value = null;
     noteText.value = '';
     selectedOrderDate.value = DateTime.now();
     selectedIntendedDeliveryAt.value = null;
@@ -341,6 +375,7 @@ class CartController extends GetxController {
     infoMessage.value = null;
     noteController.clear();
     discountValueController.clear();
+    paymentAmountController.clear();
   }
 
   void startNewOrder() {
@@ -424,6 +459,31 @@ class CartController extends GetxController {
     _markDraftDirty();
   }
 
+  void onPaymentAmountChanged(String value) {
+    newPaymentAmount.value = _parseMoneyValue(value.trim());
+    _markDraftDirty();
+  }
+
+  void normalizePaymentInputText() {
+    final normalizedValue = enteredPaymentAmount;
+    if (normalizedValue <= 0) {
+      if (paymentAmountController.text.isNotEmpty) {
+        paymentAmountController.clear();
+      }
+      return;
+    }
+
+    final normalizedText = normalizedValue.toStringAsFixed(2);
+    if (paymentAmountController.text == normalizedText) {
+      return;
+    }
+
+    paymentAmountController.value = TextEditingValue(
+      text: normalizedText,
+      selection: TextSelection.collapsed(offset: normalizedText.length),
+    );
+  }
+
   void normalizeDiscountInputText() {
     final normalizedValue = appliedDiscountValue;
     if (normalizedValue == null) {
@@ -455,6 +515,10 @@ class CartController extends GetxController {
 
     if (step == cartStep && !hasItems) {
       return 'Your cart is empty. Add products to continue.';
+    }
+
+    if (step == paymentStep && !canSaveDraft) {
+      return 'Complete customer, products, and delivery details before payment.';
     }
 
     return null;
@@ -508,6 +572,8 @@ class CartController extends GetxController {
 
       if (response.data != null) {
         savedDraftOrder.value = response.data;
+        newPaymentAmount.value = null;
+        paymentAmountController.clear();
         hasUnsavedDraftChanges.value = false;
         infoMessage.value = response.data?.status == 'draft'
             ? 'Draft saved. You can keep editing before confirming.'
@@ -550,6 +616,12 @@ class CartController extends GetxController {
       return null;
     }
 
+    if (!isPaymentComplete) {
+      errorMessage.value =
+          'Full payment is required before confirming this order.';
+      return null;
+    }
+
     errorMessage.value = null;
     infoMessage.value = null;
     isSubmitting.value = true;
@@ -569,7 +641,15 @@ class CartController extends GetxController {
           return null;
         }
         savedDraftOrder.value = draftResponse.data;
+        newPaymentAmount.value = null;
+        paymentAmountController.clear();
         hasUnsavedDraftChanges.value = false;
+        if ((draftResponse.data?.paymentStatus ?? displayPaymentStatus) !=
+            'paid') {
+          errorMessage.value =
+              'Full payment is required before confirming this order.';
+          return null;
+        }
       }
 
       final response = await _orderRepository.confirmOrder(orderId);
@@ -694,8 +774,10 @@ class CartController extends GetxController {
         draftOrder.intendedDeliveryAt,
       );
       savedDraftOrder.value = draftOrder;
+      newPaymentAmount.value = null;
+      paymentAmountController.clear();
       hasUnsavedDraftChanges.value = false;
-      currentStep.value = confirmStep;
+      currentStep.value = paymentStep;
       infoMessage.value =
           'Draft ${draftOrder.orderNo ?? ''} loaded. You can edit, save, and confirm it from here.'
               .trim();
@@ -715,7 +797,9 @@ class CartController extends GetxController {
       case productsStep:
         return 'Review Cart';
       case cartStep:
-        return 'Continue to Confirm';
+        return 'Continue to Payment';
+      case paymentStep:
+        return 'Review Order';
       default:
         return 'Confirm Order';
     }
@@ -787,6 +871,16 @@ class CartController extends GetxController {
     discountValue.value = _parseDiscountValue(rawValue);
   }
 
+  void _syncPaymentAmount() {
+    final rawValue = paymentAmountController.text.trim();
+    if (rawValue.isEmpty) {
+      newPaymentAmount.value = null;
+      return;
+    }
+
+    newPaymentAmount.value = _parseMoneyValue(rawValue);
+  }
+
   num _normalizeMoney(num value) {
     return num.parse(value.toStringAsFixed(2));
   }
@@ -803,6 +897,15 @@ class CartController extends GetxController {
     }
 
     return _normalizeMoney(nonNegativeValue);
+  }
+
+  num? _parseMoneyValue(String rawValue) {
+    final parsedValue = num.tryParse(rawValue);
+    if (parsedValue == null) {
+      return null;
+    }
+
+    return _normalizeMoney(parsedValue < 0 ? 0 : parsedValue);
   }
 
   bool _isPercentageDiscount(String? value) {
@@ -822,6 +925,7 @@ class CartController extends GetxController {
       note: noteText.value.trim().isEmpty ? null : noteText.value.trim(),
       discountType: apiDiscountType,
       discountValue: appliedDiscountValue,
+      paymentAmount: cumulativePaymentAmount,
       items: items
           .where((item) => item.productId != null)
           .map(
@@ -913,8 +1017,10 @@ class CartController extends GetxController {
   void onClose() {
     noteController.removeListener(_syncNoteText);
     discountValueController.removeListener(_syncDiscountValue);
+    paymentAmountController.removeListener(_syncPaymentAmount);
     noteController.dispose();
     discountValueController.dispose();
+    paymentAmountController.dispose();
     super.onClose();
   }
 }

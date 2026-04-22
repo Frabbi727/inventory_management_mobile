@@ -11,6 +11,7 @@ import 'package:b2b_inventory_management/features/cart_orders/presentation/contr
 import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/order_cart_step_controller.dart';
 import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/order_confirm_step_controller.dart';
 import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/order_customer_step_controller.dart';
+import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/order_payment_step_controller.dart';
 import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/order_products_step_controller.dart';
 import 'package:b2b_inventory_management/features/customers/data/models/customer_model.dart';
 import 'package:b2b_inventory_management/features/customers/data/repositories/customer_repository.dart';
@@ -223,6 +224,7 @@ void main() {
         ),
       );
       cartController.setIntendedDeliveryAt(DateTime(2026, 4, 17, 15, 30));
+      cartController.onPaymentAmountChanged('52');
 
       final controller = Get.put(
         OrderConfirmStepController(cartController: cartController),
@@ -232,4 +234,31 @@ void main() {
       expect(controller.cartController.canConfirm, isTrue);
     },
   );
+
+  test('payment step controller exposes cumulative payment state', () {
+    final cartController = Get.put(createCartController());
+    cartController.setSelectedCustomer(
+      const CustomerModel(id: 1, name: 'Rahman'),
+    );
+    cartController.addProduct(
+      const ProductModel(
+        id: 7,
+        name: 'Milk',
+        sellingPrice: 52,
+        currentStock: 5,
+      ),
+    );
+    cartController.setIntendedDeliveryAt(DateTime(2026, 4, 17, 15, 30));
+
+    final controller = Get.put(
+      OrderPaymentStepController(cartController: cartController),
+    );
+
+    controller.cartController.onPaymentAmountChanged('20');
+
+    expect(controller.cartController.enteredPaymentAmount, 20);
+    expect(controller.cartController.cumulativePaymentAmount, 20);
+    expect(controller.cartController.displayPaymentStatus, 'partial');
+    expect(controller.cartController.canConfirm, isFalse);
+  });
 }

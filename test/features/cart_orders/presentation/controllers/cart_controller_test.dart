@@ -262,6 +262,7 @@ void main() {
             expect(body['customer_id'], equals(5));
             expect((body['items'] as List<dynamic>).length, equals(1));
             expect(body['items'][0]['product_variant_id'], 101);
+            expect(body['payment_amount'], 40);
             expect(
               body['intended_delivery_at'],
               contains('2026-04-17T15:30:00'),
@@ -274,6 +275,9 @@ void main() {
                   'id': 9,
                   'order_no': 'ORD-009',
                   'grand_total': 104,
+                  'payment_amount': 40,
+                  'payment_status': 'paid',
+                  'due_amount': 0,
                   'status': 'draft',
                 },
               }),
@@ -292,6 +296,9 @@ void main() {
                 'id': 9,
                 'order_no': 'ORD-009',
                 'grand_total': 104,
+                'payment_amount': 104,
+                'payment_status': 'paid',
+                'due_amount': 0,
                 'status': 'confirmed',
               },
             }),
@@ -318,6 +325,7 @@ void main() {
         const CustomerModel(id: 5, name: 'Rahman'),
       );
       controller.setIntendedDeliveryAt(DateTime(2026, 4, 17, 15, 30));
+      controller.onPaymentAmountChanged('40');
 
       final response = await controller.submitOrder();
 
@@ -351,5 +359,74 @@ void main() {
       ),
     );
     expect(controller.canSaveDraft, isFalse);
+  });
+
+  test('repeated draft payment sends cumulative payment amount', () async {
+    var requestCount = 0;
+    final controller = CartController(
+      orderRepository: createRepository((request) async {
+        requestCount += 1;
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+
+        if (requestCount == 1) {
+          expect(body['payment_amount'], 20);
+          return http.Response(
+            jsonEncode({
+              'message': 'Draft saved successfully.',
+              'data': {
+                'id': 11,
+                'order_no': 'ORD-011',
+                'grand_total': 52,
+                'payment_amount': 20,
+                'payment_status': 'partial',
+                'due_amount': 32,
+                'status': 'draft',
+              },
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+
+        expect(body['payment_amount'], 52);
+        return http.Response(
+          jsonEncode({
+            'message': 'Draft saved successfully.',
+            'data': {
+              'id': 11,
+              'order_no': 'ORD-011',
+              'grand_total': 52,
+              'payment_amount': 52,
+              'payment_status': 'paid',
+              'due_amount': 0,
+              'status': 'draft',
+            },
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+      productRepository: createProductRepository((request) async {
+        return http.Response('{}', 200);
+      }),
+    );
+
+    controller.addProduct(product);
+    controller.setSelectedCustomer(const CustomerModel(id: 5, name: 'Rahman'));
+    controller.setIntendedDeliveryAt(DateTime(2026, 4, 17, 15, 30));
+
+    controller.onPaymentAmountChanged('20');
+    final firstResponse = await controller.saveDraft();
+    expect(firstResponse?.data?.paymentStatus, 'partial');
+    expect(controller.savedPaymentAmount, 20);
+    expect(controller.enteredPaymentAmount, 0);
+    expect(controller.canConfirm, isFalse);
+
+    controller.onPaymentAmountChanged('32');
+    final secondResponse = await controller.saveDraft();
+    expect(secondResponse?.data?.paymentStatus, 'paid');
+    expect(controller.savedPaymentAmount, 52);
+    expect(controller.displayDueAmount, 0);
+    expect(controller.canConfirm, isTrue);
   });
 }

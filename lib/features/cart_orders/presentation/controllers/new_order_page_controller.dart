@@ -4,6 +4,7 @@ import '../models/order_flow_step.dart';
 import '../pages/new_order/order_cart_step_page.dart';
 import '../pages/new_order/order_confirm_step_page.dart';
 import '../pages/new_order/order_customer_step_page.dart';
+import '../pages/new_order/order_payment_step_page.dart';
 import '../pages/new_order/order_products_step_page.dart';
 import 'cart_controller.dart';
 
@@ -30,6 +31,11 @@ class NewOrderPageController extends GetxController {
       builder: (_) => const OrderCartStepPage(),
     ),
     OrderFlowStep(
+      index: CartController.paymentStep,
+      title: 'Payment',
+      builder: (_) => const OrderPaymentStepPage(),
+    ),
+    OrderFlowStep(
       index: CartController.confirmStep,
       title: 'Confirm',
       builder: (_) => const OrderConfirmStepPage(),
@@ -43,6 +49,9 @@ class NewOrderPageController extends GetxController {
 
   String primaryLabel(int step) {
     if (step == CartController.confirmStep && !cartController.canConfirm) {
+      if (!cartController.isPaymentComplete) {
+        return 'Complete Payment';
+      }
       return 'Resolve Stock Warnings';
     }
 

@@ -203,6 +203,8 @@ class InvoicePage extends GetView<InvoiceController> {
                                     order: order,
                                     formatCurrency: controller.formatCurrency,
                                     formatDate: controller.formatDate,
+                                    paymentStatusLabel:
+                                        controller.paymentStatusLabel,
                                     onTap: () => _openOrderDetails(order),
                                     onEditDraft: order.status == 'draft'
                                         ? () => _editDraft(order)
@@ -1012,6 +1014,7 @@ class _OrderCard extends StatelessWidget {
     required this.order,
     required this.formatCurrency,
     required this.formatDate,
+    required this.paymentStatusLabel,
     required this.onTap,
     this.onEditDraft,
     this.onDeleteDraft,
@@ -1020,6 +1023,7 @@ class _OrderCard extends StatelessWidget {
   final OrderModel order;
   final String Function(num? value) formatCurrency;
   final String Function(String? value) formatDate;
+  final String Function(String? value) paymentStatusLabel;
   final VoidCallback onTap;
   final VoidCallback? onEditDraft;
   final VoidCallback? onDeleteDraft;
@@ -1121,6 +1125,11 @@ class _OrderCard extends StatelessWidget {
                         _MetaBadge(
                           icon: Icons.inventory_2_outlined,
                           label: '${order.items?.length ?? 0} items',
+                        ),
+                        _MetaBadge(
+                          icon: Icons.payments_outlined,
+                          label:
+                              '${paymentStatusLabel(order.paymentStatus)} • Due ${formatCurrency(order.dueAmount)}',
                         ),
                         if (onEditDraft != null)
                           TextButton.icon(

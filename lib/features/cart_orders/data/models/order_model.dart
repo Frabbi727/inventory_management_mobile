@@ -20,6 +20,9 @@ class OrderModel {
     this.discountValue,
     this.discountAmount,
     this.grandTotal,
+    this.paymentAmount,
+    this.paymentStatus,
+    this.dueAmount,
     this.status,
     this.note,
     this.customer,
@@ -59,6 +62,15 @@ class OrderModel {
 
   @JsonKey(name: 'grand_total')
   final num? grandTotal;
+
+  @JsonKey(name: 'payment_amount')
+  final num? paymentAmount;
+
+  @JsonKey(name: 'payment_status')
+  final String? paymentStatus;
+
+  @JsonKey(name: 'due_amount')
+  final num? dueAmount;
 
   final String? status;
   final String? note;

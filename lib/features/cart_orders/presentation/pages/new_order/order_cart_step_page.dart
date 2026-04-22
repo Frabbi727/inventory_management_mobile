@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import '../../controllers/order_cart_step_controller.dart';
@@ -20,9 +19,6 @@ class OrderCartStepPage extends GetView<OrderCartStepController> {
       }
 
       final customer = cartController.selectedCustomer.value;
-      final discountType = cartController.discountType.value;
-      final showDiscountField = discountType != null;
-
       return ListView(
         padding: const EdgeInsets.only(bottom: 120),
         children: [
@@ -60,76 +56,6 @@ class OrderCartStepPage extends GetView<OrderCartStepController> {
             ),
             const SizedBox(height: 12),
           ],
-          const SizedBox(height: 16),
-          CartSectionCard(
-            title: 'Discount',
-            subtitle:
-                'Select the discount type first, then enter a value if needed.',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    DiscountChip(
-                      label: 'None',
-                      selected: discountType == null,
-                      onTap: () => cartController.setDiscountType(null),
-                    ),
-                    DiscountChip(
-                      label: 'Amount',
-                      selected: discountType == 'amount',
-                      onTap: () => cartController.setDiscountType('amount'),
-                    ),
-                    DiscountChip(
-                      label: 'Percent',
-                      selected: discountType == 'percentage',
-                      onTap: () => cartController.setDiscountType('percentage'),
-                    ),
-                  ],
-                ),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 180),
-                  switchInCurve: Curves.easeOut,
-                  switchOutCurve: Curves.easeOut,
-                  child: showDiscountField
-                      ? Padding(
-                          key: ValueKey(discountType),
-                          padding: const EdgeInsets.only(top: 14),
-                          child: TextField(
-                            controller: cartController.discountValueController,
-                            keyboardType: const TextInputType.numberWithOptions(
-                              decimal: true,
-                            ),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(
-                                RegExp(r'^\d*\.?\d{0,2}$'),
-                              ),
-                            ],
-                            onChanged: cartController.onDiscountValueChanged,
-                            onEditingComplete: () {
-                              cartController.normalizeDiscountInputText();
-                              FocusScope.of(context).unfocus();
-                            },
-                            decoration: InputDecoration(
-                              labelText: discountType == 'percentage'
-                                  ? 'Discount percent'
-                                  : 'Discount amount',
-                              hintText: discountType == 'percentage'
-                                  ? 'Enter percentage discount'
-                                  : 'Enter fixed discount amount',
-                              helperText: discountType == 'percentage'
-                                  ? 'Allowed range: 0.00% to 100.00%'
-                                  : null,
-                            ),
-                          ),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-              ],
-            ),
-          ),
           const SizedBox(height: 16),
           CartSectionCard(
             title: 'Intended delivery',

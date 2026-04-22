@@ -118,6 +118,51 @@ class OrderConfirmStepPage extends GetView<OrderConfirmStepController> {
               ],
             ),
           ),
+          const SizedBox(height: 16),
+          CartSectionCard(
+            title: 'Payment summary',
+            child: Column(
+              children: [
+                TotalRow(
+                  label: 'Previously paid',
+                  value: cartController.formatCurrency(
+                    cartController.savedPaymentAmount,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TotalRow(
+                  label: 'New payment',
+                  value: cartController.formatCurrency(
+                    cartController.enteredPaymentAmount,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TotalRow(
+                  label: 'Total paid',
+                  value: cartController.formatCurrency(
+                    cartController.cumulativePaymentAmount,
+                  ),
+                  strong: true,
+                ),
+                const SizedBox(height: 12),
+                TotalRow(
+                  label: 'Due amount',
+                  value: cartController.formatCurrency(
+                    cartController.displayDueAmount,
+                  ),
+                  highlighted: cartController.displayDueAmount > 0,
+                ),
+                const SizedBox(height: 12),
+                TotalRow(
+                  label: 'Payment status',
+                  value: _paymentStatusLabel(
+                    cartController.displayPaymentStatus,
+                  ),
+                  highlighted: cartController.displayPaymentStatus != 'paid',
+                ),
+              ],
+            ),
+          ),
           if (cartController.noteText.value.trim().isNotEmpty) ...[
             const SizedBox(height: 16),
             CartSectionCard(
@@ -131,5 +176,16 @@ class OrderConfirmStepPage extends GetView<OrderConfirmStepController> {
         ],
       );
     });
+  }
+
+  String _paymentStatusLabel(String value) {
+    switch (value) {
+      case 'paid':
+        return 'Paid';
+      case 'partial':
+        return 'Partial';
+      default:
+        return 'Not paid';
+    }
   }
 }

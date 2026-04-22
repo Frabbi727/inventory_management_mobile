@@ -10,6 +10,7 @@ import '../controllers/new_order_page_controller.dart';
 import '../controllers/order_cart_step_controller.dart';
 import '../controllers/order_confirm_step_controller.dart';
 import '../controllers/order_customer_step_controller.dart';
+import '../controllers/order_payment_step_controller.dart';
 import '../controllers/order_products_step_controller.dart';
 
 class NewOrderBinding extends Bindings {
@@ -66,6 +67,10 @@ class NewOrderBinding extends Bindings {
 
     if (!Get.isRegistered<OrderCartStepController>()) {
       Get.lazyPut(() => OrderCartStepController(cartController: Get.find()));
+    }
+
+    if (!Get.isRegistered<OrderPaymentStepController>()) {
+      Get.lazyPut(() => OrderPaymentStepController(cartController: Get.find()));
     }
 
     if (!Get.isRegistered<OrderConfirmStepController>()) {

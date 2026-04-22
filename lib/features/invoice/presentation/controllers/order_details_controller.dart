@@ -61,11 +61,20 @@ class OrderDetailsController extends GetxController {
       return '-';
     }
 
-    if (value == value.roundToDouble()) {
-      return '৳${value.toInt()}';
-    }
-
     return '৳${value.toStringAsFixed(2)}';
+  }
+
+  String paymentStatusLabel(String? value) {
+    switch (value) {
+      case 'paid':
+        return 'Paid';
+      case 'partial':
+        return 'Partial';
+      case 'not_paid':
+        return 'Not paid';
+      default:
+        return '-';
+    }
   }
 
   String formatDate(String? value) {
