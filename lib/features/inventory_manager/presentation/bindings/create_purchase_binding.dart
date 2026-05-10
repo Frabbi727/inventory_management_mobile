@@ -10,6 +10,7 @@ class CreatePurchaseBinding extends Bindings {
     Get.lazyPut(
       () => CreatePurchaseController(
         productRepository: Get.find(),
+        productCacheRepository: Get.find(),
         inventoryManagerRepository: Get.find(),
       ),
     );

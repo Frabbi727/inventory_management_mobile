@@ -11,6 +11,7 @@ import '../../../customers/presentation/controllers/customer_search_controller.d
 import '../../../dashboard/presentation/controllers/home_dashboard_controller.dart';
 import '../../../invoice/presentation/controllers/invoice_controller.dart';
 import '../../../invoice/presentation/models/order_list_status_filter.dart';
+import '../../../../core/offline/sync_manager.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
 
@@ -30,6 +31,9 @@ class HomeController extends GetxController {
   final user = Rxn<UserModel>();
   final isLoggingOut = false.obs;
   final selectedIndex = 0.obs;
+
+  SyncManager? get syncManager =>
+      Get.isRegistered<SyncManager>() ? Get.find<SyncManager>() : null;
 
   NotificationController? get notificationController =>
       Get.isRegistered<NotificationController>()

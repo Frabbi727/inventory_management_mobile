@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/storage/token_storage.dart';
 import '../../../auth/presentation/bindings/auth_dependencies.dart';
+import '../../data/repositories/customer_cache_repository.dart';
 import '../../data/repositories/customer_repository.dart';
 
 class CustomerDependencies {
@@ -27,6 +28,10 @@ class CustomerDependencies {
         ),
         fenix: true,
       );
+    }
+
+    if (!Get.isRegistered<CustomerCacheRepository>()) {
+      Get.lazyPut(CustomerCacheRepository.new, fenix: true);
     }
   }
 }

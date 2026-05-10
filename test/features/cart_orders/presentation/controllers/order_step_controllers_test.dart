@@ -19,7 +19,30 @@ import 'package:b2b_inventory_management/features/customers/presentation/control
 import 'package:b2b_inventory_management/features/products/data/models/product_model.dart';
 import 'package:b2b_inventory_management/features/products/data/repositories/product_repository.dart';
 import 'package:b2b_inventory_management/features/products/presentation/controllers/product_list_controller.dart';
+import 'package:b2b_inventory_management/core/offline/repositories/pending_actions_repository.dart';
+import 'package:b2b_inventory_management/features/customers/data/repositories/customer_cache_repository.dart';
+import 'package:b2b_inventory_management/features/products/data/repositories/product_cache_repository.dart';
+import 'package:b2b_inventory_management/core/offline/models/pending_action_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class FakePendingActionsRepository extends Fake implements PendingActionsRepository {
+  @override
+  Future<int> insertAction(PendingAction action) async => 0;
+}
+
+class FakeCustomerCacheRepository extends Fake implements CustomerCacheRepository {
+  @override
+  Future<List<CustomerModel>> getCustomers({String? query}) async => [];
+  @override
+  Future<void> saveCustomers(List<CustomerModel> customers) async {}
+}
+
+class FakeProductCacheRepository extends Fake implements ProductCacheRepository {
+  @override
+  Future<List<ProductModel>> getProducts({String? query}) async => [];
+  @override
+  Future<void> saveProducts(List<ProductModel> products) async {}
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -43,6 +66,7 @@ void main() {
         ),
       ),
       tokenStorage: TokenStorage(),
+      pendingActionsRepository: FakePendingActionsRepository(),
     );
   }
 
@@ -123,6 +147,7 @@ void main() {
       final searchController = Get.put(
         CustomerSearchController(
           customerRepository: createCustomerRepository(),
+          customerCacheRepository: FakeCustomerCacheRepository(),
         ),
       );
 
@@ -144,7 +169,10 @@ void main() {
   test('products step controller adds product and updates existing line', () {
     final cartController = Get.put(createCartController());
     final productListController = Get.put(
-      ProductListController(productRepository: createProductRepository()),
+      ProductListController(
+        productRepository: createProductRepository(),
+        productCacheRepository: FakeProductCacheRepository(),
+      ),
     );
 
     final controller = Get.put(

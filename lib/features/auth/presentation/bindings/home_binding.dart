@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 
 import '../../../../core/constants/controller_tags.dart';
+import '../../../../core/offline/offline_dependencies.dart';
 import '../../../cart_orders/presentation/bindings/cart_dependencies.dart';
 import '../../../customers/presentation/bindings/customer_dependencies.dart';
 import '../../../customers/presentation/controllers/customer_search_controller.dart';
@@ -8,6 +9,7 @@ import '../../../dashboard/data/repositories/salesman_dashboard_repository.dart'
 import '../../../dashboard/presentation/controllers/home_dashboard_controller.dart';
 import '../../../invoice/presentation/controllers/invoice_controller.dart';
 import '../../../notifications/presentation/bindings/notification_dependencies.dart';
+import '../../../products/presentation/bindings/product_dependencies.dart';
 import '../controllers/home_controller.dart';
 import 'auth_dependencies.dart';
 
@@ -18,12 +20,17 @@ class HomeBinding extends Bindings {
     NotificationDependencies.ensureRegistered();
     CustomerDependencies.ensureRegistered();
     CartDependencies.ensureRegistered();
+    ProductDependencies.ensureRegistered();
+    OfflineDependencies.ensureRegistered();
 
     if (!Get.isRegistered<CustomerSearchController>(
       tag: ControllerTags.homeCustomerSearch,
     )) {
       Get.lazyPut(
-        () => CustomerSearchController(customerRepository: Get.find()),
+        () => CustomerSearchController(
+          customerRepository: Get.find(),
+          customerCacheRepository: Get.find(),
+        ),
         tag: ControllerTags.homeCustomerSearch,
       );
     }

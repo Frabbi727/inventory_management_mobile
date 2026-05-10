@@ -3,16 +3,20 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 
-import '../../../../core/errors/api_exception.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../data/models/customer_model.dart';
 import '../../data/repositories/customer_repository.dart';
+import '../../data/repositories/customer_cache_repository.dart';
 
 class CustomerSearchController extends GetxController {
-  CustomerSearchController({required CustomerRepository customerRepository})
-    : _customerRepository = customerRepository;
+  CustomerSearchController({
+    required CustomerRepository customerRepository,
+    required CustomerCacheRepository customerCacheRepository,
+  }) : _customerRepository = customerRepository,
+       _customerCacheRepository = customerCacheRepository;
 
   final CustomerRepository _customerRepository;
+  final CustomerCacheRepository _customerCacheRepository;
   final scrollController = ScrollController();
   final searchTextController = TextEditingController();
 
@@ -78,25 +82,14 @@ class CustomerSearchController extends GetxController {
       isSearching.value = requestedQuery.isNotEmpty;
       isLoadingMore.value = false;
       errorMessage.value = null;
-      _currentPage = 1;
-      _hasNextPage = false;
       _requestGeneration++;
-    } else {
-      if (isLoadingMore.value ||
-          !_hasNextPage ||
-          isInitialLoading.value ||
-          isRefreshing.value) {
-        return;
-      }
-      isLoadingMore.value = true;
     }
 
     final requestGeneration = _requestGeneration;
-    final pageToLoad = _currentPage;
 
     try {
-      final response = await _customerRepository.fetchCustomers(
-        page: pageToLoad,
+      // READ FROM LOCAL CACHE instead of API
+      final cachedCustomers = await _customerCacheRepository.getCustomers(
         query: requestedQuery.isEmpty ? null : requestedQuery,
       );
 
@@ -104,39 +97,20 @@ class CustomerSearchController extends GetxController {
         return;
       }
 
-      final fetchedCustomers = response.data ?? const <CustomerModel>[];
-      if (reset) {
-        customers.assignAll(_deduplicateCustomers(fetchedCustomers));
-      } else {
-        customers.assignAll(
-          _deduplicateCustomers([...customers, ...fetchedCustomers]),
-        );
-      }
+      customers.assignAll(_deduplicateCustomers(cachedCustomers));
       _hasLoadedOnce = true;
-
-      final currentPage = response.meta?.currentPage ?? pageToLoad;
-      final lastPage = response.meta?.lastPage ?? currentPage;
-      _hasNextPage = (response.links?.next != null) || (currentPage < lastPage);
-      _currentPage = currentPage + 1;
+      _hasNextPage = false; // Cache doesn't support pagination for now
 
       infoMessage.value = customers.isEmpty
           ? (requestedQuery.isEmpty
-                ? 'No customers are available right now.'
-                : 'No customers found for "$requestedQuery".')
+                ? 'No customers available in local cache. Please sync.'
+                : 'No customers found for "$requestedQuery" in local cache.')
           : null;
-    } on ApiException catch (error) {
+    } catch (e) {
       if (requestGeneration != _requestGeneration) {
         return;
       }
-      errorMessage.value = error.message;
-      if (reset && !hasExistingItems) {
-        customers.clear();
-      }
-    } catch (_) {
-      if (requestGeneration != _requestGeneration) {
-        return;
-      }
-      errorMessage.value = 'Unable to load customers right now.';
+      errorMessage.value = 'Unable to load customers from local storage.';
       if (reset && !hasExistingItems) {
         customers.clear();
       }
@@ -176,20 +150,7 @@ class CustomerSearchController extends GetxController {
       return;
     }
 
-    if (trimmed.length < 3) {
-      final hadActiveSearch =
-          searchQuery.value.isNotEmpty || _lastExecutedQuery.isNotEmpty;
-      searchQuery.value = '';
-      infoMessage.value = null;
-      isSearching.value = false;
-      if (hadActiveSearch) {
-        _lastExecutedQuery = '';
-        unawaited(fetchCustomers(reset: true));
-      }
-      return;
-    }
-
-    _searchDebounce = Timer(const Duration(milliseconds: 400), () {
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
       if (trimmed == _lastExecutedQuery) {
         isSearching.value = false;
         return;
@@ -241,17 +202,7 @@ class CustomerSearchController extends GetxController {
   }
 
   Future<void> loadMoreIfNeeded(ScrollMetrics metrics) async {
-    if (isInitialLoading.value ||
-        isRefreshing.value ||
-        isLoadingMore.value ||
-        !_hasNextPage) {
-      return;
-    }
-
-    final remainingScroll = metrics.maxScrollExtent - metrics.pixels;
-    if (remainingScroll <= 240) {
-      await fetchCustomers(reset: false);
-    }
+    // Local cache doesn't support pagination for now
   }
 
   void _onScroll() {
@@ -264,25 +215,12 @@ class CustomerSearchController extends GetxController {
 
   List<CustomerModel> _deduplicateCustomers(List<CustomerModel> items) {
     final uniqueById = <int?, CustomerModel>{};
-    final withoutId = <CustomerModel>[];
-
     for (final customer in items) {
-      if (customer.id == null) {
-        if (!withoutId.any(
-          (item) =>
-              item.name == customer.name &&
-              item.phone == customer.phone &&
-              item.address == customer.address,
-        )) {
-          withoutId.add(customer);
-        }
-        continue;
+      if (customer.id != null) {
+        uniqueById[customer.id] = customer;
       }
-
-      uniqueById[customer.id] = customer;
     }
-
-    return [...uniqueById.values, ...withoutId];
+    return uniqueById.values.toList();
   }
 
   @override

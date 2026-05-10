@@ -51,6 +51,65 @@ class HomeDashboardPage extends GetView<HomeDashboardController> {
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        Obx(() {
+                          final syncManager = homeController.syncManager;
+                          if (syncManager == null) return const SizedBox.shrink();
+
+                          final count = syncManager.pendingActionsCount.value;
+                          final isSyncing = syncManager.isSyncing.value;
+
+                          return Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              IconButton(
+                                tooltip: 'Sync Offline Data',
+                                onPressed: isSyncing
+                                    ? null
+                                    : syncManager.triggerManualSync,
+                                icon: isSyncing
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(Icons.sync),
+                              ),
+                              if (count > 0)
+                                Positioned(
+                                  right: 6,
+                                  top: 6,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 5,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).colorScheme.primary,
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 18,
+                                    ),
+                                    child: Text(
+                                      '$count',
+                                      textAlign: TextAlign.center,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .labelSmall
+                                          ?.copyWith(
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .onPrimary,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          );
+                        }),
                         Obx(
                           () => Stack(
                             clipBehavior: Clip.none,

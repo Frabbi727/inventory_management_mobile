@@ -11,6 +11,7 @@ import 'package:b2b_inventory_management/features/products/data/models/product_m
 import 'package:b2b_inventory_management/features/products/data/models/product_subcategory_model.dart';
 import 'package:b2b_inventory_management/features/products/data/repositories/product_repository.dart';
 import 'package:b2b_inventory_management/features/products/presentation/controllers/product_list_controller.dart';
+import 'package:b2b_inventory_management/features/products/data/repositories/product_cache_repository.dart';
 
 class FakeProductRepository extends ProductRepository {
   FakeProductRepository()
@@ -84,12 +85,22 @@ class FakeProductRepository extends ProductRepository {
   }
 }
 
+class FakeProductCacheRepository extends Fake implements ProductCacheRepository {
+  @override
+  Future<List<ProductModel>> getProducts({String? query}) async => [];
+  @override
+  Future<void> saveProducts(List<ProductModel> products) async {}
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('controller fetches products when first loaded', () async {
     final repository = FakeProductRepository();
-    final controller = ProductListController(productRepository: repository);
+    final controller = ProductListController(
+      productRepository: repository,
+      productCacheRepository: FakeProductCacheRepository(),
+    );
 
     controller.onInit();
     expect(repository.calls, isEmpty);
@@ -109,7 +120,10 @@ void main() {
     'product search waits for 3 characters and resets to default below threshold',
     () async {
       final repository = FakeProductRepository();
-      final controller = ProductListController(productRepository: repository);
+      final controller = ProductListController(
+        productRepository: repository,
+        productCacheRepository: FakeProductCacheRepository(),
+      );
 
       controller.onInit();
       await controller.ensureLoaded();
@@ -168,7 +182,10 @@ void main() {
     'category and subcategory filters update requests and clear together',
     () async {
       final repository = FakeProductRepository();
-      final controller = ProductListController(productRepository: repository);
+      final controller = ProductListController(
+        productRepository: repository,
+        productCacheRepository: FakeProductCacheRepository(),
+      );
 
       controller.onInit();
       await controller.ensureLoaded();

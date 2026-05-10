@@ -9,7 +9,23 @@ import 'package:b2b_inventory_management/core/storage/token_storage.dart';
 import 'package:b2b_inventory_management/features/cart_orders/data/models/create_order_request_model.dart';
 import 'package:b2b_inventory_management/features/cart_orders/data/models/order_item_request_model.dart';
 import 'package:b2b_inventory_management/features/cart_orders/data/repositories/order_repository.dart';
+import 'package:b2b_inventory_management/core/offline/repositories/pending_actions_repository.dart';
+import 'package:b2b_inventory_management/core/offline/models/pending_action_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class FakePendingActionsRepository extends Fake implements PendingActionsRepository {
+  @override
+  Future<int> insertAction(PendingAction action) async => 0;
+
+  @override
+  Future<List<PendingAction>> getPendingActions() async => [];
+
+  @override
+  Future<void> deleteAction(int id) async {}
+
+  @override
+  Future<void> updateActionStatus(int id, String status) async {}
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -20,49 +36,16 @@ void main() {
     });
   });
 
-  test('createOrder sends expected payload with auth header', () async {
+  test('createOrder saves to pending actions and returns Saved Offline!', () async {
     final repository = OrderRepository(
       apiClient: ApiClient(
         httpClient: MockClient((request) async {
-          expect(request.method, equals('POST'));
-          expect(
-            request.url.toString(),
-            equals('${ApiConfig.baseUrl}/api/orders'),
-          );
-          expect(
-            request.headers['X-Authorization'],
-            equals('Bearer order-token'),
-          );
-
-          final body = jsonDecode(request.body) as Map<String, dynamic>;
-          expect(body['customer_id'], equals(2));
-          expect(
-            body['intended_delivery_at'],
-            equals('2026-04-09T15:30:00+06:00'),
-          );
-          expect(body['discount_type'], equals('amount'));
-          expect(body['discount_value'], equals(100));
-          expect(body['payment_amount'], equals(1300));
-          expect(body['items'], isA<List<dynamic>>());
-
-          return http.Response(
-            jsonEncode({
-              'message': 'Order created successfully.',
-              'data': {
-                'id': 99,
-                'order_no': 'ORD-ABC12345',
-                'grand_total': 1400,
-                'payment_amount': 1300,
-                'payment_status': 'partial',
-                'due_amount': 100,
-              },
-            }),
-            200,
-            headers: {'content-type': 'application/json'},
-          );
+          // This should NOT be called now as createOrder is offline-first
+          fail('Should not call API in createOrder');
         }),
       ),
       tokenStorage: TokenStorage(),
+      pendingActionsRepository: FakePendingActionsRepository(),
     );
 
     final response = await repository.createOrder(
@@ -78,11 +61,7 @@ void main() {
       ),
     );
 
-    expect(response.message, equals('Order created successfully.'));
-    expect(response.data?.orderNo, equals('ORD-ABC12345'));
-    expect(response.data?.paymentAmount, equals(1300));
-    expect(response.data?.paymentStatus, equals('partial'));
-    expect(response.data?.dueAmount, equals(100));
+    expect(response.message, equals('Saved Offline!'));
   });
 
   test('fetchOrders sends page query with auth header', () async {
@@ -132,6 +111,7 @@ void main() {
         }),
       ),
       tokenStorage: TokenStorage(),
+      pendingActionsRepository: FakePendingActionsRepository(),
     );
 
     final response = await repository.fetchOrders(page: 2);
@@ -189,6 +169,7 @@ void main() {
         }),
       ),
       tokenStorage: TokenStorage(),
+      pendingActionsRepository: FakePendingActionsRepository(),
     );
 
     await repository.fetchOrders(
@@ -244,6 +225,7 @@ void main() {
         }),
       ),
       tokenStorage: TokenStorage(),
+      pendingActionsRepository: FakePendingActionsRepository(),
     );
 
     final response = await repository.fetchOrderDetails(6);
@@ -277,6 +259,7 @@ void main() {
         }),
       ),
       tokenStorage: TokenStorage(),
+      pendingActionsRepository: FakePendingActionsRepository(),
     );
 
     final response = await repository.confirmOrder(9);

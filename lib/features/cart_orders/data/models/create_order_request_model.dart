@@ -15,6 +15,7 @@ class CreateOrderRequestModel {
     this.discountValue,
     this.paymentAmount,
     this.items,
+    this.mobileRef,
   });
 
   @JsonKey(name: 'customer_id')
@@ -38,6 +39,9 @@ class CreateOrderRequestModel {
   final num? paymentAmount;
 
   final List<OrderItemRequestModel>? items;
+
+  @JsonKey(name: 'mobile_ref')
+  final String? mobileRef;
 
   factory CreateOrderRequestModel.fromJson(Map<String, dynamic> json) =>
       _$CreateOrderRequestModelFromJson(json);

@@ -570,6 +570,16 @@ class CartController extends GetxController {
           ? await _orderRepository.createOrder(request)
           : await _orderRepository.updateOrderDraft(orderId, request);
 
+      // OFFLINE-FIRST CHANGE: If data is null, the order was queued.
+      if (response.data == null && orderId == null) {
+        infoMessage.value = 'Order queued and will sync automatically.';
+        // Clear the cart and reset state, as the user's action is complete.
+        clearCart();
+        // Navigate user away or give clear feedback. For now, we just clear.
+        Get.back(); // Assuming this is in a modal or separate page
+        return response;
+      }
+      
       if (response.data != null) {
         savedDraftOrder.value = response.data;
         newPaymentAmount.value = null;
@@ -633,6 +643,15 @@ class CartController extends GetxController {
         final draftResponse = orderId == null
             ? await _orderRepository.createOrder(request)
             : await _orderRepository.updateOrderDraft(orderId, request);
+
+        // OFFLINE-FIRST CHANGE: If data is null, the order was queued.
+        if (draftResponse.data == null && orderId == null) {
+          infoMessage.value = 'Order queued and will sync automatically.';
+          clearCart();
+          Get.back(); // Assuming this is in a modal or separate page
+          return draftResponse;
+        }
+
         orderId = draftResponse.data?.id;
         if (orderId == null) {
           errorMessage.value =

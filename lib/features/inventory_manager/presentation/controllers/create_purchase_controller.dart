@@ -18,6 +18,7 @@ import 'inventory_product_catalog_controller.dart';
 class CreatePurchaseController extends InventoryProductCatalogController {
   CreatePurchaseController({
     required super.productRepository,
+    required super.productCacheRepository,
     required InventoryManagerRepository inventoryManagerRepository,
   }) : _inventoryManagerRepository = inventoryManagerRepository,
        super();

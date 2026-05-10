@@ -3,19 +3,22 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 
-import '../../../../core/errors/api_exception.dart';
 import '../../../products/data/models/category_response_model.dart';
 import '../../../products/data/models/product_model.dart';
 import '../../../products/data/models/product_stock_status.dart';
 import '../../../products/data/models/product_subcategory_model.dart';
 import '../../../products/data/repositories/product_repository.dart';
+import '../../../products/data/repositories/product_cache_repository.dart';
 
 abstract class InventoryProductCatalogController extends GetxController {
   InventoryProductCatalogController({
     required ProductRepository productRepository,
-  }) : _productRepository = productRepository;
+    required ProductCacheRepository productCacheRepository,
+  }) : _productRepository = productRepository,
+       _productCacheRepository = productCacheRepository;
 
   final ProductRepository _productRepository;
+  final ProductCacheRepository _productCacheRepository;
 
   final scrollController = ScrollController();
   final searchTextController = TextEditingController();
@@ -114,7 +117,7 @@ abstract class InventoryProductCatalogController extends GetxController {
 
   Future<void> ensureLoaded({bool forceRefresh = false}) async {
     if (forceRefresh || !_hasLoadedOnce) {
-      await fetchProducts(reset: true, forceRefresh: forceRefresh);
+      await fetchProducts(reset: true);
     }
   }
 
@@ -250,15 +253,10 @@ abstract class InventoryProductCatalogController extends GetxController {
     }
   }
 
-  Future<void> retry() => fetchProducts(reset: true, forceRefresh: true);
+  Future<void> retry() => fetchProducts(reset: true);
 
-  Future<void> fetchProducts({
-    required bool reset,
-    bool forceRefresh = false,
-  }) async {
+  Future<void> fetchProducts({required bool reset}) async {
     final requestedQuery = searchQuery.value.trim();
-    final requestedCategory = selectedCategoryId.value;
-    final requestedSubcategory = selectedSubcategoryId.value;
     final hasExistingItems = products.isNotEmpty;
 
     if (reset) {
@@ -273,70 +271,38 @@ abstract class InventoryProductCatalogController extends GetxController {
       isSearching.value = requestedQuery.isNotEmpty;
       isLoadingMore.value = false;
       errorMessage.value = null;
-      _currentPage = 1;
-      _hasNextPage = false;
       _requestGeneration++;
-    } else {
-      if (isLoadingMore.value ||
-          !_hasNextPage ||
-          isInitialLoading.value ||
-          isRefreshing.value) {
-        return;
-      }
-      isLoadingMore.value = true;
     }
 
     final requestGeneration = _requestGeneration;
-    final pageToLoad = _currentPage;
 
     try {
-      final response = await _productRepository.fetchProducts(
-        page: pageToLoad,
+      // READ FROM LOCAL CACHE
+      final cachedProducts = await _productCacheRepository.getProducts(
         query: requestedQuery.isEmpty ? null : requestedQuery,
-        categoryId: requestedCategory,
-        subcategoryId: requestedSubcategory,
-        forceRefresh: forceRefresh,
       );
 
       if (requestGeneration != _requestGeneration) {
         return;
       }
 
-      final fetchedProducts = response.data ?? const <ProductModel>[];
-      if (reset) {
-        products.assignAll(_deduplicateProducts(fetchedProducts));
-      } else {
-        products.assignAll(
-          _deduplicateProducts([...products, ...fetchedProducts]),
-        );
-      }
+      products.assignAll(_deduplicateProducts(cachedProducts));
       _hasLoadedOnce = true;
-
-      final currentPage = response.meta?.currentPage ?? pageToLoad;
-      final lastPage = response.meta?.lastPage ?? currentPage;
-      _hasNextPage = (response.links?.next != null) || (currentPage < lastPage);
-      _currentPage = currentPage + 1;
+      _hasNextPage = false;
+      
       infoMessage.value = products.isEmpty
           ? buildEmptyMessage(
               requestedQuery,
-              requestedCategory,
-              requestedSubcategory,
+              selectedCategoryId.value,
+              selectedSubcategoryId.value,
               selectedStockStatus.value,
             )
           : null;
-    } on ApiException catch (error) {
+    } catch (e) {
       if (requestGeneration != _requestGeneration) {
         return;
       }
-      errorMessage.value = error.message;
-      if (reset && !hasExistingItems) {
-        products.clear();
-      }
-    } catch (_) {
-      if (requestGeneration != _requestGeneration) {
-        return;
-      }
-      errorMessage.value = 'Unable to load products right now.';
+      errorMessage.value = 'Unable to load products from local storage.';
       if (reset && !hasExistingItems) {
         products.clear();
       }
@@ -389,7 +355,7 @@ abstract class InventoryProductCatalogController extends GetxController {
       return;
     }
 
-    _searchDebounce = Timer(const Duration(milliseconds: 400), () {
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
       if (trimmed == _lastExecutedQuery) {
         isSearching.value = false;
         return;
@@ -419,17 +385,7 @@ abstract class InventoryProductCatalogController extends GetxController {
   }
 
   Future<void> loadMoreIfNeeded(ScrollMetrics metrics) async {
-    if (isInitialLoading.value ||
-        isRefreshing.value ||
-        isLoadingMore.value ||
-        !_hasNextPage) {
-      return;
-    }
-
-    final remainingScroll = metrics.maxScrollExtent - metrics.pixels;
-    if (remainingScroll <= 240) {
-      await fetchProducts(reset: false);
-    }
+    // Local cache doesn't support pagination for now
   }
 
   String buildEmptyMessage(

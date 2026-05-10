@@ -14,7 +14,14 @@ import 'package:b2b_inventory_management/features/cart_orders/data/repositories/
 import 'package:b2b_inventory_management/features/customers/data/repositories/customer_repository.dart';
 import 'package:b2b_inventory_management/features/dashboard/data/repositories/salesman_dashboard_repository.dart';
 import 'package:b2b_inventory_management/features/products/data/repositories/product_repository.dart';
+import 'package:b2b_inventory_management/core/offline/repositories/pending_actions_repository.dart';
+import 'package:b2b_inventory_management/core/offline/models/pending_action_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class FakePendingActionsRepository extends Fake implements PendingActionsRepository {
+  @override
+  Future<int> insertAction(PendingAction action) async => 0;
+}
 
 class _FakeDeviceTokenProvider extends DeviceTokenProvider {
   @override
@@ -129,6 +136,7 @@ void main() {
         }),
       ),
       tokenStorage: TokenStorage(),
+      pendingActionsRepository: FakePendingActionsRepository(),
     );
   }
 

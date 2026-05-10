@@ -9,6 +9,7 @@ import 'package:b2b_inventory_management/features/customers/data/models/customer
 import 'package:b2b_inventory_management/features/customers/data/models/customer_model.dart';
 import 'package:b2b_inventory_management/features/customers/data/repositories/customer_repository.dart';
 import 'package:b2b_inventory_management/features/customers/presentation/controllers/customer_search_controller.dart';
+import 'package:b2b_inventory_management/features/customers/data/repositories/customer_cache_repository.dart';
 
 class FakeCustomerRepository extends CustomerRepository {
   FakeCustomerRepository()
@@ -42,6 +43,13 @@ class FakeCustomerRepository extends CustomerRepository {
   }
 }
 
+class FakeCustomerCacheRepository extends Fake implements CustomerCacheRepository {
+  @override
+  Future<List<CustomerModel>> getCustomers({String? query}) async => [];
+  @override
+  Future<void> saveCustomers(List<CustomerModel> customers) async {}
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -51,6 +59,7 @@ void main() {
       final repository = FakeCustomerRepository();
       final controller = CustomerSearchController(
         customerRepository: repository,
+        customerCacheRepository: FakeCustomerCacheRepository(),
       );
 
       controller.onInit();

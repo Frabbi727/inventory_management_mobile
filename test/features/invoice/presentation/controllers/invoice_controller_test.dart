@@ -9,7 +9,14 @@ import 'package:b2b_inventory_management/core/storage/token_storage.dart';
 import 'package:b2b_inventory_management/features/cart_orders/data/repositories/order_repository.dart';
 import 'package:b2b_inventory_management/features/invoice/presentation/controllers/invoice_controller.dart';
 import 'package:b2b_inventory_management/features/invoice/presentation/models/order_list_status_filter.dart';
+import 'package:b2b_inventory_management/core/offline/repositories/pending_actions_repository.dart';
+import 'package:b2b_inventory_management/core/offline/models/pending_action_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class FakePendingActionsRepository extends Fake implements PendingActionsRepository {
+  @override
+  Future<int> insertAction(PendingAction action) async => 0;
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -37,6 +44,7 @@ void main() {
         }),
       ),
       tokenStorage: TokenStorage(),
+      pendingActionsRepository: FakePendingActionsRepository(),
     );
   }
 

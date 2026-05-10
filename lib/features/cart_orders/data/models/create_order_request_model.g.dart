@@ -19,6 +19,7 @@ CreateOrderRequestModel _$CreateOrderRequestModelFromJson(
   items: (json['items'] as List<dynamic>?)
       ?.map((e) => OrderItemRequestModel.fromJson(e as Map<String, dynamic>))
       .toList(),
+  mobileRef: json['mobile_ref'] as String?,
 );
 
 Map<String, dynamic> _$CreateOrderRequestModelToJson(
@@ -32,4 +33,5 @@ Map<String, dynamic> _$CreateOrderRequestModelToJson(
   'discount_value': instance.discountValue,
   'payment_amount': instance.paymentAmount,
   'items': instance.items?.map((e) => e.toJson()).toList(),
+  'mobile_ref': instance.mobileRef,
 };

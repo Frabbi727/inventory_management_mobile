@@ -1,6 +1,13 @@
+import 'dart:convert';
+import 'package:b2b_inventory_management/core/offline/sync_manager.dart';
+import 'package:get/get.dart';
+import 'package:uuid/uuid.dart';
+
 import '../../../../core/errors/api_exception.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/network/api_endpoints.dart';
+import '../../../../core/offline/models/pending_action_model.dart';
+import '../../../../core/offline/repositories/pending_actions_repository.dart';
 import '../../../../core/storage/token_storage.dart';
 import '../models/create_order_request_model.dart';
 import '../models/create_order_response_model.dart';
@@ -11,11 +18,15 @@ class OrderRepository {
   OrderRepository({
     required ApiClient apiClient,
     required TokenStorage tokenStorage,
-  }) : _apiClient = apiClient,
-       _tokenStorage = tokenStorage;
+    required PendingActionsRepository pendingActionsRepository,
+  })  : _apiClient = apiClient,
+        _tokenStorage = tokenStorage,
+        _pendingActionsRepository = pendingActionsRepository;
 
   final ApiClient _apiClient;
   final TokenStorage _tokenStorage;
+  final PendingActionsRepository _pendingActionsRepository;
+  final Uuid _uuid = const Uuid();
 
   Future<String> _requireToken() async {
     final token = await _tokenStorage.getToken();
@@ -92,15 +103,47 @@ class OrderRepository {
   Future<CreateOrderResponseModel> createOrder(
     CreateOrderRequestModel request,
   ) async {
-    final token = await _requireToken();
+    // 1. Generate a random UUID string and assign it to a variable mobile_ref.
+    final mobileRef = _uuid.v4();
 
-    final response = await _apiClient.post(
-      ApiEndpoints.orders,
-      token: token,
-      body: request.toJson(),
+    // 2. Construct the exact JSON map that the Laravel backend expects for an order.
+    // Crucial: Include the mobile_ref inside this payload map.
+    final requestWithRef = CreateOrderRequestModel(
+      customerId: request.customerId,
+      orderDate: request.orderDate,
+      intendedDeliveryAt: request.intendedDeliveryAt,
+      note: request.note,
+      discountType: request.discountType,
+      discountValue: request.discountValue,
+      paymentAmount: request.paymentAmount,
+      items: request.items,
+      mobileRef: mobileRef,
     );
 
-    return CreateOrderResponseModel.fromJson(response);
+    // 4. jsonEncode() this map.
+    final payload = jsonEncode(requestWithRef.toJson());
+
+    // 5. Insert a new row into the pending_actions SQLite table
+    final action = PendingAction(
+      endpoint: ApiEndpoints.orders,
+      method: 'POST',
+      payload: payload,
+      mobileRef: mobileRef,
+      status: 'pending',
+    );
+
+    await _pendingActionsRepository.insertAction(action);
+
+    // Update pending count in SyncManager if registered
+    if (Get.isRegistered<SyncManager>()) {
+      Get.find<SyncManager>().updatePendingCount();
+    }
+
+    // 6. Navigate the user away and show a "Saved Offline!" success message.
+    // (Navigation is usually handled in the Controller, but we return the success message here)
+    return const CreateOrderResponseModel(
+      message: 'Saved Offline!',
+    );
   }
 
   Future<CreateOrderResponseModel> updateOrderDraft(

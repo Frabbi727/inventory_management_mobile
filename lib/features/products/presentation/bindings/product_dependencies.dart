@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/storage/token_storage.dart';
 import '../../../auth/presentation/bindings/auth_dependencies.dart';
+import '../../data/repositories/product_cache_repository.dart';
 import '../../data/repositories/product_repository.dart';
 
 class ProductDependencies {
@@ -27,6 +28,10 @@ class ProductDependencies {
         ),
         fenix: true,
       );
+    }
+
+    if (!Get.isRegistered<ProductCacheRepository>()) {
+      Get.lazyPut(ProductCacheRepository.new, fenix: true);
     }
   }
 }

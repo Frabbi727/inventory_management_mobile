@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 
-import '../../../../core/constants/controller_tags.dart';
+import '../../data/repositories/customer_cache_repository.dart';
+import '../../data/repositories/customer_repository.dart';
 import '../controllers/customer_search_controller.dart';
 import 'customer_dependencies.dart';
 
@@ -8,12 +9,13 @@ class CustomerBinding extends Bindings {
   @override
   void dependencies() {
     CustomerDependencies.ensureRegistered();
-    if (!Get.isRegistered<CustomerSearchController>(
-      tag: ControllerTags.customerSearchRoute,
-    )) {
+
+    if (!Get.isRegistered<CustomerSearchController>()) {
       Get.lazyPut(
-        () => CustomerSearchController(customerRepository: Get.find()),
-        tag: ControllerTags.customerSearchRoute,
+        () => CustomerSearchController(
+          customerRepository: Get.find<CustomerRepository>(),
+          customerCacheRepository: Get.find<CustomerCacheRepository>(),
+        ),
       );
     }
   }
