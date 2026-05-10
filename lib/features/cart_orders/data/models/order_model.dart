@@ -88,4 +88,52 @@ class OrderModel {
       _$OrderModelFromJson(json);
 
   Map<String, dynamic> toJson() => _$OrderModelToJson(this);
+
+  OrderModel copyWith({
+    int? id,
+    String? orderNo,
+    String? orderDate,
+    String? intendedDeliveryAt,
+    String? confirmedAt,
+    String? deliveredAt,
+    num? subtotal,
+    String? discountType,
+    num? discountValue,
+    num? discountAmount,
+    num? grandTotal,
+    num? paymentAmount,
+    String? paymentStatus,
+    num? dueAmount,
+    String? status,
+    String? note,
+    OrderCustomerModel? customer,
+    OrderSalesmanModel? salesman,
+    List<OrderItemModel>? items,
+    String? createdAt,
+    String? updatedAt,
+  }) {
+    return OrderModel(
+      id: id ?? this.id,
+      orderNo: orderNo ?? this.orderNo,
+      orderDate: orderDate ?? this.orderDate,
+      intendedDeliveryAt: intendedDeliveryAt ?? this.intendedDeliveryAt,
+      confirmedAt: confirmedAt ?? this.confirmedAt,
+      deliveredAt: deliveredAt ?? this.deliveredAt,
+      subtotal: subtotal ?? this.subtotal,
+      discountType: discountType ?? this.discountType,
+      discountValue: discountValue ?? this.discountValue,
+      discountAmount: discountAmount ?? this.discountAmount,
+      grandTotal: grandTotal ?? this.grandTotal,
+      paymentAmount: paymentAmount ?? this.paymentAmount,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
+      dueAmount: dueAmount ?? this.dueAmount,
+      status: status ?? this.status,
+      note: note ?? this.note,
+      customer: customer ?? this.customer,
+      salesman: salesman ?? this.salesman,
+      items: items ?? this.items,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
 }

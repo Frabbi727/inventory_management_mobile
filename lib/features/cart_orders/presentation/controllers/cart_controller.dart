@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import 'package:b2b_inventory_management/core/offline/sync_manager.dart';
 import '../../../../core/errors/api_exception.dart';
 import '../../../customers/data/models/customer_model.dart';
 import '../../../products/data/models/product_model.dart';
@@ -224,7 +225,8 @@ class CartController extends GetxController {
       canSaveDraft &&
       !hasKnownStockIssues &&
       isPaymentComplete &&
-      (savedDraftOrder.value?.status ?? 'draft') != 'confirmed';
+      (savedDraftOrder.value?.status ?? 'draft') != 'confirmed' &&
+      (Get.isRegistered<SyncManager>() ? Get.find<SyncManager>().isOnline.value : true);
   bool get showFooterTotals => currentStep.value != customerStep && hasItems;
   bool get isExistingDraft => savedDraftOrder.value?.status == 'draft';
   int get totalUnits => items.fold(0, (sum, item) => sum + item.quantity);

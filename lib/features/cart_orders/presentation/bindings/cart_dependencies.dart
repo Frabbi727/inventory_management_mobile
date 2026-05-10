@@ -7,6 +7,9 @@ import '../../../../core/storage/token_storage.dart';
 import '../../../auth/presentation/bindings/auth_dependencies.dart';
 import '../../../products/presentation/bindings/product_dependencies.dart';
 import '../../../products/data/repositories/product_repository.dart';
+import '../../../customers/data/repositories/customer_cache_repository.dart';
+import '../../../products/data/repositories/product_cache_repository.dart';
+import '../../data/repositories/order_cache_repository.dart';
 import '../../data/repositories/order_repository.dart';
 import '../controllers/cart_controller.dart';
 
@@ -32,6 +35,8 @@ class CartDependencies {
           apiClient: Get.find<ApiClient>(),
           tokenStorage: Get.find<TokenStorage>(),
           pendingActionsRepository: Get.find<PendingActionsRepository>(),
+          customerCacheRepository: Get.find<CustomerCacheRepository>(),
+          orderCacheRepository: Get.find<OrderCacheRepository>(),
         ),
         fenix: true,
       );

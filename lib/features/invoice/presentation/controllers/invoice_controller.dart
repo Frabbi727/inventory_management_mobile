@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/errors/api_exception.dart';
+import 'package:b2b_inventory_management/core/offline/sync_manager.dart';
 import '../../../cart_orders/data/models/order_model.dart';
 import '../../../cart_orders/data/repositories/order_repository.dart';
 import '../models/order_list_status_filter.dart';
@@ -149,9 +150,14 @@ class InvoiceController extends GetxController {
       _currentPage = currentPage + 1;
 
       if (orders.isEmpty) {
-        infoMessage.value = hasAnyQueryApplied
-            ? 'No orders matched the current filters.'
-            : 'No orders have been created yet.';
+        final isOnline = Get.isRegistered<SyncManager>() ? Get.find<SyncManager>().isOnline.value : true;
+        if (hasAnyQueryApplied) {
+          infoMessage.value = 'No orders matched the current filters.';
+        } else if (!isOnline) {
+          infoMessage.value = 'You are currently offline. Local pending orders will appear here.';
+        } else {
+          infoMessage.value = 'No orders have been created yet.';
+        }
       } else {
         infoMessage.value = null;
       }
@@ -167,8 +173,15 @@ class InvoiceController extends GetxController {
       if (requestGeneration != _requestGeneration) {
         return;
       }
-      errorMessage.value = 'Unable to load orders right now.';
-      if (reset && !hasExistingItems) {
+      
+      // If we have items (even local ones), don't show the full page error
+      if (orders.isEmpty) {
+        errorMessage.value = 'Unable to load orders right now.';
+      } else {
+        errorMessage.value = 'Offline: showing local items only.';
+      }
+
+      if (reset && !hasExistingItems && orders.isEmpty) {
         orders.clear();
       }
     } finally {
@@ -353,6 +366,8 @@ class InvoiceController extends GetxController {
         return 'Partial';
       case 'not_paid':
         return 'Not paid';
+      case 'pending_sync':
+        return 'Pending Sync';
       default:
         return '-';
     }

@@ -6,7 +6,9 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:b2b_inventory_management/core/network/api_client.dart';
 import 'package:b2b_inventory_management/core/storage/token_storage.dart';
+import 'package:b2b_inventory_management/features/cart_orders/data/models/order_model.dart';
 import 'package:b2b_inventory_management/features/cart_orders/data/repositories/order_repository.dart';
+import 'package:b2b_inventory_management/features/cart_orders/data/repositories/order_cache_repository.dart';
 import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/cart_controller.dart';
 import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/order_cart_step_controller.dart';
 import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/order_confirm_step_controller.dart';
@@ -44,6 +46,19 @@ class FakeProductCacheRepository extends Fake implements ProductCacheRepository 
   Future<void> saveProducts(List<ProductModel> products) async {}
 }
 
+class FakeOrderCacheRepository extends Fake implements OrderCacheRepository {
+  @override
+  Future<void> saveOrders(List<OrderModel> orders) async {}
+  @override
+  Future<void> saveOrder(OrderModel order) async {}
+  @override
+  Future<List<OrderModel>> getOrders({String? status}) async => [];
+  @override
+  Future<OrderModel?> getOrderById(int id) async => null;
+  @override
+  Future<void> deleteOrder(int id) async {}
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -67,6 +82,8 @@ void main() {
       ),
       tokenStorage: TokenStorage(),
       pendingActionsRepository: FakePendingActionsRepository(),
+      customerCacheRepository: FakeCustomerCacheRepository(),
+      orderCacheRepository: FakeOrderCacheRepository(),
     );
   }
 

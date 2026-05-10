@@ -1,5 +1,9 @@
 import 'dart:convert';
 
+import 'package:b2b_inventory_management/features/cart_orders/data/models/order_model.dart';
+import 'package:b2b_inventory_management/features/cart_orders/data/repositories/order_cache_repository.dart';
+import 'package:b2b_inventory_management/features/customers/data/repositories/customer_cache_repository.dart';
+import 'package:b2b_inventory_management/features/products/data/repositories/product_cache_repository.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
@@ -19,6 +23,29 @@ import 'package:shared_preferences/shared_preferences.dart';
 class FakePendingActionsRepository extends Fake implements PendingActionsRepository {
   @override
   Future<int> insertAction(PendingAction action) async => 0;
+}
+
+class FakeCustomerCacheRepository extends Fake implements CustomerCacheRepository {
+  @override
+  Future<CustomerModel?> getCustomerById(int id) async => null;
+}
+
+class FakeProductCacheRepository extends Fake implements ProductCacheRepository {
+  @override
+  Future<ProductModel?> getProductById(int id) async => null;
+}
+
+class FakeOrderCacheRepository extends Fake implements OrderCacheRepository {
+  @override
+  Future<void> saveOrders(List<OrderModel> orders) async {}
+  @override
+  Future<void> saveOrder(OrderModel order) async {}
+  @override
+  Future<List<OrderModel>> getOrders({String? status}) async => [];
+  @override
+  Future<OrderModel?> getOrderById(int id) async => null;
+  @override
+  Future<void> deleteOrder(int id) async {}
 }
 
 void main() {
@@ -42,6 +69,8 @@ void main() {
       apiClient: ApiClient(httpClient: MockClient(handler)),
       tokenStorage: TokenStorage(),
       pendingActionsRepository: FakePendingActionsRepository(),
+      customerCacheRepository: FakeCustomerCacheRepository(),
+      orderCacheRepository: FakeOrderCacheRepository(),
     );
   }
 

@@ -50,4 +50,23 @@ class CustomerCacheRepository {
     final db = await _dbHelper.database;
     await db.delete('cached_customers');
   }
+
+  Future<CustomerModel?> getCustomerById(int id) async {
+    final db = await _dbHelper.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'cached_customers',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+
+    if (maps.isEmpty) {
+      return null;
+    }
+
+    return CustomerModel(
+      id: maps[0]['id'],
+      name: maps[0]['name'],
+      phone: maps[0]['phone'],
+    );
+  }
 }

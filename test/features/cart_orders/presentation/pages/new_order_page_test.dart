@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:b2b_inventory_management/features/cart_orders/data/models/order_model.dart';
+import 'package:b2b_inventory_management/features/cart_orders/data/repositories/order_cache_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
@@ -45,6 +47,19 @@ class FakeProductCacheRepository extends Fake implements ProductCacheRepository 
   Future<List<ProductModel>> getProducts({String? query}) async => [];
   @override
   Future<void> saveProducts(List<ProductModel> products) async {}
+}
+
+class FakeOrderCacheRepository extends Fake implements OrderCacheRepository {
+  @override
+  Future<void> saveOrders(List<OrderModel> orders) async {}
+  @override
+  Future<void> saveOrder(OrderModel order) async {}
+  @override
+  Future<List<OrderModel>> getOrders({String? status}) async => [];
+  @override
+  Future<OrderModel?> getOrderById(int id) async => null;
+  @override
+  Future<void> deleteOrder(int id) async {}
 }
 
 void main() {
@@ -133,6 +148,8 @@ void main() {
       ),
       tokenStorage: TokenStorage(),
       pendingActionsRepository: FakePendingActionsRepository(),
+      customerCacheRepository: FakeCustomerCacheRepository(),
+      orderCacheRepository: FakeOrderCacheRepository(),
     );
   }
 

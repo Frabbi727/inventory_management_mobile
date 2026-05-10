@@ -7,6 +7,8 @@ import '../notifications/notification_service.dart';
 import '../storage/token_storage.dart';
 import '../offline/models/pending_action_model.dart';
 import '../offline/repositories/pending_actions_repository.dart';
+import '../../features/cart_orders/data/models/order_model.dart';
+import '../../features/cart_orders/data/repositories/order_repository.dart';
 import '../../features/products/data/repositories/product_repository.dart';
 import '../../features/products/data/repositories/product_cache_repository.dart';
 import '../../features/customers/data/repositories/customer_repository.dart';
@@ -18,6 +20,7 @@ class SyncManager extends GetxService {
   final ProductCacheRepository _productCacheRepository = Get.find();
   final CustomerRepository _customerRepository = Get.find();
   final CustomerCacheRepository _customerCacheRepository = Get.find();
+  final OrderRepository _orderRepository = Get.find();
   final ApiClient _apiClient = Get.find();
   final TokenStorage _tokenStorage = Get.find();
   final NotificationService _notificationService = Get.find();
@@ -27,6 +30,7 @@ class SyncManager extends GetxService {
   
   final isSyncing = false.obs;
   final pendingActionsCount = 0.obs;
+  final isOnline = true.obs;
 
   void init() {
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen(_handleConnectivityChange);
@@ -62,11 +66,11 @@ class SyncManager extends GetxService {
 
   void _handleConnectivityChange(List<ConnectivityResult> result) {
     if (result.contains(ConnectivityResult.mobile) || result.contains(ConnectivityResult.wifi)) {
-      print('SyncManager: Device is online. Refreshing cache and starting sync...');
+      isOnline.value = true;
       refreshCache();
       processQueue();
     } else {
-      print('SyncManager: Device is offline.');
+      isOnline.value = false;
     }
   }
 
@@ -78,6 +82,10 @@ class SyncManager extends GetxService {
       // 1. Fetch all products and customers
       final productResponse = await _productRepository.fetchProducts(page: 1);
       final customerResponse = await _customerRepository.fetchCustomers(page: 1);
+      
+      // 2. Fetch recent orders (especially drafts)
+      await _orderRepository.fetchOrders(page: 1, status: 'draft');
+      await _orderRepository.fetchOrders(page: 1); // also fetch all for context
 
       if (productResponse.data != null) {
         // 2. Clear and 3. Insert fresh data
@@ -89,10 +97,8 @@ class SyncManager extends GetxService {
         await _customerCacheRepository.clearCustomers();
         await _customerCacheRepository.saveCustomers(customerResponse.data!);
       }
-      
-      print('SyncManager: Cache refreshed successfully.');
-    } catch (e) {
-      print('SyncManager: Error refreshing cache: $e');
+    } catch (_) {
+      // Fail silently or log
     }
   }
 
@@ -131,8 +137,8 @@ class SyncManager extends GetxService {
       if (remainingCount == 0 && pendingActions.isNotEmpty) {
         _notificationService.showSyncCompleteNotification(pendingActions.length);
       }
-    } catch (e) {
-      print('SyncManager: Error processing queue: $e');
+    } catch (_) {
+      // Fail silently
     } finally {
       isSyncing.value = false;
     }
@@ -141,30 +147,35 @@ class SyncManager extends GetxService {
   Future<bool> _processAction(PendingAction action, String token) async {
     try {
       final payload = jsonDecode(action.payload);
+      dynamic response;
 
       switch (action.method.toUpperCase()) {
         case 'POST':
-          await _apiClient.post(action.endpoint, body: payload, token: token);
+          response = await _apiClient.post(action.endpoint, body: payload, token: token);
           break;
         case 'PUT':
-          await _apiClient.put(action.endpoint, body: payload, token: token);
+          response = await _apiClient.put(action.endpoint, body: payload, token: token);
           break;
         case 'DELETE':
-          await _apiClient.delete(action.endpoint, token: token);
+          response = await _apiClient.delete(action.endpoint, token: token);
           break;
         default:
           return false;
       }
 
-      // If we got here without throwing an exception, consider it success for 200/201
-      // ApiClient usually throws for non-2xx status codes
+      // Update local cache if the response contains order data
+      if (response != null && response['data'] != null) {
+        if (action.endpoint.contains('/orders')) {
+          try {
+            final order = OrderModel.fromJson(response['data']);
+            await _orderRepository.saveToCache(order);
+          } catch (_) {}
+        }
+      }
+
       return true;
     } catch (e) {
-      print('SyncManager: Failed to process action ${action.id}: $e');
-      // Should we check status code? 
-      // User says: "If the server returns a 5xx error or the connection drops mid-request, leave it in the database to retry later."
-      // If it's a 4xx error (e.g. validation), it might be better to delete it or mark as failed, but user didn't specify.
-      // Usually 4xx shouldn't be retried indefinitely.
+      // Failed to process action
       return false; 
     }
   }

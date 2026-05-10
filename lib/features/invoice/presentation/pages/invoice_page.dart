@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import 'package:b2b_inventory_management/core/offline/sync_manager.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../shared/widgets/app_message_state.dart';
 import '../../../../shared/widgets/app_page_header.dart';
 import '../../../cart_orders/data/models/order_model.dart';
 import '../../../cart_orders/presentation/controllers/cart_controller.dart';
+import '../../../cart_orders/presentation/widgets/order_flow_widgets.dart';
 import '../controllers/invoice_controller.dart';
 import '../models/order_list_status_filter.dart';
 
@@ -22,6 +24,16 @@ class InvoicePage extends GetView<InvoiceController> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Obx(() {
+              final isOnline = Get.isRegistered<SyncManager>() ? Get.find<SyncManager>().isOnline.value : true;
+              if (isOnline) return const SizedBox.shrink();
+              return const Padding(
+                padding: EdgeInsets.only(bottom: 12),
+                child: InlineWarningBanner(
+                  message: 'You are currently offline. Showing local pending orders and last loaded data.',
+                ),
+              );
+            }),
             Obx(
               () => AppPageHeader(
                 title: 'Orders',
@@ -1132,6 +1144,12 @@ _PaymentStatusChipColors _paymentStatusColors(
       colorScheme,
       _PaymentStatusTone.notPaid,
     ),
+    'pending_sync' => _PaymentStatusChipColors(
+      background: colorScheme.primaryContainer.withValues(alpha: 0.7),
+      foreground: colorScheme.onPrimaryContainer,
+      border: colorScheme.primary.withValues(alpha: 0.3),
+      muted: colorScheme.outlineVariant,
+    ),
     _ => _PaymentStatusChipColors(
       background: colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),
       foreground: colorScheme.onSurfaceVariant,
@@ -1383,9 +1401,14 @@ class _OrderCard extends StatelessWidget {
           backgroundColor: const Color(0xFFFFF4D6),
           foregroundColor: const Color(0xFF92400E),
         );
+      case 'pending_sync':
+        return _OrderStatusStyle(
+          backgroundColor: colorScheme.primaryContainer.withValues(alpha: 0.7),
+          foregroundColor: colorScheme.onPrimaryContainer,
+        );
       case 'cancelled':
         return _OrderStatusStyle(
-          backgroundColor: const Color(0xFFFFE1E1),
+          backgroundColor: const Color(0xFFFFF1F1),
           foregroundColor: const Color(0xFFB42318),
         );
       default:

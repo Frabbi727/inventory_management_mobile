@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import 'package:b2b_inventory_management/core/offline/sync_manager.dart';
 import '../../widgets/order_flow_widgets.dart';
 import '../../controllers/order_confirm_step_controller.dart';
 import 'new_order_shared_widgets.dart';
@@ -15,6 +16,7 @@ class OrderConfirmStepPage extends GetView<OrderConfirmStepController> {
     return Obx(() {
       final cartController = controller.cartController;
       final customer = cartController.selectedCustomer.value;
+      final isOnline = Get.isRegistered<SyncManager>() ? Get.find<SyncManager>().isOnline.value : true;
 
       return ListView(
         padding: const EdgeInsets.only(bottom: 120),
@@ -26,6 +28,12 @@ class OrderConfirmStepPage extends GetView<OrderConfirmStepController> {
             ),
           ),
           const SizedBox(height: 16),
+          if (!isOnline) ...[
+            const InlineWarningBanner(
+              message: 'You are currently offline. You can save this order as a draft, but confirming requires an internet connection.',
+            ),
+            const SizedBox(height: 16),
+          ],
           if (cartController.hasSavedDraft) ...[
             DraftStatusCard(controller: cartController),
             const SizedBox(height: 16),

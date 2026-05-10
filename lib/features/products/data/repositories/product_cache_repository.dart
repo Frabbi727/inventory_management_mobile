@@ -54,4 +54,25 @@ class ProductCacheRepository {
     final db = await _dbHelper.database;
     await db.delete('cached_products');
   }
+
+  Future<ProductModel?> getProductById(int id) async {
+    final db = await _dbHelper.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'cached_products',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+
+    if (maps.isEmpty) {
+      return null;
+    }
+
+    return ProductModel(
+      id: maps[0]['id'],
+      name: maps[0]['name'],
+      sellingPrice: maps[0]['price'],
+      currentStock: maps[0]['stock'],
+      hasVariants: maps[0]['has_variants'] == 1,
+    );
+  }
 }

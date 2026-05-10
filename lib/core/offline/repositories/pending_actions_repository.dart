@@ -54,4 +54,14 @@ class PendingActionsRepository {
       whereArgs: [id],
     );
   }
+
+  Future<bool> hasPendingUpdate(String endpoint) async {
+    final db = await _dbHelper.database;
+    final result = await db.query(
+      'pending_actions',
+      where: 'endpoint = ? AND status = ?',
+      whereArgs: [endpoint, 'pending'],
+    );
+    return result.isNotEmpty;
+  }
 }
