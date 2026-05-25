@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -34,7 +35,7 @@ class AuthRepository {
     final loginResponse = LoginResponseModel.fromJson(response);
     final authToken = loginResponse.data?.token;
     if (authToken != null && authToken.isNotEmpty) {
-      await _registerCurrentDevice(authToken);
+      unawaited(_registerCurrentDevice(authToken));
     }
 
     return loginResponse;

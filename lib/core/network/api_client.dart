@@ -15,6 +15,8 @@ class ApiClient {
   final http.Client _httpClient;
   final ApiLogger _apiLogger;
 
+  static const _timeout = Duration(seconds: 30);
+
   Future<Map<String, dynamic>> get(
     String endpoint, {
     String? token,
@@ -23,7 +25,7 @@ class ApiClient {
     final uri = _buildUri(endpoint, queryParameters);
     final headers = _buildHeaders(token: token);
     _apiLogger.logRequest(method: 'GET', uri: uri, headers: headers);
-    final response = await _httpClient.get(uri, headers: headers);
+    final response = await _httpClient.get(uri, headers: headers).timeout(_timeout);
 
     return _handleResponse(method: 'GET', uri: uri, response: response);
   }
@@ -43,11 +45,9 @@ class ApiClient {
       headers: headers,
       body: body ?? <String, dynamic>{},
     );
-    final response = await _httpClient.post(
-      uri,
-      headers: headers,
-      body: encodedBody,
-    );
+    final response = await _httpClient
+        .post(uri, headers: headers, body: encodedBody)
+        .timeout(_timeout);
 
     return _handleResponse(method: 'POST', uri: uri, response: response);
   }
@@ -67,11 +67,9 @@ class ApiClient {
       headers: headers,
       body: body ?? <String, dynamic>{},
     );
-    final response = await _httpClient.put(
-      uri,
-      headers: headers,
-      body: encodedBody,
-    );
+    final response = await _httpClient
+        .put(uri, headers: headers, body: encodedBody)
+        .timeout(_timeout);
 
     return _handleResponse(method: 'PUT', uri: uri, response: response);
   }
@@ -91,11 +89,9 @@ class ApiClient {
       headers: headers,
       body: body ?? <String, dynamic>{},
     );
-    final response = await _httpClient.patch(
-      uri,
-      headers: headers,
-      body: encodedBody,
-    );
+    final response = await _httpClient
+        .patch(uri, headers: headers, body: encodedBody)
+        .timeout(_timeout);
 
     return _handleResponse(method: 'PATCH', uri: uri, response: response);
   }
@@ -115,11 +111,9 @@ class ApiClient {
       headers: headers,
       body: body,
     );
-    final response = await _httpClient.delete(
-      uri,
-      headers: headers,
-      body: encodedBody,
-    );
+    final response = await _httpClient
+        .delete(uri, headers: headers, body: encodedBody)
+        .timeout(_timeout);
 
     return _handleResponse(method: 'DELETE', uri: uri, response: response);
   }
@@ -228,7 +222,7 @@ class ApiClient {
       },
     );
 
-    final streamedResponse = await _httpClient.send(request);
+    final streamedResponse = await _httpClient.send(request).timeout(_timeout);
     final response = await http.Response.fromStream(streamedResponse);
     return _handleResponse(method: method, uri: uri, response: response);
   }
