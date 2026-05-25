@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -80,6 +82,8 @@ class LoginController extends GetxController {
       Get.offAllNamed(resolveHomeRouteForUser(user));
     } on ApiException catch (error) {
       errorMessage.value = error.message;
+    } on TimeoutException {
+      errorMessage.value = 'Request timed out. Please check your connection.';
     } catch (_) {
       errorMessage.value = 'Unable to sign in right now.';
     } finally {
