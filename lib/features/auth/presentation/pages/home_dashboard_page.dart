@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../../../shared/widgets/app_message_state.dart';
-import '../../../../shared/widgets/app_page_header.dart';
 import '../../../cart_orders/data/models/order_status.dart';
 import '../../../dashboard/data/models/dashboard_order_preview_model.dart';
 import '../../../dashboard/data/models/dashboard_range.dart';
 import '../../../notifications/presentation/controllers/notification_controller.dart';
 import '../../../dashboard/presentation/controllers/home_dashboard_controller.dart';
 import '../controllers/home_controller.dart';
+
+const _kNavy = Color(0xFF0D1B2A);
+const _kGreen = Color(0xFF00C48C);
 
 class HomeDashboardPage extends GetView<HomeDashboardController> {
   const HomeDashboardPage({super.key});
@@ -17,325 +19,443 @@ class HomeDashboardPage extends GetView<HomeDashboardController> {
   Widget build(BuildContext context) {
     final homeController = Get.find<HomeController>();
     final notificationController = Get.find<NotificationController>();
+    final topPadding = MediaQuery.of(context).padding.top;
 
-    return SafeArea(
-      child: Obx(() {
-        final hasDashboardData =
-            controller.summary.value != null ||
-            controller.nextDueOrders.isNotEmpty ||
-            controller.recentOrders.isNotEmpty;
+    return Obx(() {
+      final hasDashboardData =
+          controller.summary.value != null ||
+          controller.nextDueOrders.isNotEmpty ||
+          controller.recentOrders.isNotEmpty;
 
-        if (controller.isInitialLoading.value && !hasDashboardData) {
-          return const _DashboardLoadingState();
-        }
+      if (controller.isInitialLoading.value && !hasDashboardData) {
+        return const SafeArea(child: _DashboardLoadingState());
+      }
 
-        if (controller.errorMessage.value != null && !hasDashboardData) {
-          return AppMessageState(
+      if (controller.errorMessage.value != null && !hasDashboardData) {
+        return SafeArea(
+          child: AppMessageState(
             icon: Icons.cloud_off_outlined,
             message: controller.errorMessage.value!,
             actionLabel: 'Retry',
             onAction: controller.retry,
-          );
-        }
+          ),
+        );
+      }
 
-        return Column(
-          children: [
+      return Column(
+        children: [
+          _DashboardHeader(
+            topPadding: topPadding,
+            controller: controller,
+            homeController: homeController,
+            notificationController: notificationController,
+          ),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: controller.showInlineLoader
+                ? const LinearProgressIndicator(minHeight: 3)
+                : const SizedBox.shrink(),
+          ),
+          if (controller.errorMessage.value != null && hasDashboardData)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-              child: Column(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: _InlineErrorBanner(
+                message: controller.errorMessage.value!,
+                onRetry: controller.retry,
+              ),
+            ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: controller.refresh,
+              edgeOffset: 12,
+              displacement: 28,
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 96),
                 children: [
-                  AppPageHeader(
-                    title: 'Home',
-                    subtitle:
-                        'Track today first, then jump straight into action.',
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Obx(() {
-                          final syncManager = homeController.syncManager;
-                          if (syncManager == null) return const SizedBox.shrink();
-
-                          final count = syncManager.pendingActionsCount.value;
-                          final isSyncing = syncManager.isSyncing.value;
-
-                          return Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              IconButton(
-                                tooltip: 'Sync Offline Data',
-                                onPressed: isSyncing
-                                    ? null
-                                    : syncManager.triggerManualSync,
-                                icon: isSyncing
-                                    ? const SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                    : const Icon(Icons.sync),
-                              ),
-                              if (count > 0)
-                                Positioned(
-                                  right: 6,
-                                  top: 6,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 5,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context).colorScheme.primary,
-                                      borderRadius: BorderRadius.circular(999),
-                                    ),
-                                    constraints: const BoxConstraints(
-                                      minWidth: 18,
-                                    ),
-                                    child: Text(
-                                      '$count',
-                                      textAlign: TextAlign.center,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelSmall
-                                          ?.copyWith(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onPrimary,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          );
-                        }),
-                        Obx(
-                          () => Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              IconButton(
-                                tooltip: 'Notifications',
-                                onPressed: homeController.openNotifications,
-                                icon: const Icon(
-                                  Icons.notifications_none_outlined,
-                                ),
-                              ),
-                              if (notificationController.unreadCount.value > 0)
-                                Positioned(
-                                  right: 6,
-                                  top: 6,
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 5,
-                                      vertical: 2,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Theme.of(context).colorScheme.error,
-                                      borderRadius: BorderRadius.circular(999),
-                                    ),
-                                    constraints: const BoxConstraints(
-                                      minWidth: 18,
-                                    ),
-                                    child: Text(
-                                      notificationController.unreadCount.value > 99
-                                          ? '99+'
-                                          : notificationController.unreadCount.value
-                                                .toString(),
-                                      textAlign: TextAlign.center,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .labelSmall
-                                          ?.copyWith(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onError,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        CircleAvatar(
-                          child: Text(
-                            (homeController.user.value?.name ?? 'S')[0]
-                                .toUpperCase(),
-                          ),
-                        ),
-                      ],
-                    ),
+                  _GlanceSection(controller: controller),
+                  const SizedBox(height: 20),
+                  _TodaysPlanSection(
+                    controller: controller,
+                    homeController: homeController,
                   ),
-                  const SizedBox(height: 12),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 180),
-                    child: controller.showInlineLoader
-                        ? const Padding(
-                            padding: EdgeInsets.only(bottom: 12),
-                            child: LinearProgressIndicator(minHeight: 3),
-                          )
-                        : const SizedBox.shrink(),
+                  const SizedBox(height: 16),
+                  _OrderPreviewSection(
+                    title: 'Recent Orders',
+                    subtitle: 'Latest order updates for this salesman.',
+                    orders: controller.recentOrders,
+                    emptyMessage: 'No recent orders found.',
+                    controller: controller,
                   ),
-                  if (controller.errorMessage.value != null && hasDashboardData)
+                  if (controller.infoMessage.value != null &&
+                      !hasDashboardData &&
+                      controller.errorMessage.value == null)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _InlineErrorBanner(
-                        message: controller.errorMessage.value!,
-                        onRetry: controller.retry,
+                      padding: const EdgeInsets.only(top: 24),
+                      child: AppMessageState(
+                        icon: Icons.dashboard_customize_outlined,
+                        message: controller.infoMessage.value!,
+                        actionLabel: 'Refresh',
+                        onAction: controller.refresh,
                       ),
                     ),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Summary',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'Order date based',
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.bodySmall,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              _SummaryFilterButton(controller: controller),
-                            ],
-                          ),
-                          if (controller.appliedFilters.value?.startDate !=
-                                  null &&
-                              controller.appliedFilters.value?.endDate !=
-                                  null) ...[
-                            const SizedBox(height: 10),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context)
-                                    .colorScheme
-                                    .surfaceContainerHighest
-                                    .withValues(alpha: 0.55),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.date_range_outlined,
-                                    size: 16,
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurfaceVariant,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      '${controller.formatDate(controller.appliedFilters.value?.startDate)} - ${controller.formatDate(controller.appliedFilters.value?.endDate)}',
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.bodySmall,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
                 ],
               ),
             ),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: controller.refresh,
-                edgeOffset: 12,
-                displacement: 28,
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
+          ),
+        ],
+      );
+    });
+  }
+}
+
+// ─── Dark Header ──────────────────────────────────────────────────────────────
+
+class _DashboardHeader extends StatelessWidget {
+  const _DashboardHeader({
+    required this.topPadding,
+    required this.controller,
+    required this.homeController,
+    required this.notificationController,
+  });
+
+  final double topPadding;
+  final HomeDashboardController controller;
+  final HomeController homeController;
+  final NotificationController notificationController;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: _kNavy,
+      padding: EdgeInsets.fromLTRB(20, topPadding + 12, 20, 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildTopRow(),
+          const SizedBox(height: 22),
+          _buildSalesRow(),
+          const SizedBox(height: 20),
+          _buildActionRow(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTopRow() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Good morning,',
+                style: TextStyle(color: Colors.white60, fontSize: 13),
+              ),
+              const SizedBox(height: 2),
+              Obx(
+                () => Text(
+                  homeController.user.value?.name ?? 'Salesman',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
                   ),
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 96),
-                  children: [
-                    _SummaryGrid(controller: controller),
-                    const SizedBox(height: 16),
-                    _OrderPreviewSection(
-                      title: 'Next Due Orders',
-                      subtitle: 'Upcoming draft deliveries for this salesman.',
-                      orders: controller.nextDueOrders,
-                      emptyMessage: 'No upcoming due orders.',
-                      controller: controller,
-                    ),
-                    const SizedBox(height: 16),
-                    _OrderPreviewSection(
-                      title: 'Recent Orders',
-                      subtitle: 'Latest order updates for this salesman.',
-                      orders: controller.recentOrders,
-                      emptyMessage: 'No recent orders found.',
-                      controller: controller,
-                    ),
-                    if (controller.infoMessage.value != null &&
-                        !hasDashboardData &&
-                        controller.errorMessage.value == null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 24),
-                        child: AppMessageState(
-                          icon: Icons.dashboard_customize_outlined,
-                          message: controller.infoMessage.value!,
-                          actionLabel: 'Refresh',
-                          onAction: controller.refresh,
-                        ),
-                      ),
-                  ],
                 ),
               ),
+            ],
+          ),
+        ),
+        _SyncButton(homeController: homeController),
+        _NotificationButton(
+          homeController: homeController,
+          notificationController: notificationController,
+        ),
+        const SizedBox(width: 4),
+        Obx(
+          () => CircleAvatar(
+            radius: 18,
+            backgroundColor: const Color(0xFF1E3A5F),
+            child: Text(
+              (homeController.user.value?.name ?? 'S')[0].toUpperCase(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+              ),
             ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSalesRow() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              "TODAY'S SALES",
+              style: TextStyle(
+                color: Colors.white60,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.9,
+              ),
+            ),
+            const Spacer(),
+            _HeaderFilterChip(controller: controller),
           ],
-        );
-      }),
+        ),
+        const SizedBox(height: 8),
+        Obx(
+          () => Text(
+            controller.formatCurrency(controller.summary.value?.salesAmount),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 34,
+              fontWeight: FontWeight.w800,
+              height: 1.1,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          'Confirmed orders only',
+          style: TextStyle(color: Colors.white38, fontSize: 12),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionRow() {
+    return Row(
+      children: [
+        Expanded(
+          child: FilledButton.icon(
+            onPressed: homeController.openNewOrder,
+            icon: const Icon(Icons.add, size: 20),
+            label: const Text('New order'),
+            style: FilledButton.styleFrom(
+              backgroundColor: _kGreen,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              textStyle: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        _HeaderIconButton(
+          icon: Icons.receipt_long_outlined,
+          tooltip: 'Orders',
+          onTap: homeController.openOrdersTab,
+        ),
+        const SizedBox(width: 10),
+        _HeaderIconButton(
+          icon: Icons.groups_outlined,
+          tooltip: 'Customers',
+          onTap: () => homeController.changeTab(2),
+        ),
+      ],
     );
   }
 }
 
-class _SummaryFilterButton extends StatelessWidget {
-  const _SummaryFilterButton({required this.controller});
+class _SyncButton extends StatelessWidget {
+  const _SyncButton({required this.homeController});
+  final HomeController homeController;
 
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      final syncManager = homeController.syncManager;
+      if (syncManager == null) return const SizedBox.shrink();
+
+      final count = syncManager.pendingActionsCount.value;
+      final isSyncing = syncManager.isSyncing.value;
+
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          IconButton(
+            tooltip: 'Sync Offline Data',
+            onPressed: isSyncing ? null : syncManager.triggerManualSync,
+            icon: isSyncing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Icon(Icons.sync, color: Colors.white),
+          ),
+          if (count > 0)
+            Positioned(
+              right: 6,
+              top: 6,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  color: _kGreen,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                constraints: const BoxConstraints(minWidth: 18),
+                child: Text(
+                  '$count',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      );
+    });
+  }
+}
+
+class _NotificationButton extends StatelessWidget {
+  const _NotificationButton({
+    required this.homeController,
+    required this.notificationController,
+  });
+  final HomeController homeController;
+  final NotificationController notificationController;
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(
+      () => Stack(
+        clipBehavior: Clip.none,
+        children: [
+          IconButton(
+            tooltip: 'Notifications',
+            onPressed: homeController.openNotifications,
+            icon: const Icon(
+              Icons.notifications_none_outlined,
+              color: Colors.white,
+            ),
+          ),
+          if (notificationController.unreadCount.value > 0)
+            Positioned(
+              right: 6,
+              top: 6,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                constraints: const BoxConstraints(minWidth: 18),
+                child: Text(
+                  notificationController.unreadCount.value > 99
+                      ? '99+'
+                      : notificationController.unreadCount.value.toString(),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeaderIconButton extends StatelessWidget {
+  const _HeaderIconButton({
+    required this.icon,
+    required this.onTap,
+    this.tooltip,
+  });
+  final IconData icon;
+  final VoidCallback onTap;
+  final String? tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip ?? '',
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: Colors.white12,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          alignment: Alignment.center,
+          child: Icon(icon, color: Colors.white, size: 22),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderFilterChip extends StatelessWidget {
+  const _HeaderFilterChip({required this.controller});
   final HomeDashboardController controller;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return OutlinedButton.icon(
-      onPressed: () => _openRangeSheet(context),
-      icon: const Icon(Icons.tune),
-      label: Text(controller.selectedRange.value.label),
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        side: BorderSide(color: theme.colorScheme.outlineVariant),
+    return Obx(
+      () => GestureDetector(
+        onTap: () => _openRangeSheet(context),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: Colors.white12,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white24),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.calendar_today_outlined,
+                size: 13,
+                color: Colors.white70,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                controller.selectedRange.value.label,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Icon(
+                Icons.chevron_right,
+                size: 14,
+                color: Colors.white38,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -344,53 +464,45 @@ class _SummaryFilterButton extends StatelessWidget {
     final selected = await showModalBottomSheet<DashboardRange>(
       context: context,
       showDragHandle: true,
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Summary range',
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w800),
-                      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Summary range',
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w800),
                     ),
-                  ],
-                ),
-              ),
-              for (final range in DashboardRange.values)
-                ListTile(
-                  leading: Icon(
-                    controller.selectedRange.value == range
-                        ? Icons.radio_button_checked
-                        : Icons.radio_button_off,
                   ),
-                  title: Text(range.label),
-                  onTap: () => Navigator.of(context).pop(range),
+                ],
+              ),
+            ),
+            for (final range in DashboardRange.values)
+              ListTile(
+                leading: Icon(
+                  controller.selectedRange.value == range
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_off,
                 ),
-            ],
-          ),
-        );
-      },
+                title: Text(range.label),
+                onTap: () => Navigator.of(context).pop(range),
+              ),
+          ],
+        ),
+      ),
     );
 
-    if (selected == null) {
-      return;
-    }
+    if (selected == null) return;
 
     if (selected == DashboardRange.custom) {
-      if (!context.mounted) {
-        return;
-      }
+      if (!context.mounted) return;
       final picked = await controller.pickCustomDateRange(context);
-      if (picked == null) {
-        return;
-      }
+      if (picked == null) return;
       await controller.applyRange(
         selected,
         startDate: picked.start,
@@ -403,168 +515,137 @@ class _SummaryFilterButton extends StatelessWidget {
   }
 }
 
-class _SummaryGrid extends StatelessWidget {
-  const _SummaryGrid({required this.controller});
+// ─── Glance Grid ──────────────────────────────────────────────────────────────
 
+class _GlanceSection extends StatelessWidget {
+  const _GlanceSection({required this.controller});
   final HomeDashboardController controller;
 
   @override
   Widget build(BuildContext context) {
     final summary = controller.summary.value;
 
-    final items = [
-      _SummaryItem(
-        title: 'Sales Amount (Confirm Order Only)',
-        value: controller.formatCurrency(summary?.salesAmount),
-        icon: Icons.payments_outlined,
-        onTap: () => controller.openSummaryMetric('sales_amount'),
-      ),
-      _SummaryItem(
-        title: 'Total Orders',
-        value: '${summary?.totalOrdersCount ?? 0}',
-        icon: Icons.receipt_long_outlined,
-        onTap: () => controller.openSummaryMetric('total_orders_count'),
-      ),
-      _SummaryItem(
-        title: 'Draft Orders',
-        value: '${summary?.draftOrdersCount ?? 0}',
-        icon: Icons.edit_note_outlined,
-        accent: const _SummaryAccent(
-          background: Color(0xFFFFF4D6),
-          foreground: Color(0xFF92400E),
-        ),
-        onTap: () => controller.openSummaryMetric('draft_orders_count'),
-      ),
-      _SummaryItem(
-        title: 'Confirmed',
-        value: '${summary?.confirmedOrdersCount ?? 0}',
-        icon: Icons.verified_outlined,
-        accent: const _SummaryAccent(
-          background: Color(0xFFDFF7EA),
-          foreground: Color(0xFF166534),
-        ),
-        onTap: () => controller.openSummaryMetric('confirmed_orders_count'),
-      ),
-      _SummaryItem(
-        title: 'Overdue',
-        value: '${summary?.overdueDeliveriesCount ?? 0}',
-        icon: Icons.alarm_outlined,
-        onTap: () => controller.openSummaryMetric('overdue_deliveries_count'),
-      ),
-    ];
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final crossAxisCount = constraints.maxWidth >= 420 ? 3 : 2;
-        return GridView.builder(
-          shrinkWrap: true,
-          itemCount: items.length,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            mainAxisSpacing: 10,
-            crossAxisSpacing: 10,
-            childAspectRatio: constraints.maxWidth >= 420 ? 2.0 : 1.9,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Today at a glance',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w800,
           ),
-          itemBuilder: (context, index) {
-            final item = items[index];
-            return _SummaryCard(
-              title: item.title,
-              value: item.value,
-              icon: item.icon,
-              accent: item.accent,
-              onTap: item.onTap,
-            );
-          },
-        );
-      },
+        ),
+        const SizedBox(height: 12),
+        GridView.count(
+          crossAxisCount: 2,
+          childAspectRatio: 1.6,
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: [
+            _GlanceCard(
+              label: 'Orders',
+              value: '${summary?.totalOrdersCount ?? 0}',
+              icon: Icons.receipt_long_outlined,
+              iconBg: const Color(0xFFE8F0FE),
+              iconColor: const Color(0xFF1A73E8),
+              onTap: () => controller.openSummaryMetric('total_orders_count'),
+            ),
+            _GlanceCard(
+              label: 'Drafts',
+              value: '${summary?.draftOrdersCount ?? 0}',
+              icon: Icons.edit_note_outlined,
+              iconBg: const Color(0xFFFFF4D6),
+              iconColor: const Color(0xFF92400E),
+              onTap: () => controller.openSummaryMetric('draft_orders_count'),
+            ),
+            _GlanceCard(
+              label: 'Confirmed',
+              value: '${summary?.confirmedOrdersCount ?? 0}',
+              icon: Icons.verified_outlined,
+              iconBg: const Color(0xFFDFF7EA),
+              iconColor: const Color(0xFF166534),
+              onTap: () =>
+                  controller.openSummaryMetric('confirmed_orders_count'),
+            ),
+            _GlanceCard(
+              label: 'Overdue',
+              value: '${summary?.overdueDeliveriesCount ?? 0}',
+              icon: Icons.alarm_outlined,
+              iconBg: const Color(0xFFFFE1E1),
+              iconColor: const Color(0xFFB42318),
+              accentBorder: true,
+              onTap: () =>
+                  controller.openSummaryMetric('overdue_deliveries_count'),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
 
-class _SummaryItem {
-  const _SummaryItem({
-    required this.title,
+class _GlanceCard extends StatelessWidget {
+  const _GlanceCard({
+    required this.label,
     required this.value,
     required this.icon,
-    this.accent,
+    required this.iconBg,
+    required this.iconColor,
     required this.onTap,
+    this.accentBorder = false,
   });
 
-  final String title;
+  final String label;
   final String value;
   final IconData icon;
-  final _SummaryAccent? accent;
+  final Color iconBg;
+  final Color iconColor;
   final VoidCallback onTap;
-}
-
-class _SummaryAccent {
-  const _SummaryAccent({required this.background, required this.foreground});
-
-  final Color background;
-  final Color foreground;
-}
-
-class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    this.accent,
-    required this.onTap,
-  });
-
-  final String title;
-  final String value;
-  final IconData icon;
-  final _SummaryAccent? accent;
-  final VoidCallback onTap;
+  final bool accentBorder;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final effectiveAccent =
-        accent ??
-        _SummaryAccent(
-          background: theme.colorScheme.surfaceContainerHighest,
-          foreground: theme.colorScheme.primary,
-        );
 
     return Card(
+      clipBehavior: Clip.hardEdge,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Container(
+          decoration: accentBorder
+              ? const BoxDecoration(
+                  border: Border(
+                    left: BorderSide(color: Color(0xFFB42318), width: 3),
+                  ),
+                )
+              : null,
+          padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
                   Container(
-                    width: 28,
-                    height: 28,
+                    width: 32,
+                    height: 32,
                     decoration: BoxDecoration(
-                      color: effectiveAccent.background,
-                      borderRadius: BorderRadius.circular(9),
+                      color: iconBg,
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     alignment: Alignment.center,
-                    child: Icon(
-                      icon,
-                      size: 16,
-                      color: effectiveAccent.foreground,
-                    ),
+                    child: Icon(icon, size: 17, color: iconColor),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                      label,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
                         fontWeight: FontWeight.w600,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],
@@ -572,11 +653,11 @@ class _SummaryCard extends StatelessWidget {
               const Spacer(),
               Text(
                 value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleMedium?.copyWith(
+                style: TextStyle(
+                  color: iconColor,
+                  fontSize: 28,
                   fontWeight: FontWeight.w800,
-                  color: effectiveAccent.foreground,
+                  height: 1,
                 ),
               ),
             ],
@@ -586,6 +667,89 @@ class _SummaryCard extends StatelessWidget {
     );
   }
 }
+
+// ─── Today's Plan ─────────────────────────────────────────────────────────────
+
+class _TodaysPlanSection extends StatelessWidget {
+  const _TodaysPlanSection({
+    required this.controller,
+    required this.homeController,
+  });
+
+  final HomeDashboardController controller;
+  final HomeController homeController;
+
+  @override
+  Widget build(BuildContext context) {
+    final orders = controller.nextDueOrders;
+    final theme = Theme.of(context);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Today's plan",
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${orders.length} upcoming deliveries',
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  onPressed: homeController.openOrdersTab,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Route'),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.arrow_forward, size: 14),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            if (orders.isEmpty)
+              Text(
+                'No upcoming due orders.',
+                style: theme.textTheme.bodyMedium,
+              )
+            else
+              ...orders.map(
+                (order) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _OrderPreviewTile(
+                    order: order,
+                    controller: controller,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Recent Orders Section ────────────────────────────────────────────────────
 
 class _OrderPreviewSection extends StatelessWidget {
   const _OrderPreviewSection({
@@ -699,7 +863,10 @@ class _OrderPreviewTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
-                _StatusPill(status: order.status, label: order.status?.label ?? '-'),
+                _StatusPill(
+                  status: order.status,
+                  label: order.status?.label ?? '-',
+                ),
               ],
             ),
           ],
@@ -772,6 +939,8 @@ class _StatusTone {
   final Color foregroundColor;
 }
 
+// ─── Error Banner ─────────────────────────────────────────────────────────────
+
 class _InlineErrorBanner extends StatelessWidget {
   const _InlineErrorBanner({required this.message, required this.onRetry});
 
@@ -806,6 +975,8 @@ class _InlineErrorBanner extends StatelessWidget {
     );
   }
 }
+
+// ─── Loading State ────────────────────────────────────────────────────────────
 
 class _DashboardLoadingState extends StatelessWidget {
   const _DashboardLoadingState();

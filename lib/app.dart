@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import 'core/navigation/app_route_observer.dart';
@@ -18,6 +19,13 @@ class SalesApp extends StatelessWidget {
       initialRoute: AppRoutes.splash,
       getPages: AppPages.routes,
       navigatorObservers: [appRouteObserver],
+      builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+        value: const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent, // 👈 required
+          // statusBarIconBrightness: Brightness.dark, // adjust if needed
+        ),
+        child: SafeArea(top: false, bottom: true, child: child!),
+      ),
     );
   }
 }
