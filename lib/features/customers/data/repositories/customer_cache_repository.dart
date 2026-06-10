@@ -16,6 +16,8 @@ class CustomerCacheRepository {
           'id': customer.id,
           'name': customer.name,
           'phone': customer.phone,
+          'address': customer.address,
+          'area': customer.area,
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
@@ -30,8 +32,8 @@ class CustomerCacheRepository {
     if (query != null && query.isNotEmpty) {
       maps = await db.query(
         'cached_customers',
-        where: 'name LIKE ? OR phone LIKE ?',
-        whereArgs: ['%$query%', '%$query%'],
+        where: 'name LIKE ? OR phone LIKE ? OR area LIKE ?',
+        whereArgs: ['%$query%', '%$query%', '%$query%'],
       );
     } else {
       maps = await db.query('cached_customers');
@@ -42,6 +44,8 @@ class CustomerCacheRepository {
         id: maps[i]['id'],
         name: maps[i]['name'],
         phone: maps[i]['phone'],
+        address: maps[i]['address'],
+        area: maps[i]['area'],
       );
     });
   }
@@ -67,6 +71,8 @@ class CustomerCacheRepository {
       id: maps[0]['id'],
       name: maps[0]['name'],
       phone: maps[0]['phone'],
+      address: maps[0]['address'],
+      area: maps[0]['area'],
     );
   }
 }

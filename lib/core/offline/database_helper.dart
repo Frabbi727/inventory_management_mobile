@@ -20,7 +20,7 @@ class DatabaseHelper {
     final path = join(dbPath, 'offline_database.db');
     return await openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -36,6 +36,12 @@ class DatabaseHelper {
           data TEXT
         )
       ''');
+    }
+    if (oldVersion < 3) {
+      await db.execute(
+        'ALTER TABLE cached_customers ADD COLUMN address TEXT',
+      );
+      await db.execute('ALTER TABLE cached_customers ADD COLUMN area TEXT');
     }
   }
 
@@ -65,7 +71,9 @@ class DatabaseHelper {
       CREATE TABLE cached_customers(
         id INTEGER PRIMARY KEY,
         name TEXT,
-        phone TEXT
+        phone TEXT,
+        address TEXT,
+        area TEXT
       )
     ''');
 

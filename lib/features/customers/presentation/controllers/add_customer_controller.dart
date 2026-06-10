@@ -4,12 +4,17 @@ import 'package:get/get.dart';
 import '../../../../core/errors/api_exception.dart';
 import '../../data/models/create_customer_request_model.dart';
 import '../../data/repositories/customer_repository.dart';
+import '../../data/repositories/customer_cache_repository.dart';
 
 class AddCustomerController extends GetxController {
-  AddCustomerController({required CustomerRepository customerRepository})
-    : _customerRepository = customerRepository;
+  AddCustomerController({
+    required CustomerRepository customerRepository,
+    required CustomerCacheRepository customerCacheRepository,
+  }) : _customerRepository = customerRepository,
+       _customerCacheRepository = customerCacheRepository;
 
   final CustomerRepository _customerRepository;
+  final CustomerCacheRepository _customerCacheRepository;
 
   final formKey = GlobalKey<FormState>();
   final nameController = TextEditingController();
@@ -55,6 +60,9 @@ class AddCustomerController extends GetxController {
         errorMessage.value = 'Customer response was incomplete.';
         return;
       }
+
+      // Save to local cache immediately
+      await _customerCacheRepository.saveCustomers([customer]);
 
       Get.back(result: customer);
     } on ApiException catch (error) {

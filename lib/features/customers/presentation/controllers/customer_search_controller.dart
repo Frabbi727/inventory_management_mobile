@@ -70,7 +70,7 @@ class CustomerSearchController extends GetxController {
     final requestedQuery = searchQuery.value.trim();
     final hasExistingItems = customers.isNotEmpty;
 
-    if (reset) {
+    if (reset || !hasExistingItems) {
       if (isInitialLoading.value || isRefreshing.value) {
         _pendingReset = true;
         return;
@@ -88,6 +88,11 @@ class CustomerSearchController extends GetxController {
     final requestGeneration = _requestGeneration;
 
     try {
+      // Show loading if list is empty and we aren't already loading
+      if (customers.isEmpty && !isInitialLoading.value) {
+        isInitialLoading.value = true;
+      }
+
       // READ FROM LOCAL CACHE instead of API
       final cachedCustomers = await _customerCacheRepository.getCustomers(
         query: requestedQuery.isEmpty ? null : requestedQuery,
@@ -101,11 +106,12 @@ class CustomerSearchController extends GetxController {
       _hasLoadedOnce = true;
       _hasNextPage = false; // Cache doesn't support pagination for now
 
-      infoMessage.value = customers.isEmpty
-          ? (requestedQuery.isEmpty
-                ? 'No customers available in local cache. Please sync.'
-                : 'No customers found for "$requestedQuery" in local cache.')
-          : null;
+      infoMessage.value =
+          customers.isEmpty
+              ? (requestedQuery.isEmpty
+                  ? 'No customers available in local cache. Please sync.'
+                  : 'No customers found for "$requestedQuery" in local cache.')
+              : null;
     } catch (e) {
       if (requestGeneration != _requestGeneration) {
         return;

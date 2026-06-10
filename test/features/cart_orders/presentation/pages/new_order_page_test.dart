@@ -209,6 +209,18 @@ void main() {
 
     expect(find.text('CUSTOMER'), findsOneWidget);
     expect(find.text('Rahman Store'), findsOneWidget);
+
+    final cartController = Get.find<CartController>();
+
+    // Tapping a customer row selects it, tapping again deselects — the
+    // second tap only works if the row rebuilt with the new selection.
+    await tester.tap(find.text('Rahman Store'));
+    await tester.pump();
+    expect(cartController.selectedCustomer.value?.id, equals(1));
+    await tester.tap(find.text('Rahman Store'));
+    await tester.pump();
+    expect(cartController.selectedCustomer.value, isNull);
+
     await tester.scrollUntilVisible(
       find.text('SCHEDULE'),
       200,
@@ -216,7 +228,6 @@ void main() {
     );
     expect(find.text('SCHEDULE'), findsOneWidget);
 
-    final cartController = Get.find<CartController>();
     cartController.setSelectedCustomer(
       const CustomerModel(id: 1, name: 'Rahman Store'),
     );

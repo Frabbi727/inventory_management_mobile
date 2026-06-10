@@ -19,6 +19,9 @@ class OrderCustomerStepPage extends GetView<OrderCustomerStepController> {
     return Obx(() {
       final cartController = controller.cartController;
       final customers = controller.customers;
+      // Read inside the Obx body so selection changes trigger a rebuild —
+      // sliver itemBuilders run during layout, outside Obx's reactive scope.
+      final selectedCustomerId = cartController.selectedCustomer.value?.id;
 
       controller.syncSearchField();
 
@@ -101,7 +104,7 @@ class OrderCustomerStepPage extends GetView<OrderCustomerStepController> {
                 itemBuilder: (context, index) {
                   final customer = customers[index];
                   final isSelected =
-                      cartController.selectedCustomer.value?.id == customer.id;
+                      customer.id != null && selectedCustomerId == customer.id;
 
                   return _CustomerOptionRow(
                     customer: customer,

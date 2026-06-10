@@ -7,6 +7,11 @@ class AddCustomerBinding extends Bindings {
   @override
   void dependencies() {
     CustomerDependencies.ensureRegistered();
-    Get.lazyPut(() => AddCustomerController(customerRepository: Get.find()));
+    Get.lazyPut(
+      () => AddCustomerController(
+        customerRepository: Get.find(),
+        customerCacheRepository: Get.find(),
+      ),
+    );
   }
 }
