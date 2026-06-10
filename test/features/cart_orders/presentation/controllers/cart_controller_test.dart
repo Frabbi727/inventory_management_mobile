@@ -385,6 +385,8 @@ void main() {
 
     controller.addProduct(product);
     controller.setSelectedCustomer(const CustomerModel(id: 5, name: 'Rahman'));
+    // The delivery defaults to tomorrow 14:00; clear it to exercise the guard.
+    controller.setIntendedDeliveryAt(null);
 
     final response = await controller.saveDraft();
 

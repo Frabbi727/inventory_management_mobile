@@ -940,6 +940,8 @@ class SummaryFooter extends StatelessWidget {
     this.tertiaryLabel,
     this.onTertiaryPressed,
     this.tertiaryHighlighted = false,
+    this.recapText,
+    this.recapValue,
   });
 
   final String? subtotal;
@@ -953,6 +955,8 @@ class SummaryFooter extends StatelessWidget {
   final String? tertiaryLabel;
   final VoidCallback? onTertiaryPressed;
   final bool tertiaryHighlighted;
+  final String? recapText;
+  final String? recapValue;
 
   @override
   Widget build(BuildContext context) {
@@ -984,6 +988,31 @@ class SummaryFooter extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (recapText != null) ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          recapText!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      if (recapValue != null)
+                        Text(
+                          recapValue!,
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                ],
                 if (showTotals && subtotal != null && total != null) ...[
                   Container(
                     padding: const EdgeInsets.all(14),

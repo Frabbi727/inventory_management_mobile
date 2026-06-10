@@ -11,7 +11,6 @@ import 'package:b2b_inventory_management/features/cart_orders/data/repositories/
 import 'package:b2b_inventory_management/features/cart_orders/data/repositories/order_cache_repository.dart';
 import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/cart_controller.dart';
 import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/order_cart_step_controller.dart';
-import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/order_confirm_step_controller.dart';
 import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/order_customer_step_controller.dart';
 import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/order_payment_step_controller.dart';
 import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/order_products_step_controller.dart';
@@ -254,7 +253,7 @@ void main() {
   );
 
   test(
-    'confirm step controller keeps access to shared cart workflow state',
+    'cart controller allows confirm once payment covers the grand total',
     () {
       final cartController = Get.put(createCartController());
       cartController.setSelectedCustomer(
@@ -271,12 +270,8 @@ void main() {
       cartController.setIntendedDeliveryAt(DateTime(2026, 4, 17, 15, 30));
       cartController.onPaymentAmountChanged('52');
 
-      final controller = Get.put(
-        OrderConfirmStepController(cartController: cartController),
-      );
-
-      expect(controller.cartController.canSaveDraft, isTrue);
-      expect(controller.cartController.canConfirm, isTrue);
+      expect(cartController.canSaveDraft, isTrue);
+      expect(cartController.canConfirm, isTrue);
     },
   );
 

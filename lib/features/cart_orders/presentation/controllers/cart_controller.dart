@@ -18,9 +18,8 @@ import '../../data/repositories/order_repository.dart';
 class CartController extends GetxController {
   static const int customerStep = 0;
   static const int productsStep = 1;
-  static const int cartStep = 2;
+  static const int reviewStep = 2;
   static const int paymentStep = 3;
-  static const int confirmStep = 4;
 
   CartController({
     required OrderRepository orderRepository,
@@ -39,7 +38,7 @@ class CartController extends GetxController {
   final newPaymentAmount = Rxn<num>();
   final noteText = ''.obs;
   final selectedOrderDate = DateTime.now().obs;
-  final selectedIntendedDeliveryAt = Rxn<DateTime>();
+  final selectedIntendedDeliveryAt = Rxn<DateTime>(defaultIntendedDeliveryAt());
   final savedDraftOrder = Rxn<OrderModel>();
   final isSubmitting = false.obs;
   final isHydratingDraft = false.obs;
@@ -50,6 +49,13 @@ class CartController extends GetxController {
   final noteController = TextEditingController();
   final discountValueController = TextEditingController();
   final paymentAmountController = TextEditingController();
+
+  /// Sensible default delivery: tomorrow at 14:00, so the schedule chips
+  /// (Tomorrow · Afternoon) light up on arrival.
+  static DateTime defaultIntendedDeliveryAt() {
+    final tomorrow = DateTime.now().add(const Duration(days: 1));
+    return DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 14);
+  }
 
   @override
   void onInit() {
@@ -334,17 +340,15 @@ class CartController extends GetxController {
         return hasCustomerSelected;
       case productsStep:
         return hasItems;
-      case cartStep:
+      case reviewStep:
         return hasItems;
-      case paymentStep:
-        return canSaveDraft;
       default:
         return canSaveDraft;
     }
   }
 
   bool canGoToStep(int step) {
-    return step >= customerStep && step <= confirmStep;
+    return step >= customerStep && step <= paymentStep;
   }
 
   bool canOpenStep(int step) {
@@ -370,7 +374,7 @@ class CartController extends GetxController {
     newPaymentAmount.value = null;
     noteText.value = '';
     selectedOrderDate.value = DateTime.now();
-    selectedIntendedDeliveryAt.value = null;
+    selectedIntendedDeliveryAt.value = defaultIntendedDeliveryAt();
     savedDraftOrder.value = null;
     hasUnsavedDraftChanges.value = false;
     errorMessage.value = null;
@@ -397,6 +401,63 @@ class CartController extends GetxController {
     errorMessage.value = null;
   }
 
+  void setOrderDate(DateTime value) {
+    selectedOrderDate.value = DateTime(value.year, value.month, value.day);
+    _markDraftDirty();
+    errorMessage.value = null;
+  }
+
+  void setDeliveryDay(DateTime day) {
+    final current =
+        selectedIntendedDeliveryAt.value ?? defaultIntendedDeliveryAt();
+    setIntendedDeliveryAt(
+      DateTime(day.year, day.month, day.day, current.hour, current.minute),
+    );
+  }
+
+  void setDeliveryTime(int hour, [int minute = 0]) {
+    final current =
+        selectedIntendedDeliveryAt.value ?? defaultIntendedDeliveryAt();
+    setIntendedDeliveryAt(
+      DateTime(current.year, current.month, current.day, hour, minute),
+    );
+  }
+
+  /// Quick discount chips: null/0 clears, otherwise applies a percent value.
+  void applyQuickPercentDiscount(num? percent) {
+    if (percent == null || percent <= 0) {
+      setDiscountType(null);
+      return;
+    }
+
+    discountType.value = 'percentage';
+    discountValueController.text = percent % 1 == 0
+        ? percent.toInt().toString()
+        : percent.toString();
+    _markDraftDirty();
+  }
+
+  bool isQuickPercentSelected(num percent) {
+    if (percent == 0) {
+      return discountType.value == null;
+    }
+
+    return _isPercentageDiscount(discountType.value) &&
+        appliedDiscountValue == percent;
+  }
+
+  /// Payment quick-fill chips: fills a fraction of the remaining due.
+  void applyPaymentFraction(double fraction) {
+    final remaining = displayGrandTotal - savedPaymentAmount;
+    final clamped = remaining < 0 ? 0 : remaining;
+    final amount = _normalizeMoney(
+      fraction >= 1 ? clamped : clamped * fraction,
+    );
+    paymentAmountController.text = amount <= 0
+        ? ''
+        : amount.toStringAsFixed(2);
+  }
+
   void nextStep() {
     final validationMessage = validationMessageForStep(currentStep.value);
     if (validationMessage != null) {
@@ -405,7 +466,7 @@ class CartController extends GetxController {
     }
 
     errorMessage.value = null;
-    if (currentStep.value < confirmStep) {
+    if (currentStep.value < paymentStep) {
       currentStep.value += 1;
     }
   }
@@ -512,10 +573,10 @@ class CartController extends GetxController {
     }
 
     if (step == productsStep && !hasItems) {
-      return 'Please add at least one product.';
+      return 'Add at least one product.';
     }
 
-    if (step == cartStep && !hasItems) {
+    if (step == reviewStep && !hasItems) {
       return 'Your cart is empty. Add products to continue.';
     }
 
@@ -791,9 +852,9 @@ class CartController extends GetxController {
       selectedOrderDate.value =
           DateTime.tryParse((draftOrder.orderDate ?? '').split('T').first) ??
           DateTime.now();
-      selectedIntendedDeliveryAt.value = _tryParseDateTime(
-        draftOrder.intendedDeliveryAt,
-      );
+      selectedIntendedDeliveryAt.value =
+          _tryParseDateTime(draftOrder.intendedDeliveryAt) ??
+          defaultIntendedDeliveryAt();
       savedDraftOrder.value = draftOrder;
       newPaymentAmount.value = null;
       paymentAmountController.clear();
@@ -814,13 +875,11 @@ class CartController extends GetxController {
   String submitButtonLabel() {
     switch (currentStep.value) {
       case customerStep:
-        return 'Continue to Products';
+        return 'Continue';
       case productsStep:
-        return 'Review Cart';
-      case cartStep:
-        return 'Continue to Payment';
-      case paymentStep:
         return 'Review Order';
+      case reviewStep:
+        return 'Discount & Payment';
       default:
         return 'Confirm Order';
     }

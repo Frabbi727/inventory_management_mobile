@@ -28,9 +28,9 @@ class OrderSuccessPage extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: ListView(
             children: [
-              _SuccessCard(
-                title: response?.message ?? pageTitle,
-                message: pageMessage,
+              _SuccessHero(
+                title: isConfirmed ? 'Order confirmed!' : 'Draft saved!',
+                message: response?.message ?? pageMessage,
               ),
               const SizedBox(height: 16),
               _DetailCard(
@@ -349,8 +349,8 @@ class _DetailRow extends StatelessWidget {
   }
 }
 
-class _SuccessCard extends StatelessWidget {
-  const _SuccessCard({required this.title, required this.message});
+class _SuccessHero extends StatelessWidget {
+  const _SuccessHero({required this.title, required this.message});
 
   final String title;
   final String message;
@@ -358,45 +358,55 @@ class _SuccessCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final accent = theme.colorScheme.secondary;
 
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: theme.colorScheme.primary.withValues(alpha: 0.12),
-        ),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 18),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 52,
-            height: 52,
+            width: 92,
+            height: 92,
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary,
-              borderRadius: BorderRadius.circular(16),
+              color: accent,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: accent.withValues(alpha: 0.4),
+                  blurRadius: 30,
+                  offset: const Offset(0, 12),
+                ),
+                BoxShadow(
+                  color: accent.withValues(alpha: 0.1),
+                  spreadRadius: 12,
+                ),
+              ],
             ),
-            child: Icon(
+            child: const Icon(
               Icons.check_rounded,
-              color: theme.colorScheme.onPrimary,
-              size: 28,
+              color: Colors.white,
+              size: 48,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 20),
           Text(
             title,
+            textAlign: TextAlign.center,
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w800,
+              letterSpacing: -0.4,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            message,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-              height: 1.4,
+          const SizedBox(height: 6),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 280),
+            child: Text(
+              message,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                height: 1.4,
+              ),
             ),
           ),
         ],

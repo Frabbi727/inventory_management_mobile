@@ -4,18 +4,21 @@ class AppTheme {
   AppTheme._();
 
   static ThemeData light() {
-    const primaryColor = Color(0xFF0F766E);
-    const secondaryColor = Color(0xFFEC4899);
+    // Design tokens (tokens.css): navy primary + teal accent.
+    const primaryColor = Color(0xFF1A237E);
+    const secondaryColor = Color(0xFF00A99D);
     const tertiaryColor = Color(0xFFF59E0B);
-    const surfaceColor = Color(0xFFF4F7FB);
+    const surfaceColor = Color(0xFFF5F6F8);
     final colorScheme = ColorScheme.fromSeed(
       seedColor: primaryColor,
       primary: primaryColor,
       secondary: secondaryColor,
       tertiary: tertiaryColor,
       surface: surfaceColor,
-      surfaceContainerHighest: const Color(0xFFE9F0F5),
-      primaryContainer: const Color(0xFFD8F3EF),
+      surfaceContainerHighest: const Color(0xFFE9ECF3),
+      primaryContainer: const Color(0xFFE8EAF6),
+      secondaryContainer: const Color(0xFFE0F2F1),
+      onSecondaryContainer: const Color(0xFF00695F),
     );
 
     return ThemeData(

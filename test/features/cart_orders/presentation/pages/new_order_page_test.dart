@@ -13,7 +13,6 @@ import 'package:b2b_inventory_management/features/cart_orders/data/repositories/
 import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/cart_controller.dart';
 import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/new_order_page_controller.dart';
 import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/order_cart_step_controller.dart';
-import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/order_confirm_step_controller.dart';
 import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/order_customer_step_controller.dart';
 import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/order_payment_step_controller.dart';
 import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/order_products_step_controller.dart';
@@ -37,7 +36,15 @@ class FakePendingActionsRepository extends Fake implements PendingActionsReposit
 
 class FakeCustomerCacheRepository extends Fake implements CustomerCacheRepository {
   @override
-  Future<List<CustomerModel>> getCustomers({String? query}) async => [];
+  Future<List<CustomerModel>> getCustomers({String? query}) async => const [
+    CustomerModel(
+      id: 1,
+      name: 'Rahman Store',
+      phone: '+8801710001001',
+      address: '12 Lake Circus, Dhaka',
+      area: 'Dhanmondi',
+    ),
+  ];
   @override
   Future<void> saveCustomers(List<CustomerModel> customers) async {}
 }
@@ -190,7 +197,6 @@ void main() {
     );
     Get.put(OrderCartStepController(cartController: cartController));
     Get.put(OrderPaymentStepController(cartController: cartController));
-    Get.put(OrderConfirmStepController(cartController: cartController));
 
     await tester.pumpWidget(const GetMaterialApp(home: NewOrderPage()));
     await tester.pumpAndSettle();
@@ -201,7 +207,14 @@ void main() {
   ) async {
     await pumpPage(tester);
 
-    expect(find.text('Available customers'), findsOneWidget);
+    expect(find.text('CUSTOMER'), findsOneWidget);
+    expect(find.text('Rahman Store'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('SCHEDULE'),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('SCHEDULE'), findsOneWidget);
 
     final cartController = Get.find<CartController>();
     cartController.setSelectedCustomer(
@@ -219,43 +232,29 @@ void main() {
         currentStock: 5,
       ),
     );
-    cartController.goToStep(CartController.cartStep);
+    cartController.goToStep(CartController.reviewStep);
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.text('Intended delivery'),
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(find.text('Intended delivery'), findsOneWidget);
-    expect(find.text('Discount'), findsNothing);
-    expect(find.text('Continue to Payment'), findsOneWidget);
+    expect(find.text('ITEMS · 1'), findsOneWidget);
+    expect(find.text('Fresh Milk 500ml'), findsWidgets);
+    expect(find.text('Discount & Payment'), findsOneWidget);
 
     cartController.setIntendedDeliveryAt(DateTime(2026, 4, 17, 15, 30));
     cartController.goToStep(CartController.paymentStep);
     await tester.pumpAndSettle();
-    expect(find.text('Payment'), findsWidgets);
-    expect(find.text('Discount'), findsWidgets);
-    expect(find.text('Amount'), findsOneWidget);
-    expect(find.text('Percent'), findsOneWidget);
+    expect(find.text('DISCOUNT'), findsOneWidget);
+    expect(find.text('PAYMENT'), findsOneWidget);
+    expect(find.text('5%'), findsOneWidget);
     await tester.scrollUntilVisible(
-      find.text('Payment amount'),
+      find.text('Add payment amount'),
       300,
       scrollable: find.byType(Scrollable).first,
     );
-    expect(find.text('Payment amount'), findsOneWidget);
-    expect(find.text('Review Order'), findsOneWidget);
-    expect(find.text('Save Draft'), findsNothing);
-    expect(find.text('Confirm Order'), findsNothing);
-
-    cartController.goToStep(CartController.confirmStep);
-    await tester.pumpAndSettle();
-    expect(find.text('Confirm order'), findsOneWidget);
+    expect(find.text('Add payment amount'), findsOneWidget);
     expect(find.text('Save Draft'), findsOneWidget);
-    await tester.scrollUntilVisible(
-      find.text('Payment summary'),
-      300,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(find.text('Payment summary'), findsOneWidget);
+    expect(find.text('Complete Payment'), findsOneWidget);
+
+    cartController.onPaymentAmountChanged('52');
+    await tester.pumpAndSettle();
+    expect(find.text('Confirm Order'), findsOneWidget);
   });
 }

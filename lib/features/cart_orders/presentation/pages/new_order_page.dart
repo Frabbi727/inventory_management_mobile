@@ -14,11 +14,62 @@ class NewOrderPage extends GetView<NewOrderPageController> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final cartController = controller.cartController;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: AppBar(title: const Text('New Order')),
+      appBar: AppBar(
+        title: Obx(
+          () => Column(
+            children: [
+              Text(
+                cartController.hasSavedDraft ? 'Continue Draft' : 'Create Order',
+              ),
+              Text(
+                'Step ${cartController.currentStep.value + 1} of '
+                '${controller.steps.length} · '
+                '${controller.stepTitles[cartController.currentStep.value]}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          Obx(() {
+            final draftNo = cartController.savedDraftOrder.value?.orderNo;
+            if (draftNo == null) {
+              return const SizedBox.shrink();
+            }
+
+            return Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFEF3C7),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: const Color(0xFFFADC8E)),
+                ),
+                child: Text(
+                  draftNo,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: const Color(0xFFD97706),
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
       body: SafeArea(
         bottom: false,
         child: Obx(
@@ -64,21 +115,28 @@ class NewOrderPage extends GetView<NewOrderPageController> {
           ),
         ),
       ),
-      bottomNavigationBar: Obx(
-        () => SummaryFooter(
+      bottomNavigationBar: Obx(() {
+        final step = cartController.currentStep.value;
+        final isPaymentStep = step == CartController.paymentStep;
+        final showRecap =
+            step == CartController.productsStep && cartController.hasItems;
+
+        return SummaryFooter(
           showTotals: false,
-          primaryLabel: controller.primaryLabel(
-            cartController.currentStep.value,
-          ),
-          tertiaryLabel:
-              cartController.currentStep.value == CartController.confirmStep
+          recapText: showRecap
+              ? '${cartController.items.length} item'
+                    '${cartController.items.length == 1 ? '' : 's'} · '
+                    '${cartController.totalUnits} units'
+              : null,
+          recapValue: showRecap
+              ? cartController.formatCurrency(cartController.subtotal)
+              : null,
+          primaryLabel: controller.primaryLabel(step),
+          tertiaryLabel: isPaymentStep
               ? (cartController.hasSavedDraft ? 'Update Draft' : 'Save Draft')
               : null,
-          tertiaryHighlighted:
-              cartController.currentStep.value == CartController.confirmStep,
-          onTertiaryPressed:
-              cartController.currentStep.value == CartController.confirmStep &&
-                  cartController.canSaveDraft
+          tertiaryHighlighted: isPaymentStep,
+          onTertiaryPressed: isPaymentStep && cartController.canSaveDraft
               ? () async {
                   final shouldSave = await _showDraftConfirmDialog(context);
                   if (shouldSave == true) {
@@ -87,17 +145,12 @@ class NewOrderPage extends GetView<NewOrderPageController> {
                   }
                 }
               : null,
-          secondaryLabel:
-              cartController.currentStep.value == CartController.customerStep
-              ? null
-              : 'Back',
-          onSecondaryPressed:
-              cartController.currentStep.value == CartController.customerStep
+          secondaryLabel: step == CartController.customerStep ? null : 'Back',
+          onSecondaryPressed: step == CartController.customerStep
               ? null
               : cartController.previousStep,
           isLoading: cartController.isSubmitting.value,
-          onPrimaryPressed:
-              cartController.currentStep.value == CartController.confirmStep
+          onPrimaryPressed: isPaymentStep
               ? (cartController.canConfirm
                     ? () async {
                         final shouldConfirm = await _showConfirmOrderDialog(
@@ -115,8 +168,8 @@ class NewOrderPage extends GetView<NewOrderPageController> {
               : (cartController.canContinueCurrentStep
                     ? cartController.nextStep
                     : null),
-        ),
-      ),
+        );
+      }),
     );
   }
 

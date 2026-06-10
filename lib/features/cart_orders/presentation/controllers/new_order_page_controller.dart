@@ -1,11 +1,10 @@
 import 'package:get/get.dart';
 
 import '../models/order_flow_step.dart';
-import '../pages/new_order/order_cart_step_page.dart';
-import '../pages/new_order/order_confirm_step_page.dart';
 import '../pages/new_order/order_customer_step_page.dart';
 import '../pages/new_order/order_payment_step_page.dart';
 import '../pages/new_order/order_products_step_page.dart';
+import '../pages/new_order/order_review_step_page.dart';
 import 'cart_controller.dart';
 
 class NewOrderPageController extends GetxController {
@@ -26,19 +25,14 @@ class NewOrderPageController extends GetxController {
       builder: (_) => const OrderProductsStepPage(),
     ),
     OrderFlowStep(
-      index: CartController.cartStep,
-      title: 'Cart',
-      builder: (_) => const OrderCartStepPage(),
+      index: CartController.reviewStep,
+      title: 'Review',
+      builder: (_) => const OrderReviewStepPage(),
     ),
     OrderFlowStep(
       index: CartController.paymentStep,
       title: 'Payment',
       builder: (_) => const OrderPaymentStepPage(),
-    ),
-    OrderFlowStep(
-      index: CartController.confirmStep,
-      title: 'Confirm',
-      builder: (_) => const OrderConfirmStepPage(),
     ),
   ];
 
@@ -48,11 +42,13 @@ class NewOrderPageController extends GetxController {
       steps.map((step) => step.title).toList(growable: false);
 
   String primaryLabel(int step) {
-    if (step == CartController.confirmStep && !cartController.canConfirm) {
+    if (step == CartController.paymentStep && !cartController.canConfirm) {
       if (!cartController.isPaymentComplete) {
         return 'Complete Payment';
       }
-      return 'Resolve Stock Warnings';
+      if (cartController.hasKnownStockIssues) {
+        return 'Resolve Stock Warnings';
+      }
     }
 
     return cartController.submitButtonLabel();

@@ -1336,10 +1336,10 @@ void main() {
       expect(cartController.items.single.productId, equals(2));
       expect(cartController.items.single.quantity, equals(1));
 
-      cartController.goToStep(CartController.cartStep);
+      cartController.goToStep(CartController.reviewStep);
       await tester.pumpAndSettle();
 
-      expect(find.text('Cart'), findsWidgets);
+      expect(find.text('Review'), findsWidgets);
       expect(find.text('Fresh Milk 500ml'), findsWidgets);
 
       cartController.incrementQuantity(cartController.items.single.lineKey);
@@ -1524,7 +1524,7 @@ void main() {
     cartController.setSelectedCustomer(
       const CustomerModel(id: 1, name: 'Rahman Store'),
     );
-    cartController.goToStep(CartController.cartStep);
+    cartController.goToStep(CartController.productsStep);
     await tester.pumpAndSettle();
 
     final quantityField = find
