@@ -8,6 +8,7 @@ part 'create_order_request_model.g.dart';
 class CreateOrderRequestModel {
   const CreateOrderRequestModel({
     this.customerId,
+    this.customerMobileRef,
     this.allocationId,
     this.orderDate,
     this.intendedDeliveryAt,
@@ -17,10 +18,16 @@ class CreateOrderRequestModel {
     this.paymentAmount,
     this.items,
     this.mobileRef,
+    this.confirmOnCreate,
   });
 
   @JsonKey(name: 'customer_id')
   final int? customerId;
+
+  /// Set when customer was created offline (temp negative ID).
+  /// Backend resolves the real customer by this mobile_ref.
+  @JsonKey(name: 'customer_mobile_ref')
+  final String? customerMobileRef;
 
   @JsonKey(name: 'allocation_id')
   final int? allocationId;
@@ -46,6 +53,11 @@ class CreateOrderRequestModel {
 
   @JsonKey(name: 'mobile_ref')
   final String? mobileRef;
+
+  /// When true, backend creates draft AND confirms it atomically.
+  /// Used when salesman confirms an order while offline.
+  @JsonKey(name: 'confirm_on_create')
+  final bool? confirmOnCreate;
 
   factory CreateOrderRequestModel.fromJson(Map<String, dynamic> json) =>
       _$CreateOrderRequestModelFromJson(json);

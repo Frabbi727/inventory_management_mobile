@@ -9,12 +9,16 @@ class CreateCustomerRequestModel {
     this.phone,
     this.address,
     this.area,
+    this.mobileRef,
   });
 
   final String? name;
   final String? phone;
   final String? address;
   final String? area;
+
+  @JsonKey(name: 'mobile_ref')
+  final String? mobileRef;
 
   factory CreateCustomerRequestModel.fromJson(Map<String, dynamic> json) =>
       _$CreateCustomerRequestModelFromJson(json);

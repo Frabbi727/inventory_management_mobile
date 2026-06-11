@@ -242,8 +242,7 @@ class CartController extends GetxController {
       canSaveDraft &&
       !hasKnownStockIssues &&
       isPaymentComplete &&
-      (savedDraftOrder.value?.status ?? 'draft') != 'confirmed' &&
-      (Get.isRegistered<SyncManager>() ? Get.find<SyncManager>().isOnline.value : true);
+      (savedDraftOrder.value?.status ?? 'draft') != 'confirmed';
   bool get showFooterTotals => currentStep.value != customerStep && hasItems;
   bool get isExistingDraft => savedDraftOrder.value?.status == 'draft';
   int get totalUnits => items.fold(0, (sum, item) => sum + item.quantity);
@@ -711,17 +710,36 @@ class CartController extends GetxController {
     isSubmitting.value = true;
 
     try {
+      final isOnline = Get.isRegistered<SyncManager>()
+          ? Get.find<SyncManager>().isOnline.value
+          : true;
+
       var orderId = savedDraftOrder.value?.id;
       // Always save/update the draft before confirming — the backend's confirmDraft()
       // reads payment_amount from the DB row, so we must ensure it's current first.
       {
-        final request = _buildDraftRequest();
+        // When offline, bundle confirm into the create payload so a single queued
+        // action creates AND confirms the order atomically on sync.
+        final request = _buildDraftRequest(confirmOnCreate: !isOnline && orderId == null);
         final draftResponse = orderId == null
             ? await _orderRepository.createOrder(request)
             : await _orderRepository.updateOrderDraft(orderId, request);
 
         // OFFLINE-FIRST: If data is null, the order was queued.
         if (draftResponse.data == null && orderId == null) {
+          // Optimistically decrement local allocation stock so the next offline
+          // order sees correct remaining quantities.
+          if (Get.isRegistered<AllocationController>()) {
+            final orderItems = request.items
+                ?.map((i) => OrderItemRequestModel(
+                      productId: i.productId,
+                      productVariantId: i.productVariantId,
+                      quantity: i.quantity,
+                      allocationItemId: i.allocationItemId,
+                    ))
+                .toList() ?? [];
+            await Get.find<AllocationController>().decrementLocalSold(orderItems);
+          }
           infoMessage.value = 'Order queued and will sync automatically.';
           clearCart();
           Get.back();
@@ -739,8 +757,7 @@ class CartController extends GetxController {
         newPaymentAmount.value = null;
         paymentAmountController.clear();
         hasUnsavedDraftChanges.value = false;
-        if ((draftResponse.data?.paymentStatus ?? displayPaymentStatus) !=
-            'paid') {
+        if (!isPaymentComplete) {
           errorMessage.value =
               'Full payment is required before confirming this order.';
           return null;
@@ -1011,13 +1028,19 @@ class CartController extends GetxController {
   bool get _canUseSavedDraftTotals =>
       savedDraftOrder.value != null && !hasUnsavedDraftChanges.value;
 
-  CreateOrderRequestModel _buildDraftRequest() {
+  CreateOrderRequestModel _buildDraftRequest({bool confirmOnCreate = false}) {
     final allocationId = Get.isRegistered<AllocationController>()
         ? Get.find<AllocationController>().activeAllocationId.value
         : null;
 
+    final customerId = selectedCustomer.value?.id;
+    final isOfflineCustomer = customerId != null && customerId < 0;
+
     return CreateOrderRequestModel(
-      customerId: selectedCustomer.value?.id,
+      customerId: isOfflineCustomer ? null : customerId,
+      customerMobileRef: isOfflineCustomer
+          ? selectedCustomer.value?.localMobileRef
+          : null,
       allocationId: allocationId,
       orderDate: _formatDate(selectedOrderDate.value),
       intendedDeliveryAt: selectedIntendedDeliveryAt.value == null
@@ -1038,6 +1061,7 @@ class CartController extends GetxController {
             ),
           )
           .toList(),
+      confirmOnCreate: confirmOnCreate ? true : null,
     );
   }
 

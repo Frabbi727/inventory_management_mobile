@@ -21,6 +21,5 @@ Map<String, dynamic> _$OrderItemRequestModelToJson(
   'product_id': instance.productId,
   'product_variant_id': instance.productVariantId,
   'quantity': instance.quantity,
-  if (instance.allocationItemId != null)
-    'allocation_item_id': instance.allocationItemId,
+  'allocation_item_id': ?instance.allocationItemId,
 };

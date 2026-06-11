@@ -10,6 +10,7 @@ CreateOrderRequestModel _$CreateOrderRequestModelFromJson(
   Map<String, dynamic> json,
 ) => CreateOrderRequestModel(
   customerId: (json['customer_id'] as num?)?.toInt(),
+  customerMobileRef: json['customer_mobile_ref'] as String?,
   allocationId: (json['allocation_id'] as num?)?.toInt(),
   orderDate: json['order_date'] as String?,
   intendedDeliveryAt: json['intended_delivery_at'] as String?,
@@ -21,12 +22,14 @@ CreateOrderRequestModel _$CreateOrderRequestModelFromJson(
       ?.map((e) => OrderItemRequestModel.fromJson(e as Map<String, dynamic>))
       .toList(),
   mobileRef: json['mobile_ref'] as String?,
+  confirmOnCreate: json['confirm_on_create'] as bool?,
 );
 
 Map<String, dynamic> _$CreateOrderRequestModelToJson(
   CreateOrderRequestModel instance,
 ) => <String, dynamic>{
   'customer_id': instance.customerId,
+  'customer_mobile_ref': instance.customerMobileRef,
   'allocation_id': instance.allocationId,
   'order_date': instance.orderDate,
   'intended_delivery_at': instance.intendedDeliveryAt,
@@ -36,4 +39,5 @@ Map<String, dynamic> _$CreateOrderRequestModelToJson(
   'payment_amount': instance.paymentAmount,
   'items': instance.items?.map((e) => e.toJson()).toList(),
   'mobile_ref': instance.mobileRef,
+  'confirm_on_create': instance.confirmOnCreate,
 };

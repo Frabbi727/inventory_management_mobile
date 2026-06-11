@@ -20,7 +20,6 @@ CustomerModel _$CustomerModelFromJson(Map<String, dynamic> json) =>
             ),
       createdAt: json['created_at'] as String?,
       updatedAt: json['updated_at'] as String?,
-      // localMobileRef excluded from JSON deserialization
     );
 
 Map<String, dynamic> _$CustomerModelToJson(CustomerModel instance) =>

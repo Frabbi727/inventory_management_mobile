@@ -64,4 +64,25 @@ class PendingActionsRepository {
     );
     return result.isNotEmpty;
   }
+
+  Future<void> updateActionPayload(int id, String newPayload) async {
+    final db = await _dbHelper.database;
+    await db.update(
+      'pending_actions',
+      {'payload': newPayload},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<List<PendingAction>> getPendingOrderActions() async {
+    final db = await _dbHelper.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'pending_actions',
+      where: "status = ? AND endpoint LIKE ? AND method = ?",
+      whereArgs: ['pending', '%/orders', 'POST'],
+      orderBy: 'id ASC',
+    );
+    return maps.map(PendingAction.fromMap).toList();
+  }
 }

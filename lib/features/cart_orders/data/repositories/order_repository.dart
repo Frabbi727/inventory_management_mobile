@@ -356,6 +356,30 @@ class OrderRepository {
   }
 
   Future<CreateOrderResponseModel> confirmOrder(int orderId) async {
+    final isOnline = Get.isRegistered<SyncManager>() ? Get.find<SyncManager>().isOnline.value : true;
+
+    if (!isOnline) {
+      final action = PendingAction(
+        endpoint: ApiEndpoints.orderConfirm(orderId),
+        method: 'POST',
+        payload: '{}',
+        mobileRef: 'CONFIRM-$orderId-${DateTime.now().millisecondsSinceEpoch}',
+        status: 'pending',
+      );
+      await _pendingActionsRepository.insertAction(action);
+
+      final cached = await _orderCacheRepository.getOrderById(orderId);
+      if (cached != null) {
+        await _orderCacheRepository.saveOrder(cached.copyWith(status: 'confirmed'));
+      }
+
+      if (Get.isRegistered<SyncManager>()) {
+        Get.find<SyncManager>().updatePendingCount();
+      }
+
+      return const CreateOrderResponseModel(message: 'Confirmation queued and will sync automatically.');
+    }
+
     final token = await _requireToken();
 
     final response = await _apiClient.post(

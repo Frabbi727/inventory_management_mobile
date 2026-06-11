@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import '../../../../core/network/api_client.dart';
 import '../../../../core/storage/token_storage.dart';
 import '../../../auth/presentation/bindings/auth_dependencies.dart';
+import '../../data/repositories/allocation_cache_repository.dart';
 import '../../data/repositories/allocation_repository.dart';
 import '../controllers/allocation_controller.dart';
 
@@ -22,10 +23,15 @@ class AllocationDependencies {
       );
     }
 
+    if (!Get.isRegistered<AllocationCacheRepository>()) {
+      Get.lazyPut(AllocationCacheRepository.new, fenix: true);
+    }
+
     if (!Get.isRegistered<AllocationController>()) {
       Get.put(
         AllocationController(
           allocationRepository: Get.find<AllocationRepository>(),
+          allocationCacheRepository: Get.find<AllocationCacheRepository>(),
         ),
         permanent: true,
       );

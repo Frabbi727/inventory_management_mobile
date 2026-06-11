@@ -13,6 +13,7 @@ CreateCustomerRequestModel _$CreateCustomerRequestModelFromJson(
   phone: json['phone'] as String?,
   address: json['address'] as String?,
   area: json['area'] as String?,
+  mobileRef: json['mobile_ref'] as String?,
 );
 
 Map<String, dynamic> _$CreateCustomerRequestModelToJson(
@@ -22,4 +23,5 @@ Map<String, dynamic> _$CreateCustomerRequestModelToJson(
   'phone': ?instance.phone,
   'address': ?instance.address,
   'area': ?instance.area,
+  'mobile_ref': ?instance.mobileRef,
 };
