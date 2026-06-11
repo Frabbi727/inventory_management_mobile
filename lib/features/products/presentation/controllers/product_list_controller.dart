@@ -33,8 +33,6 @@ class ProductListController extends GetxController {
   final infoMessage = RxnString();
   final searchQuery = ''.obs;
 
-  int _currentPage = 1;
-  bool _hasNextPage = false;
   bool _hasLoadedOnce = false;
   int _requestGeneration = 0;
   String _lastExecutedQuery = '';
@@ -173,8 +171,6 @@ class ProductListController extends GetxController {
 
       products.assignAll(_deduplicateProducts(cachedProducts));
       _hasLoadedOnce = true;
-      _hasNextPage = false; // Cache doesn't support pagination for now
-
       if (products.isEmpty) {
         infoMessage.value = _buildEmptyMessage(
           requestedQuery,

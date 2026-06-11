@@ -15,7 +15,6 @@ import 'package:b2b_inventory_management/features/cart_orders/presentation/contr
 import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/order_payment_step_controller.dart';
 import 'package:b2b_inventory_management/features/cart_orders/presentation/controllers/order_products_step_controller.dart';
 import 'package:b2b_inventory_management/features/customers/data/models/customer_model.dart';
-import 'package:b2b_inventory_management/features/customers/data/repositories/customer_repository.dart';
 import 'package:b2b_inventory_management/features/customers/presentation/controllers/customer_search_controller.dart';
 import 'package:b2b_inventory_management/features/products/data/models/product_model.dart';
 import 'package:b2b_inventory_management/features/products/data/repositories/product_repository.dart';
@@ -123,32 +122,6 @@ void main() {
     );
   }
 
-  CustomerRepository createCustomerRepository() {
-    return CustomerRepository(
-      apiClient: ApiClient(
-        httpClient: MockClient(
-          (request) async => http.Response(
-            jsonEncode({
-              'data': [
-                {
-                  'id': 1,
-                  'name': 'Rahman Store',
-                  'phone': '+8801710001001',
-                  'address': '12 Lake Circus, Dhaka',
-                  'area': 'Dhanmondi',
-                },
-              ],
-              'links': {'first': '', 'last': '', 'prev': null, 'next': null},
-              'meta': {'current_page': 1, 'last_page': 1, 'links': const []},
-            }),
-            200,
-          ),
-        ),
-      ),
-      tokenStorage: TokenStorage(),
-    );
-  }
-
   CartController createCartController() {
     return CartController(
       orderRepository: createOrderRepository(),
@@ -162,7 +135,6 @@ void main() {
       final cartController = Get.put(createCartController());
       final searchController = Get.put(
         CustomerSearchController(
-          customerRepository: createCustomerRepository(),
           customerCacheRepository: FakeCustomerCacheRepository(),
         ),
       );

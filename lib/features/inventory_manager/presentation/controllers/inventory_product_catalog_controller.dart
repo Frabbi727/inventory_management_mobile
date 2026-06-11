@@ -38,8 +38,6 @@ abstract class InventoryProductCatalogController extends GetxController {
   final infoMessage = RxnString();
   final searchQuery = ''.obs;
 
-  int _currentPage = 1;
-  bool _hasNextPage = false;
   bool _hasLoadedOnce = false;
   int _requestGeneration = 0;
   String _lastExecutedQuery = '';
@@ -288,8 +286,7 @@ abstract class InventoryProductCatalogController extends GetxController {
 
       products.assignAll(_deduplicateProducts(cachedProducts));
       _hasLoadedOnce = true;
-      _hasNextPage = false;
-      
+
       infoMessage.value = products.isEmpty
           ? buildEmptyMessage(
               requestedQuery,

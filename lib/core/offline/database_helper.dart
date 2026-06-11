@@ -20,7 +20,7 @@ class DatabaseHelper {
     final path = join(dbPath, 'offline_database.db');
     return await openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -42,6 +42,24 @@ class DatabaseHelper {
         'ALTER TABLE cached_customers ADD COLUMN address TEXT',
       );
       await db.execute('ALTER TABLE cached_customers ADD COLUMN area TEXT');
+    }
+    if (oldVersion < 4) {
+      await db.execute(
+        'ALTER TABLE cached_customers ADD COLUMN local_mobile_ref TEXT',
+      );
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS cached_allocation_items(
+          id INTEGER PRIMARY KEY,
+          allocation_id INTEGER NOT NULL,
+          product_id INTEGER NOT NULL,
+          product_variant_id INTEGER,
+          product_name_snapshot TEXT,
+          unit_price_snapshot REAL,
+          quantity_allocated REAL,
+          quantity_sold REAL,
+          quantity_returned REAL
+        )
+      ''');
     }
   }
 
@@ -73,7 +91,8 @@ class DatabaseHelper {
         name TEXT,
         phone TEXT,
         address TEXT,
-        area TEXT
+        area TEXT,
+        local_mobile_ref TEXT
       )
     ''');
 
@@ -83,6 +102,20 @@ class DatabaseHelper {
         order_no TEXT,
         status TEXT,
         data TEXT
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE cached_allocation_items(
+        id INTEGER PRIMARY KEY,
+        allocation_id INTEGER NOT NULL,
+        product_id INTEGER NOT NULL,
+        product_variant_id INTEGER,
+        product_name_snapshot TEXT,
+        unit_price_snapshot REAL,
+        quantity_allocated REAL,
+        quantity_sold REAL,
+        quantity_returned REAL
       )
     ''');
   }

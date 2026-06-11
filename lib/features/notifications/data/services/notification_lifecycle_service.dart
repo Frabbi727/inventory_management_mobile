@@ -136,6 +136,10 @@ class NotificationLifecycleService {
       await Get.toNamed(AppRoutes.orderDetails, arguments: entityId);
     }
 
+    if (entityType == 'salesman_allocation' && entityId != null) {
+      await Get.toNamed(AppRoutes.allocationDetail);
+    }
+
     if (Get.isRegistered<NotificationController>()) {
       final controller = Get.find<NotificationController>();
       unawaited(controller.refreshUnreadCount());

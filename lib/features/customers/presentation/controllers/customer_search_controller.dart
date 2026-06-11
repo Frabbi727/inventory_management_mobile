@@ -5,17 +5,13 @@ import 'package:get/get.dart';
 
 import '../../../../core/routes/app_routes.dart';
 import '../../data/models/customer_model.dart';
-import '../../data/repositories/customer_repository.dart';
 import '../../data/repositories/customer_cache_repository.dart';
 
 class CustomerSearchController extends GetxController {
   CustomerSearchController({
-    required CustomerRepository customerRepository,
     required CustomerCacheRepository customerCacheRepository,
-  }) : _customerRepository = customerRepository,
-       _customerCacheRepository = customerCacheRepository;
+  }) : _customerCacheRepository = customerCacheRepository;
 
-  final CustomerRepository _customerRepository;
   final CustomerCacheRepository _customerCacheRepository;
   final scrollController = ScrollController();
   final searchTextController = TextEditingController();
@@ -30,8 +26,6 @@ class CustomerSearchController extends GetxController {
   final infoMessage = RxnString();
   final searchQuery = ''.obs;
 
-  int _currentPage = 1;
-  bool _hasNextPage = false;
   bool _hasLoadedOnce = false;
   int _requestGeneration = 0;
   String _lastExecutedQuery = '';
@@ -104,7 +98,6 @@ class CustomerSearchController extends GetxController {
 
       customers.assignAll(_deduplicateCustomers(cachedCustomers));
       _hasLoadedOnce = true;
-      _hasNextPage = false; // Cache doesn't support pagination for now
 
       infoMessage.value =
           customers.isEmpty

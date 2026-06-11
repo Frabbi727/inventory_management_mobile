@@ -30,7 +30,6 @@ class HomeBinding extends Bindings {
     )) {
       Get.lazyPut(
         () => CustomerSearchController(
-          customerRepository: Get.find(),
           customerCacheRepository: Get.find(),
         ),
         tag: ControllerTags.homeCustomerSearch,

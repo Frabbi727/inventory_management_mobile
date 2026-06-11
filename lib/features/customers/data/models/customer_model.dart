@@ -15,6 +15,7 @@ class CustomerModel {
     this.createdBy,
     this.createdAt,
     this.updatedAt,
+    this.localMobileRef,
   });
 
   final int? id;
@@ -31,6 +32,11 @@ class CustomerModel {
 
   @JsonKey(name: 'updated_at')
   final String? updatedAt;
+
+  /// Local-only field: the UUID used as mobile_ref when this customer was created offline.
+  /// Never serialized to/from API JSON.
+  @JsonKey(includeFromJson: false, includeToJson: false)
+  final String? localMobileRef;
 
   factory CustomerModel.fromJson(Map<String, dynamic> json) =>
       _$CustomerModelFromJson(json);

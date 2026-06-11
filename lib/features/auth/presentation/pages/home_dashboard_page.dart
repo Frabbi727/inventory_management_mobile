@@ -1151,6 +1151,14 @@ class _ActiveTripCard extends StatelessWidget {
                   ),
                   TextButton(
                     onPressed: () =>
+                        Get.toNamed(AppRoutes.allocationDetail),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    child: const Text('View'),
+                  ),
+                  TextButton(
+                    onPressed: () =>
                         Get.toNamed(AppRoutes.allocationList),
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(horizontal: 8),

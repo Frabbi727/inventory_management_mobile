@@ -86,7 +86,7 @@ class AllocationListPage extends GetView<AllocationController> {
           child: ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: controller.allocations.length,
-            separatorBuilder: (_, _i) => const SizedBox(height: 12),
+            separatorBuilder: (_, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               final allocation = controller.allocations[index];
               final isSelected =

@@ -18,5 +18,6 @@ abstract class AppRoutes {
   static const orderDetails = '/orders/details';
   static const notifications = '/notifications';
   static const allocationList = '/allocations';
+  static const allocationDetail = '/allocations/detail';
   static const endTrip = '/allocations/end-trip';
 }

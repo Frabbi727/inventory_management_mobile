@@ -1,10 +1,8 @@
 import 'package:get/get.dart';
 
 import '../../../../core/constants/controller_tags.dart';
-import '../../../customers/data/repositories/customer_cache_repository.dart';
 import '../../../customers/presentation/bindings/customer_dependencies.dart';
 import '../../../customers/presentation/controllers/customer_search_controller.dart';
-import '../../../products/data/repositories/product_cache_repository.dart';
 import '../../../products/presentation/bindings/product_dependencies.dart';
 import '../../../products/presentation/controllers/product_list_controller.dart';
 import 'cart_dependencies.dart';
@@ -38,7 +36,6 @@ class NewOrderBinding extends Bindings {
     )) {
       Get.lazyPut(
         () => CustomerSearchController(
-          customerRepository: Get.find(),
           customerCacheRepository: Get.find(),
         ),
         tag: ControllerTags.newOrderCustomerSearch,

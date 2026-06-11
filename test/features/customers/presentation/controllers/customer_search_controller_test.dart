@@ -58,7 +58,6 @@ void main() {
     () async {
       final repository = FakeCustomerRepository();
       final controller = CustomerSearchController(
-        customerRepository: repository,
         customerCacheRepository: FakeCustomerCacheRepository(),
       );
 

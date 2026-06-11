@@ -31,6 +31,7 @@ import '../../features/cart_orders/presentation/pages/new_order_page.dart';
 import '../../features/cart_orders/presentation/pages/order_success_page.dart';
 import '../../features/invoice/presentation/bindings/order_details_binding.dart';
 import '../../features/invoice/presentation/pages/order_details_page.dart';
+import '../../features/allocations/presentation/pages/allocation_detail_page.dart';
 import '../../features/allocations/presentation/pages/allocation_list_page.dart';
 import '../../features/allocations/presentation/pages/end_trip_page.dart';
 import '../../features/notifications/presentation/bindings/notification_binding.dart';
@@ -135,6 +136,10 @@ class AppPages {
     GetPage<AllocationListPage>(
       name: AppRoutes.allocationList,
       page: AllocationListPage.new,
+    ),
+    GetPage<AllocationDetailPage>(
+      name: AppRoutes.allocationDetail,
+      page: AllocationDetailPage.new,
     ),
     GetPage<EndTripPage>(
       name: AppRoutes.endTrip,
