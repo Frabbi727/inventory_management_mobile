@@ -42,9 +42,58 @@ class OrderProductsStepController extends GetxController {
 
   List<ProductModel> get products {
     if (hasActiveAllocation) {
-      return _allocationController!.activeProducts;
+      final allItems = _allocationController!.activeProducts;
+      final query = _productListController.searchQuery.value.trim().toLowerCase();
+      if (query.isEmpty) return allItems;
+      return allItems
+          .where(
+            (p) =>
+                (p.name?.toLowerCase().contains(query) ?? false) ||
+                (p.sku?.toLowerCase().contains(query) ?? false),
+          )
+          .toList();
     }
     return _productListController.products;
+  }
+
+  bool get isLoadingProducts {
+    if (hasActiveAllocation) {
+      return _allocationController!.isLoading.value ||
+          _allocationController!.isRefreshing.value;
+    }
+    return _productListController.isInitialLoading.value;
+  }
+
+  bool get isSearchingProducts {
+    if (hasActiveAllocation) return false;
+    return _productListController.isSearching.value;
+  }
+
+  bool get hasProductsError {
+    if (hasActiveAllocation) return false;
+    return _productListController.hasErrorState;
+  }
+
+  String? get productsErrorMessage {
+    if (hasActiveAllocation) return null;
+    return _productListController.errorMessage.value;
+  }
+
+  String get productsEmptyMessage {
+    if (hasActiveAllocation) {
+      return _productListController.searchQuery.value.trim().isNotEmpty
+          ? 'No allocation products matched your search.'
+          : 'No products available in your active allocation.';
+    }
+    return _productListController.infoMessage.value ??
+        'No products matched your search.';
+  }
+
+  Future<void> retryProducts() {
+    if (hasActiveAllocation) {
+      return _allocationController!.refreshActiveAllocation();
+    }
+    return _productListController.retry();
   }
 
   AllocationItemModel? allocationItemFor(int? productId, {int? variantId}) {
@@ -61,7 +110,15 @@ class OrderProductsStepController extends GetxController {
     );
     scrollController = ScrollController()..addListener(_handleScroll);
     if (hasActiveAllocation) {
-      _allocationController!.refreshActiveAllocation();
+      if (_allocationController!.activeAllocationItems.isEmpty) {
+        // Items not cached yet — run a full select to populate with loading state.
+        _allocationController!.selectAllocation(
+          _allocationController!.activeAllocationId.value!,
+        );
+      } else {
+        // Items already in memory — silently refresh in background.
+        _allocationController!.refreshActiveAllocation();
+      }
     } else if (_allocationController != null &&
         !_allocationController!.isLoading.value) {
       _allocationController!.loadAllocations();

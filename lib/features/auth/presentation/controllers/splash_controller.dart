@@ -53,10 +53,12 @@ class SplashController extends GetxController {
         await _clearSessionAndGoToLogin();
         return;
       }
-
-      await _clearSessionAndGoToLogin();
+      // Non-auth error (500, network timeout, etc.) — token may still be valid,
+      // so don't wipe it. Just send the user back to login to retry.
+      await _finishWithRoute(AppRoutes.login);
     } catch (_) {
-      await _clearSessionAndGoToLogin();
+      // Unknown error — preserve token, let user retry from login screen.
+      await _finishWithRoute(AppRoutes.login);
     }
   }
 

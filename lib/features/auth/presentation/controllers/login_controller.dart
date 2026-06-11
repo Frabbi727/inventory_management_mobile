@@ -9,6 +9,7 @@ import '../../../../core/storage/user_storage.dart';
 import '../../data/models/login_request_model.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../utils/home_route_resolver.dart';
+import '../../../allocations/presentation/controllers/allocation_controller.dart';
 
 class LoginController extends GetxController {
   LoginController({
@@ -79,6 +80,16 @@ class LoginController extends GetxController {
 
       await _tokenStorage.saveToken(token);
       await _userStorage.saveUser(user);
+
+      // If AllocationController is already registered (survived a previous session
+      // as permanent:true) and has a stale error, kick it to reload with the new token.
+      if (Get.isRegistered<AllocationController>()) {
+        final alloc = Get.find<AllocationController>();
+        if (alloc.errorMessage.value != null || alloc.allocations.isEmpty) {
+          unawaited(alloc.loadAllocations());
+        }
+      }
+
       Get.offAllNamed(resolveHomeRouteForUser(user));
     } on ApiException catch (error) {
       errorMessage.value = error.message;

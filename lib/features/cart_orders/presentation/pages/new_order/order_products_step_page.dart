@@ -26,10 +26,12 @@ class OrderProductsStepPage extends GetView<OrderProductsStepController> {
       final selectedCategoryId = productController.selectedCategoryId.value;
       final selectedSubcategoryId =
           productController.selectedSubcategoryId.value;
-      final showInitialLoader =
-          productController.isInitialLoading.value && products.isEmpty;
-      final showErrorState = productController.hasErrorState;
-      final showEmptyState = productController.hasEmptyState;
+      final showInitialLoader = controller.isLoadingProducts && products.isEmpty;
+      final showErrorState = controller.hasProductsError;
+      final showEmptyState =
+          products.isEmpty &&
+          !controller.isLoadingProducts &&
+          !controller.hasProductsError;
 
       return Column(
         children: [
@@ -56,7 +58,7 @@ class OrderProductsStepPage extends GetView<OrderProductsStepController> {
                       child: OrderSearchField(
                         controller: controller.searchController,
                         hintText: 'Search by product name or SKU',
-                        isLoading: productController.isSearching.value,
+                        isLoading: controller.isSearchingProducts,
                         onChanged: controller.onSearchChanged,
                         onClear: controller.clearSearch,
                       ),
@@ -185,7 +187,7 @@ class OrderProductsStepPage extends GetView<OrderProductsStepController> {
           const SizedBox(height: 14),
           Expanded(
             child: RefreshIndicator(
-              onRefresh: productController.retry,
+              onRefresh: controller.retryProducts,
               child: CustomScrollView(
                 controller: controller.scrollController,
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -200,9 +202,10 @@ class OrderProductsStepPage extends GetView<OrderProductsStepController> {
                       hasScrollBody: false,
                       child: AppMessageState(
                         icon: Icons.cloud_off_outlined,
-                        message: productController.errorMessage.value!,
+                        message: controller.productsErrorMessage ??
+                            'Failed to load products.',
                         actionLabel: 'Retry',
-                        onAction: productController.retry,
+                        onAction: controller.retryProducts,
                       ),
                     )
                   else if (showEmptyState)
@@ -210,15 +213,13 @@ class OrderProductsStepPage extends GetView<OrderProductsStepController> {
                       hasScrollBody: false,
                       child: AppMessageState(
                         icon: Icons.inventory_2_outlined,
-                        message:
-                            productController.infoMessage.value ??
-                            'No products matched your search.',
+                        message: controller.productsEmptyMessage,
                         actionLabel: productController.hasActiveFilter
                             ? 'Clear Filters'
                             : 'Refresh',
                         onAction: productController.hasActiveFilter
                             ? () async => controller.clearFilters()
-                            : () async => productController.retry(),
+                            : () async => controller.retryProducts(),
                       ),
                     )
                   else

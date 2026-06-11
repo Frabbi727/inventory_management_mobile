@@ -9,6 +9,15 @@ class AllocationListPage extends GetView<AllocationController> {
 
   @override
   Widget build(BuildContext context) {
+    // Auto-retry if we open this page with a stale error or empty state.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!controller.isLoading.value &&
+          (controller.errorMessage.value != null ||
+              controller.allocations.isEmpty)) {
+        controller.loadAllocations();
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Select Active Trip'),
