@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 
 import '../../../../core/constants/controller_tags.dart';
+import '../../../allocations/presentation/bindings/allocation_dependencies.dart';
 import '../../../customers/presentation/bindings/customer_dependencies.dart';
 import '../../../customers/presentation/controllers/customer_search_controller.dart';
 import '../../../products/presentation/bindings/product_dependencies.dart';
@@ -15,6 +16,7 @@ import '../controllers/order_products_step_controller.dart';
 class NewOrderBinding extends Bindings {
   @override
   void dependencies() {
+    AllocationDependencies.ensureRegistered();
     ProductDependencies.ensureRegistered();
     CustomerDependencies.ensureRegistered();
     CartDependencies.ensureRegistered();

@@ -70,11 +70,26 @@ class AllocationItemModel {
     );
   }
 
+  static int _parseInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value) ?? 0;
+    return 0;
+  }
+
+  static int? _parseIntNullable(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
   factory AllocationItemModel.fromJson(Map<String, dynamic> json) {
     return AllocationItemModel(
-      id: (json['id'] as num).toInt(),
-      productId: (json['product_id'] as num).toInt(),
-      productVariantId: (json['product_variant_id'] as num?)?.toInt(),
+      id: _parseInt(json['id']),
+      productId: _parseInt(json['product_id']),
+      productVariantId: _parseIntNullable(json['product_variant_id']),
       productNameSnapshot: json['product_name_snapshot'] as String? ?? '',
       unitPriceSnapshot:
           double.tryParse(json['unit_price_snapshot']?.toString() ?? '0') ?? 0,

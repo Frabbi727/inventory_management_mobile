@@ -62,6 +62,10 @@ class OrderProductsStepController extends GetxController {
     scrollController = ScrollController()..addListener(_handleScroll);
     if (hasActiveAllocation) {
       _allocationController!.refreshActiveAllocation();
+    } else if (_allocationController != null &&
+        !_allocationController!.isLoading.value) {
+      _allocationController!.loadAllocations();
+      _productListController.ensureLoaded();
     } else {
       _productListController.ensureLoaded();
     }
