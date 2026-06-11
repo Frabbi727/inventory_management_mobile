@@ -12,6 +12,7 @@ OrderItemRequestModel _$OrderItemRequestModelFromJson(
   productId: (json['product_id'] as num?)?.toInt(),
   productVariantId: (json['product_variant_id'] as num?)?.toInt(),
   quantity: (json['quantity'] as num?)?.toInt(),
+  allocationItemId: (json['allocation_item_id'] as num?)?.toInt(),
 );
 
 Map<String, dynamic> _$OrderItemRequestModelToJson(
@@ -20,4 +21,6 @@ Map<String, dynamic> _$OrderItemRequestModelToJson(
   'product_id': instance.productId,
   'product_variant_id': instance.productVariantId,
   'quantity': instance.quantity,
+  if (instance.allocationItemId != null)
+    'allocation_item_id': instance.allocationItemId,
 };

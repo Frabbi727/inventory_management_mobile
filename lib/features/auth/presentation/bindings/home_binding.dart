@@ -2,6 +2,7 @@ import 'package:get/get.dart';
 
 import '../../../../core/constants/controller_tags.dart';
 import '../../../../core/offline/offline_dependencies.dart';
+import '../../../allocations/presentation/bindings/allocation_dependencies.dart';
 import '../../../cart_orders/presentation/bindings/cart_dependencies.dart';
 import '../../../customers/presentation/bindings/customer_dependencies.dart';
 import '../../../customers/presentation/controllers/customer_search_controller.dart';
@@ -22,6 +23,7 @@ class HomeBinding extends Bindings {
     CartDependencies.ensureRegistered();
     ProductDependencies.ensureRegistered();
     OfflineDependencies.ensureRegistered();
+    AllocationDependencies.ensureRegistered();
 
     if (!Get.isRegistered<CustomerSearchController>(
       tag: ControllerTags.homeCustomerSearch,

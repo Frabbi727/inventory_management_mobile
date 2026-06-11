@@ -6,11 +6,17 @@ class CartItemModel {
     required this.product,
     required this.quantity,
     this.variant,
+    this.allocationItemId,
+    this.allocationRemainingQty,
   });
 
   final ProductModel product;
   final int quantity;
   final ProductVariantModel? variant;
+  final int? allocationItemId;
+  final double? allocationRemainingQty;
+
+  bool get isAllocationItem => allocationItemId != null;
 
   int? get productId => product.id;
   int? get productVariantId => variant?.id;
@@ -18,7 +24,11 @@ class CartItemModel {
       '${productId ?? 'unknown'}:${productVariantId ?? 'base'}';
   String? get variantLabel =>
       variant?.combinationLabel ?? variant?.combinationKey;
-  int? get availableStock => variant?.currentStock ?? product.currentStock;
+  int? get availableStock {
+    if (allocationRemainingQty != null) return allocationRemainingQty!.toInt();
+    return variant?.currentStock ?? product.currentStock;
+  }
+
   bool get hasStockLimit => availableStock != null;
   bool get isOutOfStock => hasStockLimit && (availableStock ?? 0) <= 0;
   bool get exceedsAvailableStock =>
@@ -37,11 +47,16 @@ class CartItemModel {
     int? quantity,
     ProductVariantModel? variant,
     bool clearVariant = false,
+    int? allocationItemId,
+    double? allocationRemainingQty,
   }) {
     return CartItemModel(
       product: product ?? this.product,
       quantity: quantity ?? this.quantity,
       variant: clearVariant ? null : variant ?? this.variant,
+      allocationItemId: allocationItemId ?? this.allocationItemId,
+      allocationRemainingQty:
+          allocationRemainingQty ?? this.allocationRemainingQty,
     );
   }
 }

@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 
 import '../../../../core/routes/app_routes.dart';
 import '../../../../shared/widgets/app_searchable_select.dart';
+import '../../../allocations/data/models/allocation_model.dart';
+import '../../../allocations/presentation/controllers/allocation_controller.dart';
 import '../../../inventory_manager/presentation/models/barcode_scan_models.dart';
 import '../../../products/data/models/product_model.dart';
 import '../../../products/data/models/product_variant_model.dart';
@@ -29,7 +31,27 @@ class OrderProductsStepController extends GetxController {
 
   CartController get cartController => _cartController;
   ProductListController get productListController => _productListController;
-  List<ProductModel> get products => _productListController.products;
+
+  AllocationController? get _allocationController =>
+      Get.isRegistered<AllocationController>()
+          ? Get.find<AllocationController>()
+          : null;
+
+  bool get hasActiveAllocation =>
+      _allocationController?.hasActiveAllocation ?? false;
+
+  List<ProductModel> get products {
+    if (hasActiveAllocation) {
+      return _allocationController!.activeProducts;
+    }
+    return _productListController.products;
+  }
+
+  AllocationItemModel? allocationItemFor(int? productId, {int? variantId}) {
+    if (productId == null || !hasActiveAllocation) return null;
+    return _allocationController!
+        .getItemForProduct(productId, variantId: variantId);
+  }
 
   @override
   void onInit() {
@@ -38,10 +60,19 @@ class OrderProductsStepController extends GetxController {
       text: _productListController.searchQuery.value,
     );
     scrollController = ScrollController()..addListener(_handleScroll);
-    _productListController.ensureLoaded();
+    if (hasActiveAllocation) {
+      _allocationController!.refreshActiveAllocation();
+    } else {
+      _productListController.ensureLoaded();
+    }
   }
 
-  Future<void> ensureLoaded() => _productListController.ensureLoaded();
+  Future<void> ensureLoaded() {
+    if (hasActiveAllocation) {
+      return _allocationController!.refreshActiveAllocation();
+    }
+    return _productListController.ensureLoaded();
+  }
 
   void onSearchChanged(String value) {
     _productListController.onSearchChanged(value);
@@ -91,7 +122,14 @@ class OrderProductsStepController extends GetxController {
       return;
     }
 
-    _cartController.addProduct(product, variant: variant, quantity: quantity);
+    final allocItem = allocationItemFor(product.id, variantId: variant?.id);
+    _cartController.addProduct(
+      product,
+      variant: variant,
+      quantity: quantity,
+      allocationItemId: allocItem?.id,
+      allocationRemainingQty: allocItem?.remainingQuantity,
+    );
   }
 
   Future<void> openQuickAddSheet(BuildContext context, ProductModel product) {

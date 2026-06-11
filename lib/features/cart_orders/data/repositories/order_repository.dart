@@ -258,6 +258,7 @@ class OrderRepository {
       paymentAmount: request.paymentAmount,
       items: request.items,
       mobileRef: mobileRef,
+      allocationId: request.allocationId,
     );
 
     // 4. jsonEncode() this map.

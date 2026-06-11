@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../../../../core/routes/app_routes.dart';
 import '../../../../shared/widgets/app_message_state.dart';
+import '../../../allocations/presentation/controllers/allocation_controller.dart';
 import '../../../cart_orders/data/models/order_status.dart';
 import '../../../dashboard/data/models/dashboard_order_preview_model.dart';
 import '../../../dashboard/data/models/dashboard_range.dart';
@@ -76,6 +78,8 @@ class HomeDashboardPage extends GetView<HomeDashboardController> {
                 padding: const EdgeInsets.fromLTRB(16, 20, 16, 96),
                 children: [
                   _GlanceSection(controller: controller),
+                  const SizedBox(height: 20),
+                  _ActiveTripSection(),
                   const SizedBox(height: 20),
                   _TodaysPlanSection(
                     controller: controller,
@@ -991,6 +995,267 @@ class _DashboardLoadingState extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 12),
           child: Card(child: Container(height: 96)),
         ),
+      ),
+    );
+  }
+}
+
+// ─── Active Trip Section ──────────────────────────────────────────────────────
+
+class _ActiveTripSection extends StatelessWidget {
+  _ActiveTripSection();
+
+  final AllocationController _alloc = Get.find<AllocationController>();
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      if (_alloc.isLoading.value) {
+        return const Card(
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 12),
+                Text('Loading trips…'),
+              ],
+            ),
+          ),
+        );
+      }
+
+      if (!_alloc.hasActiveAllocation) {
+        return _NoTripCard();
+      }
+
+      return _ActiveTripCard(alloc: _alloc);
+    });
+  }
+}
+
+class _NoTripCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              alignment: Alignment.center,
+              child: Icon(
+                Icons.local_shipping_outlined,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'No active trip',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w800),
+                  ),
+                  Text(
+                    'Ask your admin to dispatch an allocation.',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: () =>
+                  Get.toNamed(AppRoutes.allocationList),
+              child: const Text('Refresh'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActiveTripCard extends StatelessWidget {
+  const _ActiveTripCard({required this.alloc});
+  final AllocationController alloc;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      clipBehavior: Clip.hardEdge,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(color: _kGreen, width: 4),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFDFF7EA),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.local_shipping_outlined,
+                      color: Color(0xFF166534),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Active Trip',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        Text(
+                          alloc.activeAllocationNo.value ?? '',
+                          style: theme.textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () =>
+                        Get.toNamed(AppRoutes.allocationList),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    child: const Text('Change'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _StockSummaryRow(items: alloc.activeAllocationItems),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => Get.toNamed(AppRoutes.endTrip),
+                  icon: const Icon(Icons.assignment_return_outlined, size: 18),
+                  label: const Text('End Trip & Return Stock'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StockSummaryRow extends StatelessWidget {
+  const _StockSummaryRow({required this.items});
+  final List items;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final total = items.length;
+    final withStock = items.where((i) => (i.remainingQuantity as double) > 0).length;
+    final totalRemaining = items.fold<double>(
+      0,
+      (sum, i) => sum + (i.remainingQuantity as double),
+    );
+
+    return Row(
+      children: [
+        _StatChip(
+          label: 'Products',
+          value: '$total',
+          theme: theme,
+        ),
+        const SizedBox(width: 8),
+        _StatChip(
+          label: 'With stock',
+          value: '$withStock',
+          theme: theme,
+        ),
+        const SizedBox(width: 8),
+        _StatChip(
+          label: 'Total units',
+          value: totalRemaining % 1 == 0
+              ? totalRemaining.toInt().toString()
+              : totalRemaining.toStringAsFixed(1),
+          theme: theme,
+        ),
+      ],
+    );
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  const _StatChip({
+    required this.label,
+    required this.value,
+    required this.theme,
+  });
+  final String label;
+  final String value;
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          Text(
+            label,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
       ),
     );
   }

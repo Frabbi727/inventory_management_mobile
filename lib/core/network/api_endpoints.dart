@@ -47,4 +47,8 @@ class ApiEndpoints {
       '$inventoryManagerBarcodeBase/products/$barcode';
   static String purchaseProductByBarcode(String barcode) =>
       '$inventoryManagerBarcodeBase/purchase-products/$barcode';
+
+  static const myAllocations = '${ApiConfig.apiPrefix}/my-allocations';
+  static String myAllocationDetails(int id) => '$myAllocations/$id';
+  static String myAllocationReturns(int id) => '$myAllocations/$id/returns';
 }

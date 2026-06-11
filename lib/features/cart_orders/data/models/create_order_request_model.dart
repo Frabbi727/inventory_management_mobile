@@ -8,6 +8,7 @@ part 'create_order_request_model.g.dart';
 class CreateOrderRequestModel {
   const CreateOrderRequestModel({
     this.customerId,
+    this.allocationId,
     this.orderDate,
     this.intendedDeliveryAt,
     this.note,
@@ -20,6 +21,9 @@ class CreateOrderRequestModel {
 
   @JsonKey(name: 'customer_id')
   final int? customerId;
+
+  @JsonKey(name: 'allocation_id')
+  final int? allocationId;
 
   @JsonKey(name: 'order_date')
   final String? orderDate;

@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import 'package:b2b_inventory_management/core/offline/sync_manager.dart';
 import '../../../../core/errors/api_exception.dart';
+import '../../../allocations/presentation/controllers/allocation_controller.dart';
 import '../../../customers/data/models/customer_model.dart';
 import '../../../products/data/models/product_model.dart';
 import '../../../products/data/models/product_variant_model.dart';
@@ -84,6 +85,8 @@ class CartController extends GetxController {
     ProductModel product, {
     ProductVariantModel? variant,
     int quantity = 1,
+    int? allocationItemId,
+    double? allocationRemainingQty,
   }) {
     final productId = product.id;
     if (productId == null) {
@@ -100,8 +103,10 @@ class CartController extends GetxController {
       return false;
     }
 
-    final currentStock = variant?.currentStock ?? product.currentStock;
-    if (currentStock != null && currentStock <= 0) {
+    final effectiveStock = allocationRemainingQty?.toInt() ??
+        variant?.currentStock ??
+        product.currentStock;
+    if (effectiveStock != null && effectiveStock <= 0) {
       errorMessage.value =
           '${variant?.combinationLabel ?? product.name ?? 'This product'} is currently unavailable.';
       return false;
@@ -110,7 +115,13 @@ class CartController extends GetxController {
     final existingIndex = _indexOfLine(productId, variant?.id);
     if (existingIndex == -1) {
       items.add(
-        CartItemModel(product: product, quantity: quantity, variant: variant),
+        CartItemModel(
+          product: product,
+          quantity: quantity,
+          variant: variant,
+          allocationItemId: allocationItemId,
+          allocationRemainingQty: allocationRemainingQty,
+        ),
       );
       _markDraftDirty();
       errorMessage.value = null;
@@ -701,17 +712,19 @@ class CartController extends GetxController {
 
     try {
       var orderId = savedDraftOrder.value?.id;
-      if (orderId == null || hasUnsavedDraftChanges.value) {
+      // Always save/update the draft before confirming — the backend's confirmDraft()
+      // reads payment_amount from the DB row, so we must ensure it's current first.
+      {
         final request = _buildDraftRequest();
         final draftResponse = orderId == null
             ? await _orderRepository.createOrder(request)
             : await _orderRepository.updateOrderDraft(orderId, request);
 
-        // OFFLINE-FIRST CHANGE: If data is null, the order was queued.
+        // OFFLINE-FIRST: If data is null, the order was queued.
         if (draftResponse.data == null && orderId == null) {
           infoMessage.value = 'Order queued and will sync automatically.';
           clearCart();
-          Get.back(); // Assuming this is in a modal or separate page
+          Get.back();
           return draftResponse;
         }
 
@@ -741,6 +754,9 @@ class CartController extends GetxController {
       }
 
       clearCart();
+      if (Get.isRegistered<AllocationController>()) {
+        Get.find<AllocationController>().refreshActiveAllocation();
+      }
       return response;
     } on ApiException catch (error) {
       errorMessage.value = _formatApiException(error);
@@ -996,8 +1012,13 @@ class CartController extends GetxController {
       savedDraftOrder.value != null && !hasUnsavedDraftChanges.value;
 
   CreateOrderRequestModel _buildDraftRequest() {
+    final allocationId = Get.isRegistered<AllocationController>()
+        ? Get.find<AllocationController>().activeAllocationId.value
+        : null;
+
     return CreateOrderRequestModel(
       customerId: selectedCustomer.value?.id,
+      allocationId: allocationId,
       orderDate: _formatDate(selectedOrderDate.value),
       intendedDeliveryAt: selectedIntendedDeliveryAt.value == null
           ? null
@@ -1013,6 +1034,7 @@ class CartController extends GetxController {
               productId: item.productId,
               productVariantId: item.productVariantId,
               quantity: item.quantity,
+              allocationItemId: item.allocationItemId,
             ),
           )
           .toList(),

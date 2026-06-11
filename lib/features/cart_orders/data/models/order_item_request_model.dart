@@ -8,6 +8,7 @@ class OrderItemRequestModel {
     this.productId,
     this.productVariantId,
     this.quantity,
+    this.allocationItemId,
   });
 
   @JsonKey(name: 'product_id')
@@ -17,6 +18,9 @@ class OrderItemRequestModel {
   final int? productVariantId;
 
   final int? quantity;
+
+  @JsonKey(name: 'allocation_item_id', includeIfNull: false)
+  final int? allocationItemId;
 
   factory OrderItemRequestModel.fromJson(Map<String, dynamic> json) =>
       _$OrderItemRequestModelFromJson(json);
