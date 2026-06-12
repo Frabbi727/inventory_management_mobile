@@ -876,7 +876,9 @@ class CartController extends GetxController {
               product: product,
               quantity: item.quantity ?? 1,
               variant: variant,
-              allocationRemainingQty: allocItem?.remainingQuantity,
+              allocationRemainingQty: allocItem != null
+                  ? allocItem.remainingQuantity + (item.quantity ?? 1).toDouble()
+                  : null,
             ),
           );
         } catch (_) {
