@@ -381,6 +381,23 @@ class OrderRepository {
         ? Get.find<SyncManager>().isOnline.value
         : true;
 
+    if (isOnline) {
+      // No mobile_ref for online orders — prevents the backend firing OfflineOrderSynced
+      // and sending a redundant "Offline Sync Complete" push notification.
+      final token = await _requireToken();
+      final response = await _apiClient.post(
+        ApiEndpoints.orders,
+        token: token,
+        body: request.toJson(),
+      );
+      final model = CreateOrderResponseModel.fromJson(response);
+      if (model.data != null) {
+        await _orderCacheRepository.saveOrder(model.data!);
+      }
+      return model;
+    }
+
+    // Offline: generate mobileRef here only — it's the idempotency key for queued actions.
     final mobileRef = _uuid.v4();
     final requestWithRef = CreateOrderRequestModel(
       customerId: request.customerId,
@@ -396,22 +413,6 @@ class OrderRepository {
       allocationId: request.allocationId,
       confirmOnCreate: request.confirmOnCreate,
     );
-
-    if (isOnline) {
-      final token = await _requireToken();
-      final response = await _apiClient.post(
-        ApiEndpoints.orders,
-        token: token,
-        body: requestWithRef.toJson(),
-      );
-      final model = CreateOrderResponseModel.fromJson(response);
-      if (model.data != null) {
-        await _orderCacheRepository.saveOrder(model.data!);
-      }
-      return model;
-    }
-
-    // Offline: queue to SQLite
     final payload = jsonEncode(requestWithRef.toJson());
     await _pendingActionsRepository.insertAction(PendingAction(
       endpoint: ApiEndpoints.orders,
