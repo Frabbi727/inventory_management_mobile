@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "889484288654",
-    "project_id": "b2b-inventory-management",
-    "storage_bucket": "b2b-inventory-management.firebasestorage.app"
+    "project_number": "315847367809",
+    "project_id": "sellup-c19c1",
+    "storage_bucket": "sellup-c19c1.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:889484288654:android:e7907b5e6bb9f93fe09fdf",
+        "mobilesdk_app_id": "1:315847367809:android:270f72852cd7d6ce094180",
         "android_client_info": {
-          "package_name": "com.example.b2b_inventory_management"
+          "package_name": "com.rofrafront.sellup.mobile.app"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCBPtmkcvkfYixiXd5-36RaqNjWIDMcMQ0"
+          "current_key": "AIzaSyAi4VZ4DNl4lXSmX6gbN018SE1sOaKNhpc"
         }
       ],
       "services": {

@@ -1,4 +1,4 @@
-package com.example.b2b_inventory_management
+package com.rofrafront.sellup.mobile.app
 
 import io.flutter.embedding.android.FlutterActivity
 

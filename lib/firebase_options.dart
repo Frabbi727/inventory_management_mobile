@@ -50,19 +50,18 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCBPtmkcvkfYixiXd5-36RaqNjWIDMcMQ0',
-    appId: '1:889484288654:android:e7907b5e6bb9f93fe09fdf',
-    messagingSenderId: '889484288654',
-    projectId: 'b2b-inventory-management',
-    storageBucket: 'b2b-inventory-management.firebasestorage.app',
+    apiKey: 'AIzaSyAi4VZ4DNl4lXSmX6gbN018SE1sOaKNhpc',
+    appId: '1:315847367809:android:270f72852cd7d6ce094180',
+    messagingSenderId: '315847367809',
+    projectId: 'sellup-c19c1',
+    storageBucket: 'sellup-c19c1.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCSygByHhayh5yt7XS-Wm0ud0PxiQ1mGdc',
-    appId: '1:889484288654:ios:20727d4fd7c5794ee09fdf',
-    messagingSenderId: '889484288654',
-    projectId: 'b2b-inventory-management',
-    storageBucket: 'b2b-inventory-management.firebasestorage.app',
+    apiKey: 'AIzaSyBErgnCJLyFAmA2S24xXwes8eRWbLZL2Hk',
+    appId: '1:315847367809:ios:2430ae78b5f10b48094180',
+    messagingSenderId: '315847367809',
+    projectId: 'sellup-c19c1',
+    storageBucket: 'sellup-c19c1.firebasestorage.app',
     iosBundleId: 'com.example.b2bInventoryManagement',
   );
 }
