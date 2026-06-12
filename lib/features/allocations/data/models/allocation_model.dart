@@ -116,6 +116,7 @@ class AllocationModel {
     required this.id,
     required this.allocationNo,
     required this.status,
+    this.displayStatus,
     this.note,
     this.dispatchedAt,
     this.closedAt,
@@ -125,6 +126,10 @@ class AllocationModel {
   final int id;
   final String allocationNo;
   final String status;
+
+  /// Server-computed display status. Null only when API hasn't been updated yet.
+  final String? displayStatus;
+
   final String? note;
   final String? dispatchedAt;
   final String? closedAt;
@@ -133,11 +138,20 @@ class AllocationModel {
   bool get isActive => status == 'active';
   bool get isClosed => status == 'closed';
 
+  /// True only for allocations the salesman can actively sell from.
+  /// Falls back to [isActive] when [displayStatus] is null (old API).
+  bool get isUsableForSelling {
+    final ds = displayStatus;
+    if (ds == null) return isActive;
+    return ds == 'new' || ds == 'active';
+  }
+
   factory AllocationModel.fromJson(Map<String, dynamic> json) {
     return AllocationModel(
       id: (json['id'] as num).toInt(),
       allocationNo: json['allocation_no'] as String? ?? '',
       status: json['status'] as String? ?? '',
+      displayStatus: json['display_status'] as String?,
       note: json['note'] as String?,
       dispatchedAt: json['dispatched_at'] as String?,
       closedAt: json['closed_at'] as String?,

@@ -377,11 +377,11 @@ class OrderRepository {
   Future<CreateOrderResponseModel> createOrder(
     CreateOrderRequestModel request,
   ) async {
-    // 1. Generate a random UUID string and assign it to a variable mobile_ref.
-    final mobileRef = _uuid.v4();
+    final isOnline = Get.isRegistered<SyncManager>()
+        ? Get.find<SyncManager>().isOnline.value
+        : true;
 
-    // 2. Construct the exact JSON map that the Laravel backend expects for an order.
-    // Crucial: Include the mobile_ref inside this payload map.
+    final mobileRef = _uuid.v4();
     final requestWithRef = CreateOrderRequestModel(
       customerId: request.customerId,
       customerMobileRef: request.customerMobileRef,
@@ -397,30 +397,33 @@ class OrderRepository {
       confirmOnCreate: request.confirmOnCreate,
     );
 
-    // 4. jsonEncode() this map.
-    final payload = jsonEncode(requestWithRef.toJson());
+    if (isOnline) {
+      final token = await _requireToken();
+      final response = await _apiClient.post(
+        ApiEndpoints.orders,
+        token: token,
+        body: requestWithRef.toJson(),
+      );
+      final model = CreateOrderResponseModel.fromJson(response);
+      if (model.data != null) {
+        await _orderCacheRepository.saveOrder(model.data!);
+      }
+      return model;
+    }
 
-    // 5. Insert a new row into the pending_actions SQLite table
-    final action = PendingAction(
+    // Offline: queue to SQLite
+    final payload = jsonEncode(requestWithRef.toJson());
+    await _pendingActionsRepository.insertAction(PendingAction(
       endpoint: ApiEndpoints.orders,
       method: 'POST',
       payload: payload,
       mobileRef: mobileRef,
       status: 'pending',
-    );
-
-    await _pendingActionsRepository.insertAction(action);
-
-    // Update pending count in SyncManager if registered
+    ));
     if (Get.isRegistered<SyncManager>()) {
       Get.find<SyncManager>().updatePendingCount();
     }
-
-    // 6. Navigate the user away and show a "Saved Offline!" success message.
-    // (Navigation is usually handled in the Controller, but we return the success message here)
-    return const CreateOrderResponseModel(
-      message: 'Saved Offline!',
-    );
+    return const CreateOrderResponseModel(message: 'Saved Offline!');
   }
 
   Future<CreateOrderResponseModel> updateOrderDraft(

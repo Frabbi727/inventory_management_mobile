@@ -22,6 +22,9 @@ class AllocationController extends GetxController {
   final activeAllocationId = Rxn<int>();
   final activeAllocationNo = RxnString();
   final activeAllocationItems = <AllocationItemModel>[].obs;
+  final viewAllocationId = Rxn<int>();
+  final viewAllocationNo = RxnString();
+  final viewAllocationItems = <AllocationItemModel>[].obs;
   final isLoading = false.obs;
   final isRefreshing = false.obs;
   final errorMessage = RxnString();
@@ -34,10 +37,14 @@ class AllocationController extends GetxController {
 
   bool get hasActiveAllocation => activeAllocationId.value != null;
 
-  List<ProductModel> get activeProducts => activeAllocationItems
-      .where((item) => !item.isFullyAccounted)
-      .map((item) => item.toProductModel())
-      .toList();
+  List<ProductModel> get activeProducts {
+    // Once any items have confirmed returns, this trip is over — block selling.
+    if (activeAllocationItems.any((i) => i.quantityReturned > 0)) return [];
+    return activeAllocationItems
+        .where((item) => !item.isFullyAccounted)
+        .map((item) => item.toProductModel())
+        .toList();
+  }
 
   AllocationItemModel? getItemForProduct(int productId, {int? variantId}) {
     return activeAllocationItems.firstWhereOrNull(
@@ -60,7 +67,9 @@ class AllocationController extends GetxController {
       allocations.assignAll(result);
 
       if (activeAllocationId.value == null && result.isNotEmpty) {
-        final active = result.firstWhereOrNull((a) => a.isActive);
+        final active = result.firstWhereOrNull(
+          (a) => a.isActive && a.isUsableForSelling,
+        );
         if (active != null) {
           await selectAllocation(active.id);
         }
@@ -96,6 +105,23 @@ class AllocationController extends GetxController {
       final items = detail.items ?? [];
       activeAllocationItems.assignAll(items);
       await _cacheRepository.saveItems(detail.id, items);
+    } on ApiException catch (e) {
+      errorMessage.value = e.message;
+    } catch (_) {
+      errorMessage.value = 'Failed to load allocation details.';
+    } finally {
+      isRefreshing.value = false;
+    }
+  }
+
+  Future<void> loadForViewing(int id) async {
+    isRefreshing.value = true;
+    errorMessage.value = null;
+    try {
+      final detail = await _repository.fetchAllocationDetails(id);
+      viewAllocationId.value = detail.id;
+      viewAllocationNo.value = detail.allocationNo;
+      viewAllocationItems.assignAll(detail.items ?? []);
     } on ApiException catch (e) {
       errorMessage.value = e.message;
     } catch (_) {

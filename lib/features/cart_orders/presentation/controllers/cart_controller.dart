@@ -836,6 +836,9 @@ class CartController extends GetxController {
     try {
       final draftOrder = await _loadOrderForEditing(orderId, fallback: order);
       final draftItems = <CartItemModel>[];
+      final allocationCtrl = Get.isRegistered<AllocationController>()
+          ? Get.find<AllocationController>()
+          : null;
 
       for (final item in draftOrder.items ?? const <OrderItemModel>[]) {
         final productId = item.productId;
@@ -863,11 +866,17 @@ class CartController extends GetxController {
                 );
           }
 
+          final allocItem = allocationCtrl?.getItemForProduct(
+            productId,
+            variantId: item.productVariantId,
+          );
+
           draftItems.add(
             CartItemModel(
               product: product,
               quantity: item.quantity ?? 1,
               variant: variant,
+              allocationRemainingQty: allocItem?.remainingQuantity,
             ),
           );
         } catch (_) {
