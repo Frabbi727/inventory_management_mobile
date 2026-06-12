@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 
 import '../../../../core/constants/controller_tags.dart';
@@ -17,7 +18,7 @@ import '../../data/repositories/auth_repository.dart';
 import '../../../allocations/data/repositories/allocation_cache_repository.dart';
 import '../../../allocations/presentation/controllers/allocation_controller.dart';
 
-class HomeController extends GetxController {
+class HomeController extends GetxController with WidgetsBindingObserver {
   HomeController({
     required AuthRepository authRepository,
     required TokenStorage tokenStorage,
@@ -45,7 +46,34 @@ class HomeController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    WidgetsBinding.instance.addObserver(this);
     _loadUser();
+  }
+
+  @override
+  void onClose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.onClose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      final online = syncManager?.isOnline.value ?? false;
+      if (online) {
+        _refreshAllData();
+      }
+    }
+  }
+
+  void _refreshAllData() {
+    _loadTabData(selectedIndex.value);
+    if (Get.isRegistered<AllocationController>()) {
+      unawaited(Get.find<AllocationController>().loadAllocations());
+    }
+    if (Get.isRegistered<HomeDashboardController>()) {
+      unawaited(Get.find<HomeDashboardController>().fetchDashboard(reset: true));
+    }
   }
 
   @override

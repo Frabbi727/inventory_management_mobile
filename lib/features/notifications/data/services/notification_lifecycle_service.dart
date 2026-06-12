@@ -11,6 +11,9 @@ import '../../../auth/data/services/device_token_provider.dart';
 import '../models/notification_tap_payload_model.dart';
 import 'notification_display_service.dart';
 import '../../presentation/controllers/notification_controller.dart';
+import '../../../allocations/presentation/controllers/allocation_controller.dart';
+import '../../../invoice/presentation/controllers/invoice_controller.dart';
+import '../../../dashboard/presentation/controllers/home_dashboard_controller.dart';
 
 class NotificationLifecycleService {
   NotificationLifecycleService({
@@ -46,9 +49,11 @@ class NotificationLifecycleService {
       _isInitialized = true;
       await _notificationDisplayService.initialize();
       _foregroundMessageSubscription = _deviceTokenProvider.onMessage.listen(
-        (message) => unawaited(
-          _notificationDisplayService.showForegroundNotification(message),
-        ),
+        (message) {
+          unawaited(_notificationDisplayService.showForegroundNotification(message));
+          final entityType = (message.data as Map<String, dynamic>?)?['entity_type'] as String?;
+          _refreshForEntityType(entityType);
+        },
       );
       _tokenRefreshSubscription = _deviceTokenProvider.onTokenRefresh.listen(
         (token) => unawaited(_handleTokenRefresh(token)),
@@ -122,6 +127,21 @@ class NotificationLifecycleService {
     }
   }
 
+  void _refreshForEntityType(String? entityType) {
+    if (Get.isRegistered<HomeDashboardController>()) {
+      unawaited(Get.find<HomeDashboardController>().fetchDashboard(reset: true));
+    }
+    if (entityType == 'salesman_allocation') {
+      if (Get.isRegistered<AllocationController>()) {
+        unawaited(Get.find<AllocationController>().loadAllocations());
+      }
+    } else if (entityType == 'order') {
+      if (Get.isRegistered<InvoiceController>()) {
+        unawaited(Get.find<InvoiceController>().fetchOrders(reset: true));
+      }
+    }
+  }
+
   Future<void> _handleTapPayload(NotificationTapPayloadModel payload) async {
     final notificationId = payload.notificationId;
     final entityType = payload.entityType;
@@ -131,6 +151,8 @@ class NotificationLifecycleService {
         Get.isRegistered<NotificationController>()) {
       unawaited(Get.find<NotificationController>().markAsReadById(notificationId));
     }
+
+    _refreshForEntityType(entityType);
 
     if (entityType == 'order' && entityId != null) {
       await Get.toNamed(AppRoutes.orderDetails, arguments: entityId);
