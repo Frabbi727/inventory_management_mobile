@@ -246,7 +246,7 @@ class _OrderOverviewCard extends StatelessWidget {
   }
 
   _StatusTone _statusTone(ColorScheme colorScheme, String status) {
-    switch (status.toLowerCase()) {
+    switch (status.toLowerCase().replaceAll(' ', '_')) {
       case 'confirmed':
         return const _StatusTone(
           backgroundColor: Color(0xFFDDF4E6),
@@ -260,6 +260,17 @@ class _OrderOverviewCard extends StatelessWidget {
       case 'cancelled':
         return const _StatusTone(
           backgroundColor: Color(0xFFFEE2E2),
+          foregroundColor: Color(0xFFB42318),
+        );
+      case 'pending_sync':
+      case 'syncing':
+        return _StatusTone(
+          backgroundColor: colorScheme.primaryContainer.withValues(alpha: 0.7),
+          foregroundColor: colorScheme.onPrimaryContainer,
+        );
+      case 'sync_failed':
+        return const _StatusTone(
+          backgroundColor: Color(0xFFFFF1F1),
           foregroundColor: Color(0xFFB42318),
         );
       default:

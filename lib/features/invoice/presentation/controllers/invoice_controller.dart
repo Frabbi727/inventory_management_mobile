@@ -75,6 +75,18 @@ class InvoiceController extends GetxController {
   void onInit() {
     super.onInit();
     scrollController.addListener(_onScroll);
+
+    // Refresh orders whenever sync completes so confirmed orders leave the Draft tab
+    if (Get.isRegistered<SyncManager>()) {
+      final syncManager = Get.find<SyncManager>();
+      ever(syncManager.lastSyncedAt, (_) {
+        if (_hasLoadedOnce) unawaited(fetchOrders(reset: true));
+      });
+      // Refresh while syncing so individual orders show "Syncing" badge in real-time
+      ever(syncManager.syncingMobileRef, (_) {
+        if (_hasLoadedOnce) unawaited(fetchOrders(reset: true));
+      });
+    }
   }
 
   Future<void> ensureLoaded({bool forceRefresh = false}) async {
@@ -368,6 +380,10 @@ class InvoiceController extends GetxController {
         return 'Not paid';
       case 'pending_sync':
         return 'Pending Sync';
+      case 'syncing':
+        return 'Syncing';
+      case 'sync_failed':
+        return 'Sync Failed';
       default:
         return '-';
     }
@@ -456,7 +472,14 @@ class InvoiceController extends GetxController {
       uniqueById[id] = order;
     }
 
-    return [...uniqueById.values, ...withoutId];
+    final serverOrders = uniqueById.values.toList()
+      ..sort((a, b) {
+        final dA = DateTime.tryParse(a.orderDate ?? a.createdAt ?? '') ?? DateTime(0);
+        final dB = DateTime.tryParse(b.orderDate ?? b.createdAt ?? '') ?? DateTime(0);
+        return dB.compareTo(dA);
+      });
+
+    return [...withoutId, ...serverOrders];
   }
 
   DateTime? _tryParseDate(String? value) {

@@ -77,6 +77,7 @@ void main() {
       pendingActionsRepository: FakePendingActionsRepository(),
       customerCacheRepository: FakeCustomerCacheRepository(),
       orderCacheRepository: FakeOrderCacheRepository(),
+      productCacheRepository: FakeProductCacheRepository(),
     );
 
     final response = await repository.createOrder(
@@ -145,6 +146,7 @@ void main() {
       pendingActionsRepository: FakePendingActionsRepository(),
       customerCacheRepository: FakeCustomerCacheRepository(),
       orderCacheRepository: FakeOrderCacheRepository(),
+      productCacheRepository: FakeProductCacheRepository(),
     );
 
     final response = await repository.fetchOrders(page: 2);
@@ -205,6 +207,7 @@ void main() {
       pendingActionsRepository: FakePendingActionsRepository(),
       customerCacheRepository: FakeCustomerCacheRepository(),
       orderCacheRepository: FakeOrderCacheRepository(),
+      productCacheRepository: FakeProductCacheRepository(),
     );
 
     await repository.fetchOrders(
@@ -263,6 +266,7 @@ void main() {
       pendingActionsRepository: FakePendingActionsRepository(),
       customerCacheRepository: FakeCustomerCacheRepository(),
       orderCacheRepository: FakeOrderCacheRepository(),
+      productCacheRepository: FakeProductCacheRepository(),
     );
 
     final response = await repository.fetchOrderDetails(6);
@@ -299,6 +303,7 @@ void main() {
       pendingActionsRepository: FakePendingActionsRepository(),
       customerCacheRepository: FakeCustomerCacheRepository(),
       orderCacheRepository: FakeOrderCacheRepository(),
+      productCacheRepository: FakeProductCacheRepository(),
     );
 
     final response = await repository.confirmOrder(9);

@@ -47,6 +47,19 @@ class _EndTripPageState extends State<EndTripPage> {
     for (final item in _controller.activeAllocationItems) {
       final text = _qtyControllers[item.id]?.text.trim() ?? '';
       final qty = double.tryParse(text) ?? 0;
+      if (qty < 0) {
+        _errorMessage.value =
+            '${item.productNameSnapshot}: quantity cannot be negative.';
+        return;
+      }
+      if (qty > item.remainingQuantity) {
+        final display = item.remainingQuantity % 1 == 0
+            ? item.remainingQuantity.toInt().toString()
+            : item.remainingQuantity.toString();
+        _errorMessage.value =
+            '${item.productNameSnapshot}: cannot return more than remaining ($display).';
+        return;
+      }
       if (qty > 0) {
         items.add({
           'allocation_item_id': item.id,

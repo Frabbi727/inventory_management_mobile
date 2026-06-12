@@ -168,6 +168,7 @@ void main() {
       pendingActionsRepository: FakePendingActionsRepository(),
       customerCacheRepository: FakeCustomerCacheRepository(),
       orderCacheRepository: FakeOrderCacheRepository(),
+      productCacheRepository: FakeProductCacheRepository(),
     );
   }
 

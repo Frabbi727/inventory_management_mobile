@@ -55,12 +55,12 @@ class PendingActionsRepository {
     );
   }
 
-  Future<bool> hasPendingUpdate(String endpoint) async {
+  Future<bool> hasPendingPutAction(String endpoint) async {
     final db = await _dbHelper.database;
     final result = await db.query(
       'pending_actions',
-      where: 'endpoint = ? AND status = ?',
-      whereArgs: [endpoint, 'pending'],
+      where: 'endpoint = ? AND method = ? AND status = ?',
+      whereArgs: [endpoint, 'PUT', 'pending'],
     );
     return result.isNotEmpty;
   }
@@ -81,6 +81,17 @@ class PendingActionsRepository {
       'pending_actions',
       where: "status = ? AND endpoint LIKE ? AND method = ?",
       whereArgs: ['pending', '%/orders', 'POST'],
+      orderBy: 'id ASC',
+    );
+    return maps.map(PendingAction.fromMap).toList();
+  }
+
+  Future<List<PendingAction>> getFailedOrderActions() async {
+    final db = await _dbHelper.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'pending_actions',
+      where: "status = ? AND endpoint LIKE ? AND method = ?",
+      whereArgs: ['failed', '%/orders', 'POST'],
       orderBy: 'id ASC',
     );
     return maps.map(PendingAction.fromMap).toList();

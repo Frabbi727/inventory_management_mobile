@@ -14,6 +14,8 @@ import '../../../invoice/presentation/models/order_list_status_filter.dart';
 import '../../../../core/offline/sync_manager.dart';
 import '../../data/models/user_model.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../../../allocations/data/repositories/allocation_cache_repository.dart';
+import '../../../allocations/presentation/controllers/allocation_controller.dart';
 
 class HomeController extends GetxController {
   HomeController({
@@ -148,6 +150,13 @@ class HomeController extends GetxController {
     } finally {
       await _tokenStorage.clearToken();
       await _userStorage.clearUser();
+      // Clear allocation state so next user does not inherit it
+      if (Get.isRegistered<AllocationController>()) {
+        Get.find<AllocationController>().clearActiveAllocation();
+      }
+      if (Get.isRegistered<AllocationCacheRepository>()) {
+        await Get.find<AllocationCacheRepository>().clear();
+      }
       isLoggingOut.value = false;
       Get.offAllNamed(AppRoutes.login);
     }

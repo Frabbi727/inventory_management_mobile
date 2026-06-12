@@ -72,6 +72,12 @@ class OrderDetailsController extends GetxController {
         return 'Partial';
       case 'not_paid':
         return 'Not paid';
+      case 'pending_sync':
+        return 'Pending Sync';
+      case 'syncing':
+        return 'Syncing';
+      case 'sync_failed':
+        return 'Sync Failed';
       default:
         return '-';
     }

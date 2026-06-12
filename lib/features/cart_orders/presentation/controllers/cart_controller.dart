@@ -220,6 +220,12 @@ class CartController extends GetxController {
       return false;
     }
 
+    if (currentStock != null && currentStock > 0 && quantity > currentStock) {
+      errorMessage.value =
+          'Only $currentStock unit(s) of ${currentItem.variantLabel ?? currentItem.product.name ?? 'this product'} available.';
+      return false;
+    }
+
     items[index] = currentItem.copyWith(quantity: quantity);
     items.refresh();
     _markDraftDirty();

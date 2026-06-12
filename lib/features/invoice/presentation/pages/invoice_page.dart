@@ -218,11 +218,14 @@ class InvoicePage extends GetView<InvoiceController> {
                                     paymentStatusLabel:
                                         controller.paymentStatusLabel,
                                     onTap: () => _openOrderDetails(order),
-                                    onEditDraft: order.status == 'draft'
+                                    onEditDraft: order.status == 'draft' && order.id != null
                                         ? () => _editDraft(order)
                                         : null,
-                                    onDeleteDraft: order.status == 'draft'
+                                    onDeleteDraft: order.status == 'draft' && order.id != null
                                         ? () => _deleteDraft(order)
+                                        : null,
+                                    onDismissFailed: order.paymentStatus == 'sync_failed'
+                                        ? () => _dismissFailed(order)
                                         : null,
                                   );
                                 },
@@ -689,10 +692,6 @@ class InvoicePage extends GetView<InvoiceController> {
   }
 
   void _openOrderDetails(OrderModel order) {
-    if (order.id == null) {
-      return;
-    }
-
     Get.toNamed(AppRoutes.orderDetails, arguments: order);
   }
 
@@ -708,6 +707,12 @@ class InvoicePage extends GetView<InvoiceController> {
     }
 
     await Get.toNamed(AppRoutes.newOrder);
+  }
+
+  Future<void> _dismissFailed(OrderModel order) async {
+    if (!Get.isRegistered<SyncManager>()) return;
+    await Get.find<SyncManager>().dismissFailedOrder(order.orderNo);
+    await controller.retry();
   }
 
   Future<void> _deleteDraft(OrderModel order) async {
@@ -1150,6 +1155,18 @@ _PaymentStatusChipColors _paymentStatusColors(
       border: colorScheme.primary.withValues(alpha: 0.3),
       muted: colorScheme.outlineVariant,
     ),
+    'syncing' => _PaymentStatusChipColors(
+      background: colorScheme.secondaryContainer.withValues(alpha: 0.7),
+      foreground: colorScheme.onSecondaryContainer,
+      border: colorScheme.secondary.withValues(alpha: 0.4),
+      muted: colorScheme.outlineVariant,
+    ),
+    'sync_failed' => _PaymentStatusChipColors(
+      background: Color.alphaBlend(Colors.red.withValues(alpha: 0.12), colorScheme.surface),
+      foreground: Colors.red.shade800,
+      border: Colors.red.shade400,
+      muted: Colors.red.withValues(alpha: 0.25),
+    ),
     _ => _PaymentStatusChipColors(
       background: colorScheme.surfaceContainerHighest.withValues(alpha: 0.7),
       foreground: colorScheme.onSurfaceVariant,
@@ -1242,6 +1259,7 @@ class _OrderCard extends StatelessWidget {
     required this.onTap,
     this.onEditDraft,
     this.onDeleteDraft,
+    this.onDismissFailed,
   });
 
   final OrderModel order;
@@ -1251,6 +1269,7 @@ class _OrderCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback? onEditDraft;
   final VoidCallback? onDeleteDraft;
+  final VoidCallback? onDismissFailed;
 
   @override
   Widget build(BuildContext context) {
@@ -1367,6 +1386,15 @@ class _OrderCard extends StatelessWidget {
                             icon: const Icon(Icons.delete_outline, size: 16),
                             label: const Text('Delete'),
                           ),
+                        if (onDismissFailed != null)
+                          TextButton.icon(
+                            onPressed: onDismissFailed,
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.red.shade700,
+                            ),
+                            icon: const Icon(Icons.close, size: 16),
+                            label: const Text('Dismiss'),
+                          ),
                       ],
                     ),
                   ),
@@ -1405,6 +1433,16 @@ class _OrderCard extends StatelessWidget {
         return _OrderStatusStyle(
           backgroundColor: colorScheme.primaryContainer.withValues(alpha: 0.7),
           foregroundColor: colorScheme.onPrimaryContainer,
+        );
+      case 'syncing':
+        return _OrderStatusStyle(
+          backgroundColor: colorScheme.secondaryContainer.withValues(alpha: 0.6),
+          foregroundColor: colorScheme.onSecondaryContainer,
+        );
+      case 'sync_failed':
+        return _OrderStatusStyle(
+          backgroundColor: const Color(0xFFFFF1F1),
+          foregroundColor: const Color(0xFFB42318),
         );
       case 'cancelled':
         return _OrderStatusStyle(
@@ -1491,6 +1529,9 @@ class _MetaBadge extends StatelessWidget {
   }
 }
 
+bool _isSyncStatus(String? s) =>
+    s == 'pending_sync' || s == 'syncing' || s == 'sync_failed';
+
 class _PaymentStatusBadge extends StatelessWidget {
   const _PaymentStatusBadge({
     required this.label,
@@ -1520,7 +1561,7 @@ class _PaymentStatusBadge extends StatelessWidget {
           Icon(Icons.payments_outlined, size: 16, color: colors.foreground),
           const SizedBox(width: 6),
           Text(
-            '$label • Due $dueAmount',
+            _isSyncStatus(status) ? label : '$label • Due $dueAmount',
             style: theme.textTheme.labelLarge?.copyWith(
               color: colors.foreground,
               fontWeight: FontWeight.w800,

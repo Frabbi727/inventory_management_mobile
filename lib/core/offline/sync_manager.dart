@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:get/get.dart';
+import '../errors/api_exception.dart';
 import '../network/api_client.dart';
 import '../network/api_endpoints.dart';
 import '../notifications/notification_service.dart';
@@ -32,8 +33,11 @@ class SyncManager extends GetxService {
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   
   final isSyncing = false.obs;
+  final isRefreshing = false.obs;
   final pendingActionsCount = 0.obs;
   final isOnline = true.obs;
+  final lastSyncedAt = Rxn<DateTime>();
+  final syncingMobileRef = RxnString();
 
   void init() {
     _connectivitySubscription = _connectivity.onConnectivityChanged.listen(_handleConnectivityChange);
@@ -78,6 +82,8 @@ class SyncManager extends GetxService {
   }
 
   Future<void> refreshCache() async {
+    if (isRefreshing.value) return;
+    isRefreshing.value = true;
     try {
       final token = await _tokenStorage.getToken();
       if (token == null || token.isEmpty) return;
@@ -108,8 +114,12 @@ class SyncManager extends GetxService {
           await allocationController.refreshActiveAllocation();
         }
       }
+
+      lastSyncedAt.value = DateTime.now();
     } catch (_) {
       // Fail silently or log
+    } finally {
+      isRefreshing.value = false;
     }
   }
 
@@ -131,12 +141,20 @@ class SyncManager extends GetxService {
       }
 
       for (final action in pendingActions) {
-        final success = await _processAction(action, token);
-        if (success) {
+        syncingMobileRef.value = action.mobileRef;
+        final result = await _processAction(action, token);
+        syncingMobileRef.value = null;
+
+        if (result == true) {
+          // Success — remove from queue
           await _pendingActionsRepository.deleteAction(action.id!);
           await updatePendingCount();
+        } else if (result == null) {
+          // Permanent 4xx — mark as failed so it surfaces in the UI for dismissal
+          await _pendingActionsRepository.updateActionStatus(action.id!, 'failed');
+          await updatePendingCount();
         } else {
-          // If connection drops or 5xx, stop and retry later
+          // Transient error (5xx / network) — keep and retry later
           break;
         }
       }
@@ -148,6 +166,11 @@ class SyncManager extends GetxService {
       if (remainingCount == 0 && pendingActions.isNotEmpty) {
         _notificationService.showSyncCompleteNotification(pendingActions.length);
       }
+
+      // Signal listeners (e.g. InvoiceController) that the queue state changed
+      if (pendingActions.isNotEmpty) {
+        lastSyncedAt.value = DateTime.now();
+      }
     } catch (_) {
       // Fail silently
     } finally {
@@ -155,7 +178,9 @@ class SyncManager extends GetxService {
     }
   }
 
-  Future<bool> _processAction(PendingAction action, String token) async {
+  /// Returns true on success, null on permanent error (4xx — skip & delete),
+  /// false on transient error (5xx / network — keep & retry later).
+  Future<bool?> _processAction(PendingAction action, String token) async {
     try {
       final payload = jsonDecode(action.payload) as Map<String, dynamic>;
       dynamic response;
@@ -171,7 +196,7 @@ class SyncManager extends GetxService {
           response = await _apiClient.delete(action.endpoint, token: token);
           break;
         default:
-          return false;
+          return null; // Unknown method — treat as permanent, skip it
       }
 
       // After a customer POST: patch any pending order actions referencing this customer_mobile_ref.
@@ -203,8 +228,27 @@ class SyncManager extends GetxService {
 
       return true;
     } catch (e) {
-      // Failed to process action
+      if (e is ApiException) {
+        final code = e.statusCode ?? 0;
+        // 4xx errors (except 401) are permanent — the payload will never succeed.
+        // Remove from queue so it doesn't block subsequent actions.
+        // 401 is treated as transient: the user may re-authenticate and retry.
+        if (code != 401 && code >= 400 && code < 500) return null;
+      }
       return false;
+    }
+  }
+
+  Future<void> dismissFailedOrder(String? orderNo) async {
+    if (orderNo == null) return;
+    final failedActions = await _pendingActionsRepository.getFailedOrderActions();
+    for (final action in failedActions) {
+      final prefix = action.mobileRef.substring(0, 5).toUpperCase();
+      if (orderNo.contains(prefix)) {
+        await _pendingActionsRepository.deleteAction(action.id!);
+        await updatePendingCount();
+        break;
+      }
     }
   }
 

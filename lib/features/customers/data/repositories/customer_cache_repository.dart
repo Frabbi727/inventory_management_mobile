@@ -95,6 +95,26 @@ class CustomerCacheRepository {
     );
   }
 
+  Future<CustomerModel?> getCustomerByMobileRef(String mobileRef) async {
+    final db = await _dbHelper.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'cached_customers',
+      where: 'local_mobile_ref = ?',
+      whereArgs: [mobileRef],
+    );
+
+    if (maps.isEmpty) return null;
+
+    return CustomerModel(
+      id: maps[0]['id'] as int?,
+      name: maps[0]['name'] as String?,
+      phone: maps[0]['phone'] as String?,
+      address: maps[0]['address'] as String?,
+      area: maps[0]['area'] as String?,
+      localMobileRef: maps[0]['local_mobile_ref'] as String?,
+    );
+  }
+
   /// Replaces the temp-negative-ID row (identified by local_mobile_ref) with the real server ID.
   Future<void> updateCustomerWithRealId(String mobileRef, int realId) async {
     final db = await _dbHelper.database;

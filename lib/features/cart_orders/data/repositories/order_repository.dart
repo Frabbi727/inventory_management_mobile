@@ -9,12 +9,15 @@ import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/offline/models/pending_action_model.dart';
 import '../../../../core/offline/repositories/pending_actions_repository.dart';
 import '../../../../core/storage/token_storage.dart';
+import '../../../auth/presentation/controllers/home_controller.dart';
 import '../../../customers/data/repositories/customer_cache_repository.dart';
+import '../../../products/data/repositories/product_cache_repository.dart';
 import 'package:b2b_inventory_management/core/models/pagination_links_model.dart';
 import 'package:b2b_inventory_management/core/models/pagination_meta_model.dart';
 import '../models/order_customer_model.dart';
 import '../models/order_item_model.dart';
 import '../models/order_model.dart';
+import '../models/order_salesman_model.dart';
 import '../models/order_list_response_model.dart';
 import '../models/create_order_request_model.dart';
 import '../models/create_order_response_model.dart';
@@ -28,17 +31,20 @@ class OrderRepository {
     required PendingActionsRepository pendingActionsRepository,
     required CustomerCacheRepository customerCacheRepository,
     required OrderCacheRepository orderCacheRepository,
+    required ProductCacheRepository productCacheRepository,
   })  : _apiClient = apiClient,
         _tokenStorage = tokenStorage,
         _pendingActionsRepository = pendingActionsRepository,
         _customerCacheRepository = customerCacheRepository,
-        _orderCacheRepository = orderCacheRepository;
+        _orderCacheRepository = orderCacheRepository,
+        _productCacheRepository = productCacheRepository;
 
   final ApiClient _apiClient;
   final TokenStorage _tokenStorage;
   final PendingActionsRepository _pendingActionsRepository;
   final CustomerCacheRepository _customerCacheRepository;
   final OrderCacheRepository _orderCacheRepository;
+  final ProductCacheRepository _productCacheRepository;
   final Uuid _uuid = const Uuid();
 
   Future<String> _requireToken() async {
@@ -136,7 +142,7 @@ class OrderRepository {
     for (var i = 0; i < cachedOrders.length; i++) {
       final orderId = cachedOrders[i].id;
       if (orderId != null) {
-        final hasUpdate = await _pendingActionsRepository.hasPendingUpdate(
+        final hasUpdate = await _pendingActionsRepository.hasPendingPutAction(
           ApiEndpoints.orderDetails(orderId),
         );
         if (hasUpdate) {
@@ -159,15 +165,79 @@ class OrderRepository {
   }
 
   List<OrderModel> _deduplicateOrders(List<OrderModel> orders) {
-    final Map<dynamic, OrderModel> uniqueMap = {};
+    final uniqueMap = <dynamic, OrderModel>{};
+    final withoutId = <OrderModel>[];
+
     for (final order in orders) {
-      // Use ID if available, otherwise orderNo (for pending items)
-      final key = order.id ?? order.orderNo; 
+      if (order.id == null) {
+        if (!withoutId.any((o) => o.orderNo == order.orderNo)) {
+          withoutId.add(order);
+        }
+        continue;
+      }
+      final key = order.id;
       if (!uniqueMap.containsKey(key)) {
         uniqueMap[key] = order;
       }
     }
-    return uniqueMap.values.toList();
+
+    final serverOrders = uniqueMap.values.toList()
+      ..sort((a, b) {
+        final dA = DateTime.tryParse(a.orderDate ?? a.createdAt ?? '') ?? DateTime(0);
+        final dB = DateTime.tryParse(b.orderDate ?? b.createdAt ?? '') ?? DateTime(0);
+        return dB.compareTo(dA);
+      });
+
+    return [...withoutId, ...serverOrders];
+  }
+
+  Future<OrderCustomerModel?> _resolveCustomer(CreateOrderRequestModel request) async {
+    if (request.customerId != null) {
+      final cached = await _customerCacheRepository.getCustomerById(request.customerId!);
+      if (cached != null) {
+        return OrderCustomerModel(id: cached.id, name: cached.name, phone: cached.phone);
+      }
+    } else if (request.customerMobileRef != null) {
+      final cached = await _customerCacheRepository.getCustomerByMobileRef(request.customerMobileRef!);
+      if (cached != null) {
+        return OrderCustomerModel(id: cached.id, name: cached.name, phone: cached.phone);
+      }
+    }
+    return null;
+  }
+
+  Future<List<OrderItemModel>> _resolveItems(CreateOrderRequestModel request) async {
+    final items = <OrderItemModel>[];
+    for (final ri in request.items ?? []) {
+      String? productName;
+      num? unitPrice;
+      if (ri.productId != null) {
+        final cached = await _productCacheRepository.getProductById(ri.productId!);
+        productName = cached?.name;
+        unitPrice = cached?.sellingPrice;
+      }
+      final lineTotal = unitPrice != null && ri.quantity != null
+          ? unitPrice * ri.quantity!
+          : null;
+      items.add(OrderItemModel(
+        productId: ri.productId,
+        productVariantId: ri.productVariantId,
+        productName: productName,
+        quantity: ri.quantity,
+        unitPrice: unitPrice,
+        lineTotal: lineTotal,
+      ));
+    }
+    return items;
+  }
+
+  num _computeDiscountAmount(num subtotal, String? discountType, num? discountValue) {
+    if (discountValue == null || discountValue <= 0) return 0;
+    if (discountType == 'percentage' || discountType == 'percent') {
+      final pct = discountValue.clamp(0, 100);
+      return subtotal * (pct / 100);
+    }
+    return discountValue > subtotal ? subtotal : discountValue;
   }
 
   Future<List<OrderModel>> _getPendingLocalOrders() async {
@@ -175,38 +245,102 @@ class OrderRepository {
       final pendingActions = await _pendingActionsRepository.getPendingActions();
       final localOrders = <OrderModel>[];
 
+      final syncingRef = Get.isRegistered<SyncManager>()
+          ? Get.find<SyncManager>().syncingMobileRef.value
+          : null;
+
       for (final action in pendingActions) {
         if (action.method == 'POST' && action.endpoint == ApiEndpoints.orders) {
           try {
             final payload = jsonDecode(action.payload);
             final request = CreateOrderRequestModel.fromJson(payload);
-            
-            OrderCustomerModel? customer;
-            if (request.customerId != null) {
-              final cachedCustomer = await _customerCacheRepository.getCustomerById(request.customerId!);
-              if (cachedCustomer != null) {
-                customer = OrderCustomerModel(
-                  id: cachedCustomer.id,
-                  name: cachedCustomer.name,
-                  phone: cachedCustomer.phone,
-                );
+
+            final customer = await _resolveCustomer(request);
+            final items = await _resolveItems(request);
+
+            final effectiveStatus = (syncingRef != null && syncingRef == action.mobileRef)
+                ? 'syncing'
+                : 'pending_sync';
+
+            final subtotal = items.fold<num>(0, (sum, item) => sum + (item.lineTotal ?? 0));
+            final discountAmount = _computeDiscountAmount(subtotal, request.discountType, request.discountValue);
+            final grandTotal = (subtotal - discountAmount).clamp(0, double.infinity).toDouble();
+            final dueAmount = (grandTotal - (request.paymentAmount ?? 0)).clamp(0, double.infinity).toDouble();
+
+            OrderSalesmanModel? salesman;
+            if (Get.isRegistered<HomeController>()) {
+              final user = Get.find<HomeController>().user.value;
+              if (user != null) {
+                salesman = OrderSalesmanModel(id: user.id, name: user.name);
               }
             }
 
             localOrders.add(OrderModel(
-              id: null, // Indicates it's local
+              id: null,
               orderNo: 'PENDING-${action.mobileRef.substring(0, 5).toUpperCase()}',
               orderDate: request.orderDate,
               intendedDeliveryAt: request.intendedDeliveryAt,
-              grandTotal: request.paymentAmount,
+              subtotal: subtotal,
+              discountType: request.discountType,
+              discountValue: request.discountValue,
+              discountAmount: discountAmount,
+              grandTotal: grandTotal,
               paymentAmount: request.paymentAmount,
-              paymentStatus: 'pending_sync',
+              dueAmount: dueAmount,
+              paymentStatus: effectiveStatus,
               status: 'draft',
               customer: customer,
               note: request.note,
+              items: items,
+              salesman: salesman,
             ));
           } catch (_) {}
         }
+      }
+
+      // Also surface permanently-failed orders
+      final failedActions = await _pendingActionsRepository.getFailedOrderActions();
+      for (final action in failedActions) {
+        try {
+          final payload = jsonDecode(action.payload);
+          final request = CreateOrderRequestModel.fromJson(payload);
+
+          final customer = await _resolveCustomer(request);
+          final items = await _resolveItems(request);
+
+          final failedSubtotal = items.fold<num>(0, (sum, item) => sum + (item.lineTotal ?? 0));
+          final failedDiscountAmount = _computeDiscountAmount(failedSubtotal, request.discountType, request.discountValue);
+          final failedGrandTotal = (failedSubtotal - failedDiscountAmount).clamp(0, double.infinity).toDouble();
+          final failedDueAmount = (failedGrandTotal - (request.paymentAmount ?? 0)).clamp(0, double.infinity).toDouble();
+
+          OrderSalesmanModel? failedSalesman;
+          if (Get.isRegistered<HomeController>()) {
+            final user = Get.find<HomeController>().user.value;
+            if (user != null) {
+              failedSalesman = OrderSalesmanModel(id: user.id, name: user.name);
+            }
+          }
+
+          localOrders.add(OrderModel(
+            id: null,
+            orderNo: 'FAILED-${action.mobileRef.substring(0, 5).toUpperCase()}',
+            orderDate: request.orderDate,
+            intendedDeliveryAt: request.intendedDeliveryAt,
+            subtotal: failedSubtotal,
+            discountType: request.discountType,
+            discountValue: request.discountValue,
+            discountAmount: failedDiscountAmount,
+            grandTotal: failedGrandTotal,
+            paymentAmount: request.paymentAmount,
+            dueAmount: failedDueAmount,
+            paymentStatus: 'sync_failed',
+            status: 'draft',
+            customer: customer,
+            note: request.note,
+            items: items,
+            salesman: failedSalesman,
+          ));
+        } catch (_) {}
       }
 
       return localOrders;
@@ -250,6 +384,7 @@ class OrderRepository {
     // Crucial: Include the mobile_ref inside this payload map.
     final requestWithRef = CreateOrderRequestModel(
       customerId: request.customerId,
+      customerMobileRef: request.customerMobileRef,
       orderDate: request.orderDate,
       intendedDeliveryAt: request.intendedDeliveryAt,
       note: request.note,
@@ -259,6 +394,7 @@ class OrderRepository {
       items: request.items,
       mobileRef: mobileRef,
       allocationId: request.allocationId,
+      confirmOnCreate: request.confirmOnCreate,
     );
 
     // 4. jsonEncode() this map.
