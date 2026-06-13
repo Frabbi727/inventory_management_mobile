@@ -1170,20 +1170,21 @@ class _ActiveTripCard extends StatelessWidget {
               const SizedBox(height: 12),
               _StockSummaryRow(items: alloc.activeAllocationItems),
               const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => Get.toNamed(AppRoutes.endTrip),
-                  icon: const Icon(Icons.assignment_return_outlined, size: 18),
-                  label: const Text('End Trip & Return Stock'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+              if (alloc.activeAllocationItems.any((i) => !i.isFullyAccounted))
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Get.toNamed(AppRoutes.endTrip),
+                    icon: const Icon(Icons.assignment_return_outlined, size: 18),
+                    label: const Text('End Trip & Return Stock'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
