@@ -507,7 +507,16 @@ class OrderProductsStepController extends GetxController {
                                 const SizedBox(height: 12),
                             itemBuilder: (context, index) {
                               final variant = variants[index];
-                              final availableStock = variant.currentStock ?? 0;
+                              final allocItem = hasActiveAllocation
+                                  ? allocationItemFor(
+                                      resolvedProduct.id,
+                                      variantId: variant.id,
+                                    )
+                                  : null;
+                              final availableStock =
+                                  allocItem?.remainingQuantity.toInt() ??
+                                  variant.currentStock ??
+                                  0;
                               final isUnavailable = availableStock <= 0;
                               final quantity = _cartController.quantityForLine(
                                 resolvedProduct.id,
